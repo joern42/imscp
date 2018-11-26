@@ -49,7 +49,7 @@ class PHPini
     protected $iniOptions = [];
 
     /**
-     * @var bool Tells whether or not INI options are set with default values
+     * @var bool Tells whether or not INI options are set with defaults
      */
     protected $isDefaultIniOptions = true;
 
@@ -75,7 +75,7 @@ class PHPini
     static public function getInstance()
     {
         if (NULL === static::$instance) {
-            static::$instance = new static();
+            static::$instance = new self();
         }
 
         return static::$instance;
@@ -103,33 +103,29 @@ class PHPini
     public function setResellerPermission(string $permission, $value)
     {
         switch ($permission) {
-            case 'phpiniSystem':
-            case 'phpiniAllowUrlFopen':
-            case 'phpiniDisplayErrors':
-            case 'phpiniMailFunction':
-            case 'phpiniDisableFunctions':
+            case 'php_ini':
+            case 'php_ini_allow_url_fopen':
+            case 'php_ini_display_errors':
+            case 'php_ini_mail_function':
+            case 'php_ini_disable_functions':
                 if ($this->validatePermission($permission, $value)) {
                     $this->resellerPermissions[$permission] = $value;
                 }
                 break;
-            case 'phpiniMemoryLimit':
-            case 'phpiniMaxInputTime':
-            case 'phpiniMaxExecutionTime':
+            case 'php_ini_memory_limit':
+            case 'php_ini_max_input_time':
+            case 'php_ini_max_execution_time':
+            case 'php_ini_post_max_size':
                 if (isNumber($value) && $value >= 1 && $value <= 10000) {
                     $this->resellerPermissions[$permission] = $value;
                 }
                 break;
-            case 'phpiniPostMaxSize':
-                if (isNumber($value) && $value >= 1 && $value <= 10000) {
+            case 'php_ini_upload_max_file_size':
+                if (isNumber($value) && $value <= $this->resellerPermissions['php_ini_post_max_size'] && $value >= 1 && $value <= 10000) {
                     $this->resellerPermissions[$permission] = $value;
                 }
                 break;
-            case 'phpiniUploadMaxFileSize':
-                if (isNumber($value) && $value <= $this->resellerPermissions['phpiniPostMaxSize'] && $value >= 1 && $value <= 10000) {
-                    $this->resellerPermissions[$permission] = $value;
-                }
-                break;
-            case 'phpiniConfigLevel':
+            case 'php_ini_config_level':
                 if ($this->validatePermission($permission, $value) && $value != $this->resellerPermissions[$permission]) {
                     $this->resellerPermissions[$permission] = $value;
                 }
@@ -140,7 +136,7 @@ class PHPini
     }
 
     /**
-     * Validate the give permission
+     * Validate the given permission
      *
      * @param string $permission Permission name
      * @param string $value Permission value
@@ -150,14 +146,14 @@ class PHPini
     protected function validatePermission($permission, $value)
     {
         switch ($permission) {
-            case 'phpiniSystem':
-            case 'phpiniAllowUrlFopen':
-            case 'phpiniDisplayErrors':
-            case 'phpiniMailFunction':
-                return in_array($value, ['yes', 'no'], true);
-            case 'phpiniDisableFunctions':
+            case 'php_ini':
+            case 'php_ini_allow_url_fopen':
+            case 'php_ini_display_errors':
+            case 'php_ini_mail_function':
+                return in_array($value, [0, 1]);
+            case 'php_ini_disable_functions':
                 return in_array($value, ['yes', 'no', 'exec'], true);
-            case 'phpiniConfigLevel':
+            case 'php_ini_config_level':
                 return in_array($value, ['per_domain', 'per_site', 'per_user'], true);
             default:
                 throw new \InvalidArgumentException(sprintf('Unknown PHP permission: %s', $permission));
@@ -173,29 +169,38 @@ class PHPini
     public function saveResellerPermissions($resellerId)
     {
         if (empty($this->resellerPermissions)) {
-            throw new \LogicException("You must first load and set new reseller permissions");
+            throw new \LogicException('You must first load and set the new reseller PHP permissions');
         }
 
         execQuery(
             '
                 UPDATE reseller_props
-                SET php_ini_system = ?, php_ini_al_config_level = ?, php_ini_al_disable_functions = ?, php_ini_al_mail_function = ?,
-                    php_ini_al_allow_url_fopen = ?, php_ini_al_display_errors = ?, php_ini_max_post_max_size = ?, php_ini_max_upload_max_filesize = ?,
-                    php_ini_max_max_execution_time = ?, php_ini_max_max_input_time = ?, php_ini_max_memory_limit = ?
+                SET
+                    php_ini = ?,
+                    php_ini_config_level = ?,
+                    php_ini_disable_functions = ?,
+                    php_ini_mail_function = ?,
+                    php_ini_allow_url_fopen = ?,
+                    php_ini_display_errors = ?,
+                    php_ini_post_max_size = ?,
+                    php_ini_upload_max_filesize = ?,
+                    php_ini_max_execution_time = ?,
+                    php_ini_max_input_time = ?,
+                    php_ini_memory_limit = ?
                 WHERE reseller_id = ?
             ',
             [
-                $this->resellerPermissions['phpiniSystem'],
-                $this->resellerPermissions['phpiniConfigLevel'],
-                $this->resellerPermissions['phpiniDisableFunctions'],
-                $this->resellerPermissions['phpiniMailFunction'],
-                $this->resellerPermissions['phpiniAllowUrlFopen'],
-                $this->resellerPermissions['phpiniDisplayErrors'],
-                $this->resellerPermissions['phpiniPostMaxSize'],
-                $this->resellerPermissions['phpiniUploadMaxFileSize'],
-                $this->resellerPermissions['phpiniMaxExecutionTime'],
-                $this->resellerPermissions['phpiniMaxInputTime'],
-                $this->resellerPermissions['phpiniMemoryLimit'],
+                $this->resellerPermissions['php_ini'],
+                $this->resellerPermissions['php_ini_config_level'],
+                $this->resellerPermissions['php_ini_disable_functions'],
+                $this->resellerPermissions['php_ini_mail_function'],
+                $this->resellerPermissions['php_ini_allow_url_fopen'],
+                $this->resellerPermissions['php_ini_display_errors'],
+                $this->resellerPermissions['php_ini_post_max_size'],
+                $this->resellerPermissions['php_ini_upload_max_filesize'],
+                $this->resellerPermissions['php_ini_max_execution_time'],
+                $this->resellerPermissions['php_ini_max_input_time'],
+                $this->resellerPermissions['php_ini_memory_limit'],
                 $resellerId
             ]
         );
@@ -213,11 +218,11 @@ class PHPini
     public function setClientPermission($permission, $value)
     {
         if (empty($this->resellerPermissions)) {
-            throw new \LogicException("You must first load reseller permissions");
+            throw new \LogicException('You must first load the reseller PHP permissions');
         }
 
         if (!$this->validatePermission($permission, $value) || !$this->resellerHasPermission($permission)
-            || ($permission == 'phpiniConfigLevel' && $this->getResellerPermission('phpiniConfigLevel') == 'per_domain'
+            || ($permission == 'php_ini_config_level' && $this->getResellerPermission('php_ini_config_level') == 'per_domain'
                 && !in_array($value, ['per_domain', 'per_user'], true)
             )
         ) {
@@ -226,34 +231,34 @@ class PHPini
 
         $this->clientPermissions[$permission] = $value;
 
-        if ($permission == 'phpiniAllowUrlFopen' && $value != 'yes') {
-            $this->iniOptions['phpiniAllowUrlFopen'] = 'off';
+        if ($permission == 'php_ini_allow_url_fopen' && !$value) {
+            $this->iniOptions['php_ini_allow_url_fopen'] = 0;
         }
 
-        if ($permission == 'phpiniDisplayErrors' && $value !== 'yes') {
-            $this->iniOptions['phpiniDisplayErrors'] = 'off';
+        if ($permission == 'php_ini_display_error' && !$value) {
+            $this->iniOptions['php_ini_display_error'] = 0;
         }
 
-        if ($permission == 'phpiniDisableFunctions' && $value != 'yes') {
+        if ($permission == 'php_ini_disable_functions' && !$value) {
             if ($value == 'no') {
-                $this->iniOptions['phpiniDisableFunctions'] = 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
-            } elseif (in_array('exec', explode(',', $this->iniOptions['phpiniDisableFunctions'], true))) {
-                $this->iniOptions['phpiniDisableFunctions'] = 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
+                $this->iniOptions['php_ini_disable_functions'] = 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
+            } elseif (in_array('exec', explode(',', $this->iniOptions['php_ini_disable_functions'], true))) {
+                $this->iniOptions['php_ini_disable_functions'] = 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
             } else {
-                $this->iniOptions['phpiniDisableFunctions'] = 'passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
+                $this->iniOptions['php_ini_disable_functions'] = 'passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
             }
 
-            if (!$this->clientHasPermission('phpiniMailFunction')) {
-                $this->iniOptions['phpiniDisableFunctions'] .= ',mail';
+            if (!$this->clientHasPermission('php_ini_mail_function')) {
+                $this->iniOptions['php_ini_disable_functions'] .= ',mail';
             }
         }
 
-        if ($permission == 'phpiniMailFunction' && $value == 'no') {
-            $disabledFunctions = explode(',', $this->getIniOption('phpiniDisableFunctions'));
+        if ($permission == 'php_ini_mail_function' && !$value) {
+            $disabledFunctions = explode(',', $this->getIniOption('php_ini_mail_function'));
 
-            if (!in_array('mail', $disabledFunctions, true)) {
+            if (!in_array('mail', $disabledFunctions)) {
                 $disabledFunctions[] = 'mail';
-                $this->iniOptions['phpiniDisableFunctions'] = $this->assembleDisableFunctions($disabledFunctions);
+                $this->iniOptions['php_ini_disable_functions'] = $this->assembleDisableFunctions($disabledFunctions);
             }
         }
     }
@@ -267,21 +272,21 @@ class PHPini
     public function resellerHasPermission($permission)
     {
         if (empty($this->resellerPermissions)) {
-            throw new \LogicException("You must first load reseller permissions");
+            throw new \LogicException('You must first load the reseller PHP permissions');
         }
 
-        if ($this->resellerPermissions['phpiniSystem'] !== 'yes') {
+        if (!$this->resellerPermissions['php_ini']) {
             return false;
         }
 
         switch ($permission) {
-            case 'phpiniSystem':
-            case 'phpiniAllowUrlFopen':
-            case 'phpiniDisplayErrors':
-            case 'phpiniDisableFunctions':
-            case 'phpiniMailFunction':
-                return $this->resellerPermissions[$permission] === 'yes';
-            case 'phpiniConfigLevel':
+            case 'php_ini':
+            case 'php_ini_allow_url_fopen':
+            case 'php_ini_display_errors':
+            case 'php_ini_disable_functions':
+            case 'php_ini_mail_functions':
+                return $this->resellerPermissions[$permission] == '1';
+            case 'php_ini_config_level':
                 return in_array($this->resellerPermissions[$permission], ['per_site', 'per_domain']);
             default;
                 throw new \InvalidArgumentException(sprintf('Unknown reseller PHP permission: %s', $permission));
@@ -297,7 +302,7 @@ class PHPini
     public function getResellerPermission($permission = NULL)
     {
         if (empty($this->resellerPermissions)) {
-            throw new \LogicException("You must first load reseller permissions");
+            throw new \LogicException('You must first load the reseller PHP permissions');
         }
 
         if (NULL === $permission) {
@@ -314,8 +319,8 @@ class PHPini
     /**
      * Does the client as the given PHP permission?
      *
-     * In case of the phpiniDisableFunctions, true is returned as long as the
-     * client has either 'exec' or 'full' permission.
+     * In case of the php_ini_disable_functions, true is returned as long as
+     * the client has either 'exec' or 'full' permission.
      *
      * @param string $permission Permission
      * @return bool TRUE if $key is a known and client has permission on it
@@ -323,23 +328,23 @@ class PHPini
     public function clientHasPermission($permission)
     {
         if (empty($this->resellerPermissions)) {
-            throw new \LogicException("You must first load reseller permissions");
+            throw new \LogicException('You must first load the reseller PHP permissions');
         }
 
-        if ($this->resellerPermissions['phpiniSystem'] != 'yes') {
+        if ($this->resellerPermissions['php_ini'] != 'yes') {
             return false;
         }
 
         switch ($permission) {
-            case 'phpiniSystem':
-            case 'phpiniAllowUrlFopen':
-            case 'phpiniDisplayErrors':
-            case 'phpiniMailFunction':
-                return $this->clientPermissions[$permission] == 'yes';
-            case 'phpiniDisableFunctions':
+            case 'php_ini':
+            case 'php_ini_allow_url_fopen':
+            case 'php_ini_display_errors':
+            case 'php_ini_mail_functions':
+                return $this->clientPermissions[$permission] == '1';
+            case 'php_ini_disable_function':
                 return $this->clientPermissions[$permission] == 'yes' || $this->clientPermissions[$permission] == 'exec';
-            case 'phpiniConfigLevel':
-                return true;
+            case 'php_ini_config_level':
+                return true; // FIXME???
             default:
                 throw new \InvalidArgumentException(sprintf('Unknown client PHP permission: %s', $permission));
         }
@@ -351,21 +356,21 @@ class PHPini
      * @param string|null OPTIONAL $varname INI option name
      * @return mixed
      */
-    public function getIniOption($varname = NULL)
+    public function getIniOption($option = NULL)
     {
         if (empty($this->iniOptions)) {
-            throw new \LogicException("You must first load client domain INI options");
+            throw new \LogicException("You must first load the client domain INI options");
         }
 
-        if (NULL === $varname) {
+        if (NULL === $option) {
             return $this->iniOptions;
         }
 
-        if (!array_key_exists($varname, $this->iniOptions)) {
-            throw new \InvalidArgumentException(sprintf('Unknown domain INI option: %s', $varname));
+        if (!array_key_exists($option, $this->iniOptions)) {
+            throw new \InvalidArgumentException(sprintf('Unknown domain INI option: %s', $option));
         }
 
-        return $this->iniOptions[$varname];
+        return $this->iniOptions[$option];
     }
 
     /**
@@ -394,77 +399,87 @@ class PHPini
      *
      * New INI option value is set only if valid.
      *
-     * @param string $varname Configuration option name
+     * @param string $option Configuration option name
      * @param string $value Configuration option value
      */
-    public function setIniOption($varname, $value)
+    public function setIniOption($option, $value)
     {
         if (empty($this->clientPermissions)) {
-            throw new \LogicException('You must first load client permissions.');
+            throw new \LogicException('You must first load the client PHP permissions.');
         }
 
-        if (!$this->validateIniOption($varname, $value)) {
+        if (!$this->validateIniOption($option, $value)) {
             return;
         }
 
-        switch ($varname) {
-            case 'phpiniPostMaxSize':
-            case 'phpiniUploadMaxFileSize':
-            case 'phpiniMaxExecutionTime':
-            case 'phpiniMaxInputTime':
-            case 'phpiniMemoryLimit':
-                if ($value > $this->getResellerPermission($varname)) {
+        switch ($option) {
+            case 'php_ini_post_max_size':
+            case 'php_ini_upload_max_file_size':
+            case 'php_ini_max_execution_time':
+            case 'php_ini_max_input_time':
+            case 'php_ini_memory_limit':
+                if ($value > $this->getResellerPermission($option)) {
                     return;
                 }
                 break;
-            case 'phpiniErrorReporting':
-                break;
+            case 'php_ini_error_reporting':
+                break; // FIXME ????
             default:
-                if (!$this->clientHasPermission($varname)) {
+                if (!$this->clientHasPermission($option)) {
                     return;
                 }
         }
 
-        $this->iniOptions[$varname] = $value;
+        $this->iniOptions[$option] = $value;
         $this->isDefaultIniOptions = false;
     }
 
     /**
      * Validate the given INI option
      *
-     * Unlimited values are not allowed for safety reasons
+     * Unlimited values are not allowed for safety reasons.
      *
-     * @param string $varname Configuration option name
+     * @param string $option Configuration option name
      * @param string $value Configuration option value
      * @return bool TRUE if $value is valid, FALSE otherwise
      */
-    protected function validateIniOption($varname, $value)
+    protected function validateIniOption($option, $value)
     {
-        switch ($varname) {
-            case 'phpiniAllowUrlFopen':
-            case 'phpiniDisplayErrors':
-                return $value === 'on' || $value === 'off';
-            case 'phpiniErrorReporting':
-                return
-                    $value === 'E_ALL & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED' // Default value
-                    || $value === '-1' // All error (development value)
-                    || $value === 'E_ALL & ~E_DEPRECATED & ~E_STRICT'; // Production
-            case 'phpiniDisableFunctions':
+        if (!is_scalar($option)) {
+            return false;
+        }
+
+        switch ($option) {
+            case 'php_ini_allow_url_fopen':
+            case 'php_display_error':
+                return in_array($value, [0, 1]);
+            case 'php_ini_error_reporting':
+                return is_scalar($option) && in_array(
+                        $value,
+                        [
+                            // Default value
+                            'E_ALL & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED',
+                            // All error (development value)
+                            '-1',
+                            // Production
+                            'E_ALL & ~E_DEPRECATED & ~E_STRICT'
+                        ]
+                    );
+            case 'php_ini_disable_functions':
                 $allowedFunctionNames = [
                     'exec', 'mail', 'passthru', 'phpinfo', 'popen', 'proc_open', 'show_source', 'shell', 'shell_exec', 'symlink', 'system', ''
                 ];
 
                 return array_diff(explode(',', $value), $allowedFunctionNames) ? false : true;
-            case 'phpiniMemoryLimit':
-            case 'phpiniMaxExecutionTime':
-            case 'phpiniMaxInputTime':
+            case 'php_ini_memory_limit':
+            case 'php_ini_max_execution_time':
+            case 'php_ini_max_input_time':
+            case 'php_ini_post_max_size':
                 return isNumber($value) && $value >= 1 && $value <= 10000;
-            case 'phpiniPostMaxSize':
-                return isNumber($value) && $value >= 1 && $value <= 10000;
-            case 'phpiniUploadMaxFileSize':
-                return isNumber($value) && $value <= $this->iniOptions['phpiniPostMaxSize'] && $value >= 1 && $value <= 10000;
+            case 'php_ini_upload_max_file_size':
+                return isNumber($value) && $value <= $this->iniOptions['php_ini_post_max_size'] && $value >= 1 && $value <= 10000;
             default:
-                throw new \InvalidArgumentException(sprintf('Unknown configuration option: %s', $varname));
+                throw new \InvalidArgumentException(sprintf('Unknown INI option: %s', $option));
         }
     }
 
@@ -495,36 +510,36 @@ class PHPini
 
         while ($row = $stmt->fetch()) {
             $this->loadClientPermissions($row['admin_id']);
-            $configLevel = $this->getClientPermission('phpiniConfigLevel');
+            $configLevel = $this->getClientPermission('php_ini_config_level');
 
-            if (!$this->resellerHasPermission('phpiniSystem')) {
+            if (!$this->resellerHasPermission('php_ini')) {
                 // Reset client's permissions to their default values based on the permissions of its reseller.
                 $this->loadClientPermissions();
                 $this->saveClientPermissions($row['admin_id']);
-                $this->updateClientIniOptions($row['admin_id'], $configLevel != $this->getClientPermission('phpiniConfigLevel'), true);
+                $this->updateClientIniOptions($row['admin_id'], $configLevel != $this->getClientPermission('php_ini_config_level'), true);
                 continue;
             }
 
             // Adjusts client's permissions based on permissions of its reseller.
 
-            if (!$this->resellerHasPermission('phpiniConfigLevel') && $this->clientPermissions['phpiniConfigLevel'] != 'per_user') {
-                $this->clientPermissions['phpiniConfigLevel'] = 'per_user';
+            if (!$this->resellerHasPermission('php_ini_config_level') && $this->clientPermissions['php_ini_config_level'] != 'per_user') {
+                $this->clientPermissions['php_ini_config_level'] = 'per_user';
                 $this->isBackendRequestNeeded = true;
-            } elseif ($this->getResellerPermission('phpiniConfigLevel') == 'per_domain'
-                && !in_array($this->clientPermissions['phpiniConfigLevel'], ['per_user', 'per_domain'], true)
+            } elseif ($this->getResellerPermission('php_ini_config_level') == 'per_domain'
+                && !in_array($this->clientPermissions['php_ini_config_level'], ['per_user', 'per_domain'], true)
             ) {
-                $this->clientPermissions['phpiniConfigLevel'] = 'per_domain';
+                $this->clientPermissions['php_ini_config_level'] = 'per_domain';
                 $this->isBackendRequestNeeded = true;
             }
 
-            foreach (['phpiniAllowUrlFopen', 'phpiniDisplayErrors', 'phpiniDisableFunctions', 'phpiniMailFunction'] as $permissions) {
+            foreach (['php_ini_allow_url_fopen', 'php_ini_display_errors', 'php_ini_disable_functions', 'php_ini_mail_function'] as $permissions) {
                 if (!$this->resellerHasPermission($permissions)) {
                     $this->clientPermissions[$permissions] = 'no';
                 }
             }
 
             $this->saveClientPermissions($row['admin_id']);
-            $this->updateClientIniOptions($row['admin_id'], $configLevel != $this->getClientPermission('phpiniConfigLevel'), true);
+            $this->updateClientIniOptions($row['admin_id'], $configLevel != $this->getClientPermission('php_ini_config_level'), true);
         }
     }
 
@@ -544,9 +559,19 @@ class PHPini
         if (NULL !== $resellerId) {
             $stmt = execQuery(
                 '
-                    SELECT php_ini_system, php_ini_al_config_level, php_ini_al_disable_functions, php_ini_al_mail_function, php_ini_al_mail_function,
-                        php_ini_al_allow_url_fopen, php_ini_al_display_errors, php_ini_max_post_max_size, php_ini_max_upload_max_filesize,
-                        php_ini_max_max_execution_time, php_ini_max_max_input_time, php_ini_max_memory_limit
+                    SELECT
+                        php_ini,
+                        php_ini_config_level,
+                        php_ini_disable_functions,
+                        php_ini_mail_function,
+                        php_ini_mail_function,
+                        php_ini_allow_url_fopen,
+                        php_ini_display_errors,
+                        php_ini_post_max_size,
+                        php_ini_upload_max_filesize,
+                        php_ini_max_execution_time,
+                        php_ini_max_input_time,
+                        php_ini_memory_limit
                     FROM reseller_props WHERE reseller_id = ?
                 ',
                 [$resellerId]
@@ -556,37 +581,37 @@ class PHPini
                 $row = $stmt->fetch();
 
                 // PHP permissions
-                $this->resellerPermissions['phpiniSystem'] = $row['php_ini_system'];
-                $this->resellerPermissions['phpiniConfigLevel'] = $row['php_ini_al_config_level'];
-                $this->resellerPermissions['phpiniAllowUrlFopen'] = $row['php_ini_al_allow_url_fopen'];
-                $this->resellerPermissions['phpiniDisplayErrors'] = $row['php_ini_al_display_errors'];
-                $this->resellerPermissions['phpiniDisableFunctions'] = $row['php_ini_al_disable_functions'];
-                $this->resellerPermissions['phpiniMailFunction'] = $row['php_ini_al_mail_function'];
+                $this->resellerPermissions['php_ini'] = $row['php_ini'];
+                $this->resellerPermissions['php_ini_config_level'] = $row['php_ini_config_level'];
+                $this->resellerPermissions['php_ini_allow_url_fopen'] = $row['php_ini_allow_url_fopen'];
+                $this->resellerPermissions['php_ini_display_errors'] = $row['php_ini_display_errors'];
+                $this->resellerPermissions['php_ini_disable_functions'] = $row['php_ini_disable_functions'];
+                $this->resellerPermissions['php_ini_mail_function'] = $row['php_ini_mail_function'];
 
                 // Limits for PHP INI options
-                $this->resellerPermissions['phpiniPostMaxSize'] = $row['php_ini_max_post_max_size'];
-                $this->resellerPermissions['phpiniUploadMaxFileSize'] = $row['php_ini_max_upload_max_filesize'];
-                $this->resellerPermissions['phpiniMaxExecutionTime'] = $row['php_ini_max_max_execution_time'];
-                $this->resellerPermissions['phpiniMaxInputTime'] = $row['php_ini_max_max_input_time'];
-                $this->resellerPermissions['phpiniMemoryLimit'] = $row['php_ini_max_memory_limit'];
+                $this->resellerPermissions['php_ini_post_max_size'] = $row['php_ini_post_max_size'];
+                $this->resellerPermissions['php_ini_upload_max_filesize'] = $row['php_ini_upload_max_filesize'];
+                $this->resellerPermissions['php_ini_max_execution_time'] = $row['php_ini_max_execution_time'];
+                $this->resellerPermissions['php_ini_max_input_time'] = $row['php_ini_max_input_time'];
+                $this->resellerPermissions['php_ini_memory_limit'] = $row['php_ini_memory_limit'];
                 return;
             }
         }
 
         // Default PHP permissions
-        $this->resellerPermissions['phpiniSystem'] = 'no';
-        $this->resellerPermissions['phpiniConfigLevel'] = 'per_site';
-        $this->resellerPermissions['phpiniAllowUrlFopen'] = 'no';
-        $this->resellerPermissions['phpiniDisplayErrors'] = 'no';
-        $this->resellerPermissions['phpiniDisableFunctions'] = 'no';
-        $this->resellerPermissions['phpiniMailFunction'] = 'yes';
+        $this->resellerPermissions['php_ini'] = 0;
+        $this->resellerPermissions['php_ini_config_level'] = 'per_site';
+        $this->resellerPermissions['php_ini_allow_url_fopen'] = 0;
+        $this->resellerPermissions['php_ini_display_errors'] = 0;
+        $this->resellerPermissions['php_ini_disable_functions'] = 0;
+        $this->resellerPermissions['php_ini_mail_function'] = 1;
 
         // Default limits for PHP INI options
-        $this->resellerPermissions['phpiniPostMaxSize'] = 8;
-        $this->resellerPermissions['phpiniUploadMaxFileSize'] = 2;
-        $this->resellerPermissions['phpiniMaxExecutionTime'] = 30;
-        $this->resellerPermissions['phpiniMaxInputTime'] = 60;
-        $this->resellerPermissions['phpiniMemoryLimit'] = 128;
+        $this->resellerPermissions['php_ini_post_max_size'] = 8;
+        $this->resellerPermissions['php_ini_upload_max_filesize'] = 2;
+        $this->resellerPermissions['php_ini_max_execution_time'] = 30;
+        $this->resellerPermissions['php_ini_max_input_time'] = 60;
+        $this->resellerPermissions['php_ini_memory_limit'] = 128;
     }
 
     /**
@@ -601,14 +626,19 @@ class PHPini
     public function loadClientPermissions($clientId = NULL)
     {
         if (empty($this->resellerPermissions)) {
-            throw new \LogicException("You must first load permissions of the client's reseller");
+            throw new \LogicException("You must first load the PHPpermissions of the client's reseller");
         }
 
         if (NULL !== $clientId) {
             $stmt = execQuery(
                 '
-                    SELECT phpini_perm_system, phpini_perm_config_level, phpini_perm_allow_url_fopen, phpini_perm_display_errors,
-                        phpini_perm_disable_functions, phpini_perm_mail_function
+                    SELECT
+                        php_ini,
+                        php_ini_config_level,
+                        php_ini_allow_url_fopen,
+                        php_ini_display_errors,
+                        php_ini_disable_functions,
+                        php_ini_mail_function
                     FROM domain
                     WHERE domain_admin_id = ?
                 ',
@@ -617,22 +647,22 @@ class PHPini
 
             if ($stmt->rowCount()) {
                 $row = $stmt->fetch();
-                $this->clientPermissions['phpiniSystem'] = $row['phpini_perm_system'];
-                $this->clientPermissions['phpiniConfigLevel'] = $row['phpini_perm_config_level'];
-                $this->clientPermissions['phpiniAllowUrlFopen'] = $row['phpini_perm_allow_url_fopen'];
-                $this->clientPermissions['phpiniDisplayErrors'] = $row['phpini_perm_display_errors'];
-                $this->clientPermissions['phpiniDisableFunctions'] = $row['phpini_perm_disable_functions'];
-                $this->clientPermissions['phpiniMailFunction'] = $row['phpini_perm_mail_function'];
+                $this->clientPermissions['php_ini'] = $row['php_ini'];
+                $this->clientPermissions['php_ini_config_level'] = $row['php_ini_config_level'];
+                $this->clientPermissions['php_ini_allow_url_fopen'] = $row['php_ini_allow_url_fopen'];
+                $this->clientPermissions['php_ini_display_errors'] = $row['php_ini_display_errors'];
+                $this->clientPermissions['php_ini_disable_functions'] = $row['php_ini_disable_functions'];
+                $this->clientPermissions['php_ini_mail_function'] = $row['php_ini_mail_function'];
                 return;
             }
         }
 
-        $this->clientPermissions['phpiniSystem'] = 'no';
-        $this->clientPermissions['phpiniAllowUrlFopen'] = 'no';
-        $this->clientPermissions['phpiniDisplayErrors'] = 'no';
-        $this->clientPermissions['phpiniDisableFunctions'] = 'no';
-        $this->clientPermissions['phpiniConfigLevel'] = $this->getResellerPermission('phpiniConfigLevel');
-        $this->clientPermissions['phpiniMailFunction'] = $this->resellerHasPermission('phpiniMailFunction') ? 'yes' : 'no';
+        $this->clientPermissions['php_ini'] = 0;
+        $this->clientPermissions['php_ini_allow_url_fopen'] = 0;
+        $this->clientPermissions['php_ini_display_errors'] = 0;
+        $this->clientPermissions['php_ini_disable_functions'] = 0;
+        $this->clientPermissions['php_ini_config_level'] = $this->getResellerPermission('php_ini_config_level');
+        $this->clientPermissions['php_ini_mail_function'] = $this->resellerHasPermission('php_ini_mail_function') ? 1 : 0;
     }
 
     /**
@@ -673,14 +703,23 @@ class PHPini
         execQuery(
             '
                 UPDATE domain
-                SET phpini_perm_system = ?, phpini_perm_config_level = ?, phpini_perm_allow_url_fopen = ?, phpini_perm_display_errors = ?,
-                    phpini_perm_disable_functions = ?, phpini_perm_mail_function = ?
+                SET
+                    php_ini = ?,
+                    php_ini_config_level = ?,
+                    php_ini_allow_url_fopen = ?,
+                    php_ini_display_errors = ?,
+                    php_ini_disable_functions = ?,
+                    php_ini_mail_function = ?
                 WHERE domain_admin_id = ?
             ',
             [
-                $this->clientPermissions['phpiniSystem'], $this->clientPermissions['phpiniConfigLevel'],
-                $this->clientPermissions['phpiniAllowUrlFopen'], $this->clientPermissions['phpiniDisplayErrors'],
-                $this->clientPermissions['phpiniDisableFunctions'], $this->clientPermissions['phpiniMailFunction'], $clientId
+                $this->clientPermissions['php_ini'],
+                $this->clientPermissions['php_ini_config_level'],
+                $this->clientPermissions['php_ini_allow_url_fopen'],
+                $this->clientPermissions['php_ini_display_errors'],
+                $this->clientPermissions['php_ini_disable_functions'],
+                $this->clientPermissions['php_ini_mail_function'],
+                $clientId
             ]
         );
     }
@@ -705,7 +744,7 @@ class PHPini
         while ($row = $stmt->fetch()) {
             $this->isBackendRequestNeeded = $isBackendRequestNeeded ? true : false;
 
-            if (!$this->clientHasPermission('phpiniSystem')) {
+            if (!$this->clientHasPermission('php_ini')) {
                 // Reset INI options to their default values
                 $this->loadIniOptions();
                 $this->saveIniOptions($clientId, $row['domain_id'], $row['domain_type']);
@@ -718,33 +757,36 @@ class PHPini
                 $this->loadIniOptions($row['domain_id'], $row['domain_type']);
             }
 
-            if (!$this->clientHasPermission('phpiniAllowUrlFopen')) {
-                $this->iniOptions['phpiniAllowUrlFopen'] = 'off';
+            if (!$this->clientHasPermission('php_ini_allow_url_fopen')) {
+                $this->iniOptions['php_ini_allow_url_fopen'] = 0;
             }
 
-            if (!$this->clientHasPermission('phpiniDisplayErrors')) {
-                $this->iniOptions['phpiniDisplayErrors'] = 'off';
+            if (!$this->clientHasPermission('php_ini_display_errors')) {
+                $this->iniOptions['php_ini_display_errors'] = 0;
             }
 
-            if (!$this->clientHasPermission('phpiniDisableFunctions')) {
-                if ($this->getClientPermission('phpiniDisableFunctions') == 'no') {
-                    $this->iniOptions['phpiniDisableFunctions'] = 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
-                } elseif (in_array('exec', explode(',', $this->iniOptions['phpiniDisableFunctions']), true)) {
-                    $this->iniOptions['phpiniDisableFunctions'] = 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
+            if (!$this->clientHasPermission('php_ini_disable_functions')) {
+                if ($this->getClientPermission('php_ini_disable_functions') == 'no') {
+                    $this->iniOptions['php_ini_disable_functions'] = 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
+                } elseif (in_array('exec', explode(',', $this->iniOptions['php_ini_disable_functions']), true)) {
+                    $this->iniOptions['php_ini_disable_functions'] = 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
                 } else {
-                    $this->iniOptions['phpiniDisableFunctions'] = 'passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
+                    $this->iniOptions['php_ini_disable_functions'] = 'passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
                 }
             }
 
-            if (!$this->clientHasPermission('phpiniMailFunction')) {
-                if (!in_array('mail', explode(',', $this->iniOptions['phpiniDisableFunctions']), true)) {
-                    $this->iniOptions['phpiniDisableFunctions'] .= ',mail';
+            if (!$this->clientHasPermission('php_ini_mail_function')) {
+                if (!in_array('mail', explode(',', $this->iniOptions['php_ini_disable_functions']), true)) {
+                    $this->iniOptions['php_ini_disable_functions'] .= ',mail';
                 }
             }
 
             // Make sure that client INI options are not above reseller's limits
             foreach (
-                ['phpiniMemoryLimit', 'phpiniPostMaxSize', 'phpiniUploadMaxFileSize', 'phpiniMaxExecutionTime', 'phpiniMaxInputTime'] as $iniOption
+                [
+                    'php_ini_memory_limit', 'php_ini_post_max_size', 'php_ini_upload_max_file_size', 'php_ini_max_execution_time',
+                    'php_ini_max_input_time'
+                ] as $iniOption
             ) {
                 $resellerLimit = $this->resellerPermissions[$iniOption];
 
@@ -788,35 +830,35 @@ class PHPini
 
             if ($stmt->rowCount()) {
                 $row = $stmt->fetch();
-                $this->iniOptions['phpiniAllowUrlFopen'] = $row['allow_url_fopen'];
-                $this->iniOptions['phpiniDisplayErrors'] = $row['display_errors'];
-                $this->iniOptions['phpiniErrorReporting'] = $row['error_reporting'];
-                $this->iniOptions['phpiniDisableFunctions'] = $row['disable_functions'];
-                $this->iniOptions['phpiniPostMaxSize'] = $row['post_max_size'];
-                $this->iniOptions['phpiniUploadMaxFileSize'] = $row['upload_max_filesize'];
-                $this->iniOptions['phpiniMaxExecutionTime'] = $row['max_execution_time'];
-                $this->iniOptions['phpiniMaxInputTime'] = $row['max_input_time'];
-                $this->iniOptions['phpiniMemoryLimit'] = $row['memory_limit'];
+                $this->iniOptions['php_ini_allow_url_fopen'] = $row['allow_url_fopen'];
+                $this->iniOptions['php_ini_display_errors'] = $row['display_errors'];
+                $this->iniOptions['php_ini_error_reporting'] = $row['error_reporting'];
+                $this->iniOptions['php_ini_disable_functions'] = $row['disable_functions'];
+                $this->iniOptions['php_ini_post_max_size'] = $row['post_max_size'];
+                $this->iniOptions['php_ini_upload_max_file_size'] = $row['upload_max_filesize'];
+                $this->iniOptions['php_ini_max_execution_time'] = $row['max_execution_time'];
+                $this->iniOptions['php_ini_max_input_time'] = $row['max_input_time'];
+                $this->iniOptions['php_ini_memory_limit'] = $row['memory_limit'];
                 $this->isDefaultIniOptions = false;
                 return;
             }
         }
 
-        $this->iniOptions['phpiniAllowUrlFopen'] = 'off';
-        $this->iniOptions['phpiniDisplayErrors'] = 'off';
-        $this->iniOptions['phpiniErrorReporting'] = 'E_ALL & ~E_DEPRECATED & ~E_STRICT'; // Production value
-        $this->iniOptions['phpiniDisableFunctions'] = 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
+        $this->iniOptions['php_ini_allow_url_fopen'] = 0;
+        $this->iniOptions['php_ini_display_errors'] = 0;
+        $this->iniOptions['php_ini_error_reporting'] = 'E_ALL & ~E_DEPRECATED & ~E_STRICT'; // Production value
+        $this->iniOptions['php_ini_disable_functions'] = 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system';
 
-        if (!$this->clientHasPermission('phpiniMailFunction')) {
-            $this->iniOptions['phpiniDisableFunctions'] .= ',mail';
+        if (!$this->clientHasPermission('php_ini_mail_function')) {
+            $this->iniOptions['php_ini_disable_functions'] .= ',mail';
         }
 
         // Value taken from Debian default php.ini file
-        $this->iniOptions['phpiniMemoryLimit'] = min($this->resellerPermissions['phpiniMemoryLimit'], 128);
-        $this->iniOptions['phpiniPostMaxSize'] = min($this->resellerPermissions['phpiniPostMaxSize'], 8);
-        $this->iniOptions['phpiniUploadMaxFileSize'] = min($this->resellerPermissions['phpiniUploadMaxFileSize'], 2);
-        $this->iniOptions['phpiniMaxExecutionTime'] = min($this->resellerPermissions['phpiniMaxExecutionTime'], 30);
-        $this->iniOptions['phpiniMaxInputTime'] = min($this->resellerPermissions['phpiniMaxInputTime'], 60);
+        $this->iniOptions['php_ini_memory_limit'] = min($this->resellerPermissions['php_ini_memory_limit'], 128);
+        $this->iniOptions['php_ini_post_max_size'] = min($this->resellerPermissions['php_ini_post_max_size'], 8);
+        $this->iniOptions['php_ini_upload_max_file_size'] = min($this->resellerPermissions['php_ini_upload_max_file_size'], 2);
+        $this->iniOptions['php_ini_max_execution_time'] = min($this->resellerPermissions['php_ini_max_execution_time'], 30);
+        $this->iniOptions['php_ini_max_input_time'] = min($this->resellerPermissions['php_ini_max_input_time'], 60);
         $this->isDefaultIniOptions = true;
     }
 
@@ -851,15 +893,15 @@ class PHPini
                 'admin_id'             => $adminId,
                 'domain_id'            => $domainId,
                 'domain_type'          => $domainType,
-                'disable_functions'    => $this->iniOptions['phpiniDisableFunctions'],
-                'allow_url_fopen'      => $this->iniOptions['phpiniAllowUrlFopen'],
-                'display_errors'       => $this->iniOptions['phpiniDisplayErrors'],
-                'error_reporting'      => $this->iniOptions['phpiniErrorReporting'],
-                'post_max_size'        => $this->iniOptions['phpiniPostMaxSize'],
-                'upload_max_file_size' => $this->iniOptions['phpiniUploadMaxFileSize'],
-                'max_execution_time'   => $this->iniOptions['phpiniMaxExecutionTime'],
-                'max_input_time'       => $this->iniOptions['phpiniMaxInputTime'],
-                'memory_limit'         => $this->iniOptions['phpiniMemoryLimit']
+                'disable_functions'    => $this->iniOptions['php_ini_disable_functions'],
+                'allow_url_fopen'      => $this->iniOptions['php_ini_allow_url_fopen'],
+                'display_errors'       => $this->iniOptions['php_ini_display_errors'],
+                'error_reporting'      => $this->iniOptions['php_ini_error_reporting'],
+                'post_max_size'        => $this->iniOptions['php_ini_post_max_size'],
+                'upload_max_file_size' => $this->iniOptions['php_ini_upload_max_file_size'],
+                'max_execution_time'   => $this->iniOptions['php_ini_max_execution_time'],
+                'max_input_time'       => $this->iniOptions['php_ini_max_input_time'],
+                'memory_limit'         => $this->iniOptions['php_ini_memory_limit']
             ]
         );
 
@@ -874,7 +916,7 @@ class PHPini
      * @param int $clientId Client unique identifier
      * @param int $domainId Domain unique identifier
      * @param string $domainType Domain type (dmn|als|sub|subals)
-     * @param bool $configLevelBased Whether domains statuses must be updated based on client PHP configuration level
+     * @param bool $configLevelBased whether domains statuses must be updated based on client PHP configuration level
      * @return void
      */
     public function updateDomainStatuses($clientId, $domainId, $domainType, $configLevelBased = false)
@@ -888,13 +930,12 @@ class PHPini
         }
 
         if ($configLevelBased) {
-            switch ($this->clientPermissions['phpiniConfigLevel']) {
+            switch ($this->clientPermissions['php_ini_config_level']) {
                 case 'per_user':
-                    // Per user = Identical PHP configuration for all domains, including subdomains.
-                    // We need update status of all client's domains
+                    // Identical PHP configuration for all domains, including subdomains.
                     $domainId = getCustomerMainDomainId($clientId);
 
-                    // Update primary domain, including its subdomains, except those that are disabled, being disabled or deleted
+                    // Update all domains
                     execQuery(
                         "
                             UPDATE domain AS t1
@@ -905,22 +946,9 @@ class PHPini
                         ",
                         [$domainId]
                     );
-
-                    // Update domain aliases, including their subdomains, except those that are disabled, being disabled or deleted
-                    execQuery(
-                        "
-                            UPDATE domain_aliases AS t1
-                            LEFT JOIN subdomain_alias AS t2 ON(t1.alias_id = t2.alias_id AND t2.subdomain_alias_status NOT IN('disabled', 'todelete'))
-                            SET t1.alias_status = 'tochange', t2.subdomain_alias_status = 'tochange'
-                            WHERE t1.domain_id = ?
-                            AND t1.alias_status NOT IN('disabled', 'todelete')
-                        ",
-                        [$domainId]
-                    );
                     return;
                 case 'per_domain':
-                    // per_domain = Identical PHP configuration for each domains, including subdomains.
-                    // We need update status of $domainId-$domainType including its subdomains
+                    // Identical PHP configuration for each domains, including subdomains.
                     switch ($domainType) {
                         case 'dmn':
                             // Update primary domain, including its subdomains, except those that are disabled, being disabled or deleted
@@ -928,7 +956,7 @@ class PHPini
                                 "
                                     UPDATE domain AS t1
                                     LEFT JOIN subdomain AS t2 ON(
-                                        t1.domain_id = t2.domain_id AND t2.subdomain_status NOT IN('disabled', 'todisable', 'todelete'
+                                        t1.domain_id = t2.domain_id AND t2.subdomain_status NOT IN ('disabled', 'todisable', 'todelete')
                                     )
                                     SET t1.domain_status = 'tochange', t2.subdomain_status = 'tochange'
                                     WHERE t1.domain_id = ?

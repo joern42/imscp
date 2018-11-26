@@ -63,7 +63,7 @@ function client_editMailAccount()
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
     $mailData = client_getEmailAccountData(cleanInput($_GET['id']));
-    $mainDmnProps = getCustomerProperties($identity->getUserId());
+    $mainDmnProps = getClientProperties($identity->getUserId());
     $password = $forwardList = '_no_';
     $mailType = '';
     $mailQuotaLimitBytes = NULL;
@@ -230,7 +230,7 @@ function client_editMailAccount()
 function client_generatePage($tpl)
 {
     $mailId = cleanInput($_GET['id']);
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+    $mainDmnProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $mailData = client_getEmailAccountData($mailId);
     list($username, $domainName) = explode('@', $mailData['mail_addr']);
 
@@ -314,7 +314,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::userHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 if (Application::getInstance()->getRequest()->isPost() && client_editMailAccount()) {
     redirectTo('mail_accounts.php');

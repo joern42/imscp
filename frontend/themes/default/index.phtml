@@ -2,14 +2,14 @@
     <form name="<?= toHtml($this->form->getName(), 'htmlAttr') ?>" method="post">
         <table>
             <tr>
-                <td class="left">
-                    <label for="admin_name"><?= $this->form->get('admin_name')->getLabel() ?></label>
+                <td class="left"><label for="username"><?= toHtml($this->form->get('username')->getLabel()) ?></label></td>
+                <td class="right">
+                    <input type="text" name="username" id="username" value="<?= toHtml($this->form->get('username')->getValue(), 'htmlAttr') ?>">
                 </td>
-                <td class="right"><input type="text" name="admin_name" id="admin_name" value="<?= toHtml($this->form->get('admin_name')->getValue(), 'htmlAttr') ?>"></td>
             </tr>
             <tr>
-                <td class="left"><label for="admin_pass"><?= toHtml($this->form->get('admin_pass')->getLabel()) ?></label></td>
-                <td class="right"><input type="password" name="admin_pass" id="admin_pass" value=""></td>
+                <td class="left"><label for="password"><?= toHtml($this->form->get('password')->getLabel()) ?></label></td>
+                <td class="right"><input type="password" name="password" id="password" value=""></td>
             </tr>
             <tr>
                 <td colspan="2" class="right">

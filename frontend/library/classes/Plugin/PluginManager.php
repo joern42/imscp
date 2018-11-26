@@ -39,6 +39,7 @@ class PluginManager implements EventManagerAwareInterface
 {
     /**
      * Minimum API version that the plugins must require
+     * This parameter must be bumped only when we known that there are major change in core breaking all plugins
      */
     const REQUIRE_MIN_API_VERSION = '1.6.0';
 
@@ -102,21 +103,26 @@ class PluginManager implements EventManagerAwareInterface
     /**
      * Constructor
      *
-     * @param string $pluginRootDir Plugins root directory
+     * @param string $pluginDir Plugins directory
      * @param EventManagerInterface $events
      * @param StorageInterface $cache
      * @throws \Exception
      */
-    public function __construct($pluginRootDir, EventManagerInterface $events, StorageInterface $cache = NULL)
+    public function __construct($pluginDir, EventManagerInterface $events, StorageInterface $cache = NULL)
     {
-        if (!@is_dir($pluginRootDir)) {
-            writeLog(sprintf('Plugin Manager: Invalid plugin directory: %s', $pluginRootDir), E_USER_ERROR);
-            throw new \Exception(tr('Invalid plugin directory: %s', $pluginRootDir));
-        }
-
-        $this->pluginSetDirectory($pluginRootDir);
+        $this->pluginSetDirectory($pluginDir);
         $this->cache = $cache;
         $this->pluginLoadData();
+    }
+
+    /**
+     * Return plugins root directory
+     *
+     * @return string Plugin directory
+     */
+    public function pluginGetDirectory()
+    {
+        return $this->pluginsDirectory;
     }
 
     /**
@@ -129,7 +135,7 @@ class PluginManager implements EventManagerAwareInterface
     {
         if (!@is_writable($pluginDir)) {
             writeLog(sprintf("Plugin Manager: Directory %s doesn't exist or is not writable", $pluginDir), E_USER_ERROR);
-            throw new \Exception(tr("Plugin Manager: Directory %s doesn't exist or is not writable", $pluginDir));
+            throw new \InvalidArgumentException(tr("Plugin Manager: Directory %s doesn't exist or is not writable", $pluginDir));
         }
 
         $this->pluginsDirectory = normalizePath($pluginDir);
@@ -170,16 +176,6 @@ class PluginManager implements EventManagerAwareInterface
 
         $this->pluginData = $metadata['data'];
         $this->pluginsByType = $metadata['type'];
-    }
-
-    /**
-     * Return plugins root directory
-     *
-     * @return string Plugin directory
-     */
-    public function pluginGetDirectory()
-    {
-        return $this->pluginsDirectory;
     }
 
     /**
@@ -563,7 +559,7 @@ class PluginManager implements EventManagerAwareInterface
 
     /**
      * Load the given plugin
-     *
+     * 
      * @param string $pluginName Plugin name
      * @return false|AbstractPlugin Plugin instance, FALSE if plugin class is not found
      */

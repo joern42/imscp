@@ -43,12 +43,12 @@ class PersonalDataFieldset extends Fieldset implements InputFilterProviderInterf
         $this
             ->add([
                 'type'    => Element\Text::class,
-                'name'    => 'fname',
+                'name'    => 'firstName',
                 'options' => ['label' => tr('First name')]
             ])
             ->add([
                 'type'    => Element\Text::class,
-                'name'    => 'lname',
+                'name'    => 'lastName',
                 'options' => ['label' => tr('Last name')]
             ])
             ->add([
@@ -106,8 +106,14 @@ class PersonalDataFieldset extends Fieldset implements InputFilterProviderInterf
                 'name'    => 'fax',
                 'options' => ['label' => tr('Fax')]
             ]);
+    }
 
-        // Make 3rd-party components able to modify that fieldset
+    /**
+     * @inheritdoc
+     */
+    public function init()
+    {
+        // Make 3rd-party components able to modify that form
         Application::getInstance()->getEventManager()->trigger('onInitPersonalDataFieldset', $this);
     }
 
@@ -117,7 +123,7 @@ class PersonalDataFieldset extends Fieldset implements InputFilterProviderInterf
     public function getInputFilterSpecification()
     {
         return [
-            'fname'   => [
+            'firstName'   => [
                 'filters'    => [
                     ['name' => Filter\StringTrim::class],
                     ['name' => Filter\StripTags::class]
@@ -134,7 +140,7 @@ class PersonalDataFieldset extends Fieldset implements InputFilterProviderInterf
                     ]
                 ]
             ],
-            'lname'   => [
+            'lastName'   => [
                 'required'   => false,
                 'filters'    => [
                     ['name' => Filter\StringTrim::class],

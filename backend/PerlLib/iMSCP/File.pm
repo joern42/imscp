@@ -41,15 +41,14 @@ use POSIX qw/ mkfifo lchown /;
 use overload '""' => \&__toString, fallback => 1;
 use parent 'iMSCP::Common::Object';
 
-# Upper limit for file slurping (2MiB)
-our $SLURP_SIZE_LIMIT = 1024 * 1024 * 2;
-
 # All the mode bits that can be affected by chmod.
 use constant CHMOD_MODE_BITS => S_ISUID | S_ISGID | S_ISVTX | S_IRWXU | S_IRWXG | S_IRWXO;
-
 # Commonly used file permission combination.
 use constant MODE_RW_UGO => S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
 use constant S_IRWXUGO => S_IRWXU | S_IRWXG | S_IRWXO;
+
+# Upper limit for file slurping (2MiB)
+our $SLURP_SIZE_LIMIT = 1024 * 1024 * 2;
 
 =head1 DESCRIPTION
 
@@ -203,6 +202,8 @@ sub remove
 =item mode( [ $mode = MODE_RW_UGO & ~( UMASK(2) ) ] )
 
  Set mode of this file
+ 
+ This routine doesn't operates on symlinks. They are ignored silently.
 
  Param int $mode OPTIONAL New file mode (octal number), default to 0666 & ~( UMASK(2) )
  Return self, die on failure
@@ -214,12 +215,13 @@ sub mode
     my ( $self, $mode ) = @_;
     $mode //= MODE_RW_UGO & ~$UMASK;
 
+    return $self if -l $self->{'filename'};
     length $mode or croak( '$mode parameter is invalid' );
     chmod $mode, $self->{'filename'} or die( sprintf( "Failed to set permissions for '%s': %s", $self->{'filename'}, $! ));
     $self;
 }
 
-=item owner( $owner = -1, $group = -1 )
+=item owner( [ $owner = -1 [, $group = -1 ] ] )
 
  Set ownership of this file
 

@@ -26,8 +26,8 @@ package iMSCP::Providers::Service::Sysvinit;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Debug qw/ debug /;
 use File::Spec;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use parent qw/ iMSCP::Common::Singleton iMSCP::Providers::Service::Interface /;
@@ -390,9 +390,9 @@ sub _getPid
     my $ps = $self->_getPs();
     open my $fh, '-|', $ps or die( sprintf( "Couldn't pipe to %s: %s", $ps, $! ));
 
-    while ( <$fh> ) {
-        next unless /$pattern/;
-        return ( split /\s+/, s/^\s+//r )[1];
+    while ( my $line = <$fh> ) {
+        next unless $line =~ /$pattern/;
+        return ( split /\s+/, $line =~ s/^\s+//r )[1];
     }
 
     undef;

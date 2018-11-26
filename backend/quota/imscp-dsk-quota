@@ -78,36 +78,6 @@ sub quotaFiles
                 { maildir => "$virtualMailDir/$dmnData->{'domain_name'}" }
             );
 
-            # Get list of all child domains (sub|als|alssub)
-            my $rows2 = eval {
-                $dbh->selectall_hashref(
-                    "
-                        SELECT alias_name AS domain_name
-                        FROM domain_aliases
-                        WHERE domain_id = ?
-                        AND alias_status <> 'todelete'
-                        UNION ALL
-                        SELECT CONCAT(subdomain_name, '.', domain_name) AS domain_name
-                        FROM subdomain
-                        JOIN domain USING(domain_id)
-                        WHERE domain_id = ?
-                        AND subdomain_status <> 'todelete'
-                        UNION ALL
-                        SELECT CONCAT(subdomain_alias_name, '.',  alias_name) AS domain_name
-                        FROM subdomain_alias
-                        JOIN domain_aliases USING(alias_id)
-                        WHERE domain_id = ?
-                        AND subdomain_alias_status <> 'todelete'
-                    ",
-                    'domain_name', undef, $dmnId, $dmnId, $dmnId
-                );
-            };
-            if ( $@ ) {
-                error( $@ );
-            } elsif ( %{ $rows2 } ) {
-                push @items, { maildir => "$virtualMailDir/$_" } for keys %{ $rows2 };
-            }
-
             for my $item ( @items ) {
                 my ( $dirType, $dir ) = %{ $item };
                 next unless -d $dir;

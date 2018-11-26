@@ -40,7 +40,10 @@ class PersonalDataForm extends Form
         $this->setAttribute('method', 'post');
         $this
             // Personal data
-            ->add(['type' => PersonalDataFieldset::class])
+            ->add([
+                'type' => PersonalDataFieldset::class,
+                'name' => 'personalData'
+            ])
             // CSRF
             ->add([
                 'type'    => Element\Csrf::class,
@@ -52,7 +55,13 @@ class PersonalDataForm extends Form
                     ]
                 ]
             ]);
+    }
 
+    /**
+     * @inheritdoc
+     */
+    public function init()
+    {
         // Make 3rd-party components able to modify that form
         Application::getInstance()->getEventManager()->trigger('onInitPersonalDataForm', $this);
     }

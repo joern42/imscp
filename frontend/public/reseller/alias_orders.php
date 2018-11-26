@@ -273,7 +273,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
-Counting::resellerHasFeature('domain_aliases') && Counting::resellerHasCustomers() or View::showBadRequestErrorPage();
+Counting::userHasFeature('webDomainAliases') && Counting::resellerHasClients() or View::showBadRequestErrorPage();
 
 if (isset($_GET['action'])) {
     if ($_GET['action'] == 'reject') {

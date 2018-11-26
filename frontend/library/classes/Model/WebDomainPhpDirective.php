@@ -17,30 +17,43 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
 namespace iMSCP\Model;
+
+use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Class WebDomainPhpDirective
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_web_domain_php_directive", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
 class WebDomainPhpDirective
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $webDomainPhpDirectiveID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="WebDomain")
+     * @ORM\JoinColumn(name="webDomainID", referencedColumnName="webDomainID", onDelete="CASCADE")
+     * @var WebDomain
      */
-    private $webDomainID;
+    private $webDomain;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $name;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $value;
@@ -64,20 +77,20 @@ class WebDomainPhpDirective
     }
 
     /**
-     * @return int
+     * @return WebDomain
      */
-    public function getWebDomainID(): int
+    public function getWebDomain(): WebDomain
     {
-        return $this->webDomainID;
+        return $this->webDomain;
     }
 
     /**
-     * @param int $webDomainID
+     * @param WebDomain $webDomain
      * @return WebDomainPhpDirective
      */
-    public function setWebDomainID(int $webDomainID): WebDomainPhpDirective
+    public function setWebDomain(WebDomain $webDomain): WebDomainPhpDirective
     {
-        $this->webDomainID = $webDomainID;
+        $this->webDomain = $webDomain;
         return $this;
     }
 

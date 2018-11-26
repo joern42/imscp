@@ -40,6 +40,7 @@ use iMSCP::Execute qw/ execute executeNoWait /;
 use iMSCP::File;
 use Scalar::Defer qw/ lazy /;
 use parent 'iMSCP::Servers::Mta';
+use Tie::File;
 
 =head1 DESCRIPTION
 
@@ -486,64 +487,94 @@ sub deleteMail
 sub getTraffic
 {
     my ( $self, $trafficDb, $logFile, $trafficIndexDb ) = @_;
-    $logFile ||= "$::imscpConfig{'TRAFF_LOG_DIR'}/$::imscpConfig{'MAIL_TRAFF_LOG'}";
+    $logFile //= "$::imscpConfig{'TRAFF_LOG_DIR'}/$::imscpConfig{'MAIL_TRAFF_LOG'}";
+    my $isRotatedLogFile = substr( $logFile, -2 ) eq '.1';
 
     unless ( -f $logFile ) {
-        debug( sprintf( "SMTP %s log file doesn't exist. Skipping...", $logFile ));
+        unless ( $isRotatedLogFile ) {
+            debug( sprintf( "SMTP %s log file doesn't exist. Processing last SMTP rotated log file...", $logFile ));
+            $self->getTraffic( $trafficDb, $logFile . '.1', $trafficIndexDb );
+        } else {
+            debug( sprintf( "SMTP %s log file doesn't exist.", $logFile ));
+        }
+
         return;
     }
 
-    debug( sprintf( 'Processing SMTP %s log file', $logFile ));
+    debug( sprintf( 'Processing SMTP %s log file...', $logFile ));
 
-    # We use an index database to keep trace of the last processed logs
+    # We use an index database to keep trace of the last processed SMTP log
     $trafficIndexDb or tie %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => TRUE;
-    my ( $idx, $idxContent ) = ( $trafficIndexDb->{'smtp_lineNo'} || 0, $trafficIndexDb->{'smtp_lineContent'} );
+    $trafficIndexDb->{'smtp_pos'} = 0 unless exists $trafficIndexDb->{'smtp_pos'};
+    $trafficIndexDb->{'smtp_log'} = '' unless exists $trafficIndexDb->{'smtp_log'};
 
-    # Extract and standardize SMTP logs in temporary file, using
-    # maillogconvert.pl script
-    my $stdLogFile = File::Temp->new();
+    debug( sprintf( 'Standardizing SMTP %s log file for processing...', $logFile ) );
+    my ( $stdLogFile, $stderr ) = ( File::Temp->new() );
     $stdLogFile->close();
-    my $stderr;
-    execute( "nice -n 19 ionice -c2 -n7 /usr/local/sbin/maillogconvert.pl standard < $logFile > $stdLogFile", undef, \$stderr ) == 0 or die(
-        sprintf( "Couldn't standardize SMTP logs: %s", $stderr || 'Unknown error' )
+    execute( "nice -n10 ionice -c2 -n5 /usr/local/sbin/maillogconvert.pl standard < $logFile > $stdLogFile", undef, \$stderr ) == 0 or die(
+        sprintf( "Couldn't standardize SMTP logs: %s", $logFile, $stderr || 'Unknown error' )
     );
 
-    tie my @logs, 'Tie::File', "$stdLogFile", mode => O_RDONLY, memory => 0 or die( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
+    open my $fh, '<', $stdLogFile or die( sprintf( "Couldn't not open standardized SMTP %s log file for reading: %s", $logFile, $! ));
 
-    if ( exists $logs[$idx] && $logs[$idx] eq $idxContent ) {
-        debug( sprintf( 'Skipping SMTP logs that were already processed (lines %d to %d)', 1, ++$idx ));
-    } elsif ( length $idxContent && substr( $logFile, -2 ) ne '.1' ) {
-        debug( 'Log rotation has been detected. Processing last rotated log file first' );
-        $self->getTraffic( $trafficDb, $logFile . '.1', $trafficIndexDb );
-        $idx = 0;
+    if ( $trafficIndexDb->{'smtp_pos'} != 0 ) {
+        # Try to seek file position to last processed log
+        eval { seek( $fh, $trafficIndexDb->{'smtp_pos'}-length( "$trafficIndexDb->{'smtp_log'}\n" ), 0 ) or die( $! ); };
+
+        if ( ( $@ || $trafficIndexDb->{'smtp_log'} . "\n" ne ( <$fh> // '' ) ) ) {
+            # The log at current log file position doesn't match with the last
+            # known processed log. We assume a log rotation.
+            unless ( $isRotatedLogFile ) {
+                debug( sprintf( 'Log rotation has been detected. Previous SMTP %s log file need to be processed first!', $logFile.'.1' ));
+                getTraffic( $trafficDb, $logFile . '.1', $trafficIndexDb );
+                debug( sprintf( "Rewinding standardized SMTP %s log file for full processing...\n", $logFile ));
+                seek( $fh, 0, 0 );
+            } else {
+                close( $fh );
+                debug( sprintf( 'Last processed log not found in standardized SMTP %s log file. Skipped to avoid further discrepancy...', $logFile) );
+                return;
+            }
+        } else {
+            debug( sprintf( 'Last processed log found in standardized SMTP %s log file.', $logFile ));
+        }
     }
 
-    if ( $#logs < $idx ) {
-        debug( 'No new SMTP logs found for processing' );
+    if ( eof( $fh ) ) {
+        close( $fh );
+        debug( 'No new SMTP logs found for processing in standardized SMTP %s log file. Skipping...' );
         return;
     }
 
-    debug( sprintf( 'Processing SMTP logs (lines %d to %d)', $idx+1, $#logs+1 ));
+    debug( sprintf( 'Processing SMTP logs from standardized SMTP %s file, starting at position %d...', $logFile, tell( $fh )));
 
     # Extract SMTP traffic data
     #
     # Log line example
     # date       hour     from            to            relay_s            relay_r            proto  extinfo code size
     # 2017-04-17 13:31:50 from@domain.tld to@domain.tld relay_s.domain.tld relay_r.domain.tld SMTP   -       1    1001
-    my $regexp = qr/\@(?<from>[^\s]+)[^\@]+\@(?<to>[^\s]+)\s+(?<relay_s>[^\s]+)\s+(?<relay_r>[^\s]+).*?(?<size>\d+)$/;
+    # FIXME: check for relays_s|relays_r too 
+    my $lastLine;
+    while ( <$fh> ) {
+        my($from, $to, $size) = (split /\s+/)[2, 3, 9];
+        $trafficDb->{$from} += $size if exists $trafficDb->{$from};
+        $trafficDb->{$to} += $size if exists $trafficDb->{$to};
+        #if ( /\@([^\s]+)[^\@]+\@([^\s]+)\s+[^\s]+\s+[^\s]+.*?(\d+)$/o ) {
+        #    $trafficDb->{$1} += $3 if exists $trafficDb->{$1};
+        #    $trafficDb->{$2} += $3 if exists $trafficDb->{$2};
+        #}
 
-    # In term of memory usage, C-Style loop provide better results than using 
-    # range operator in Perl-Style loop: for( @logs[$idx .. $#logs] ) ...
-    for ( my $i = $idx; $i <= $#logs; $i++ ) {
-        next unless $logs[$i] =~ /$regexp/;
-        $trafficDb->{$+{'from'}} += $+{'size'} if exists $trafficDb->{$+{'from'}};
-        $trafficDb->{$+{'to'}} += $+{'size'} if exists $trafficDb->{$+{'to'}};
+        $lastLine = $_  unless $isRotatedLogFile;
     }
 
-    return if substr( $logFile, -2 ) eq '.1';
+    if ( $isRotatedLogFile ) {
+        close( $fh );
+        return;
+    }
 
-    $trafficIndexDb->{'smtp_lineNo'} = $#logs;
-    $trafficIndexDb->{'smtp_lineContent'} = $logs[$#logs];
+    # Store position for next processing
+    $trafficIndexDb->{'smtp_pos'} = tell( $fh ) or die( $! );
+    $trafficIndexDb->{'smtp_log'} = $lastLine;
+    close( $fh );
 }
 
 =item postmap( $lookupTable [, $lookupTableType = $self->{'config}->{'MTA_DB_DEFAULT_TYPE'} [, $delayed = FALSE ] ] )

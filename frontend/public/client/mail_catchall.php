@@ -84,7 +84,7 @@ function generateCatchallItem($tpl, $domainName, $mailId, $mailAcc, $domainId, $
  */
 function generatePage($tpl)
 {
-    $dmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+    $dmnProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
     // Normal catch-all account
 
@@ -190,7 +190,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('mail') or View::showBadRequestErrorPage();
+Counting::userHasFeature('mailMailboxes') or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([

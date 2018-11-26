@@ -32,8 +32,7 @@ our @EXPORT_OK = qw/ getBloc getBlocByRef processBloc processBlocByRef processVa
 
 =head1 DESCRIPTION
 
- The template parser allow to parse pseudo-variables within i-MSCP template files.
- It can parse simple variables or variable tag pairs.
+ Library for processing of i-MSCP templates.
 
 =head1 PUBLIC METHODS
 
@@ -41,9 +40,11 @@ our @EXPORT_OK = qw/ getBloc getBlocByRef processBloc processBlocByRef processVa
 
 =item processVarsByRef( \$tpl, $vars [, $emptyUnknownVars = FALSE ] )
 
+ Process variables replacement withing the given template
+
  Param scalarref $tpl Reference to template variable
  Param hashref $vars Reference to hash containing templates variable and their values
- Param boolean $emptyUnknownVars Flag indicating whether unknow variables must be emptied
+ Param boolean $emptyUnknownVars Flag indicating whether unknown variables must be emptied
  Return void, croak on invalid parameters
 
 =cut
@@ -60,6 +61,8 @@ sub processVarsByRef( $$;$ )
 }
 
 =item processVars( $tpl, $vars [, $emptyUnknownVars = FALSE ] )
+
+ Process variables replacement withing the given template
 
  Param scalarref $tpl Reference to template variable
  Param hashref $vars Reference to hash containing templates variable and their values

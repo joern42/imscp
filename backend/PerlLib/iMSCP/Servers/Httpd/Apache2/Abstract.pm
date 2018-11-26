@@ -1300,28 +1300,26 @@ EOF
         $dbSchemaFile->close();
         $self->buildConfFile( $dbSchemaFile, undef, undef, { DATABASE_NAME => ::setupGetQuestion( 'DATABASE_NAME' ) }, { srcname => 'vlogger.sql' } );
 
-        my $defaultsExtraFile = File::Temp->new();
-        print $defaultsExtraFile <<"EOF";
+        my $mysqlDefaultsFile = File::Temp->new();
+        print $mysqlDefaultsFile <<"EOF";
 [mysql]
 host = {HOST}
 port = {PORT}
 user = "{USER}"
 password = "{PASSWORD}"
 EOF
-        $defaultsExtraFile->close();
-        $self->buildConfFile( $defaultsExtraFile, undef, undef,
+        $mysqlDefaultsFile->close();
+        $self->buildConfFile( $mysqlDefaultsFile, undef, undef,
             {
                 HOST     => ::setupGetQuestion( 'DATABASE_HOST' ),
                 PORT     => ::setupGetQuestion( 'DATABASE_PORT' ),
                 USER     => ::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
                 PASSWORD => decryptRijndaelCBC( $::imscpKEY, $::imscpIV, ::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
             },
-            {
-                srcname => 'defaults-extra-file'
-            }
+            { srcname => 'mysql-defaults-file' }
         );
 
-        my $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \my $stdout, \my $stderr );
+        my $rs = execute( "mysql --defaults-file=$mysqlDefaultsFile < $dbSchemaFile", \my $stdout, \my $stderr );
         debug( $stdout ) if length $stdout;
         $rs == 0 or die( $stderr || 'Unknown error' );
     }

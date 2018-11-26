@@ -21,7 +21,7 @@
 namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
-use iMSCP\Functions\HelpDesk;
+use iMSCP\Functions\SupportSystem;
 use iMSCP\Functions\View;
 
 require_once 'application.php';
@@ -47,15 +47,15 @@ if (isset($_GET['ticket_id'])) {
         $previousPage = 'ticket_closed';
     }
 
-    HelpDesk::deleteTicket($ticketId);
+    SupportSystem::deleteTicket($ticketId);
     View::setPageMessage(tr('Ticket successfully deleted.'), 'success');
     writeLog(sprintf("%s: deleted ticket %d", Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $ticketId), E_USER_NOTICE);
 } elseif (isset($_GET['delete']) && $_GET['delete'] == 'open') {
-    HelpDesk::deleteTickets('open', Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+    SupportSystem::deleteTickets('open', Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     View::setPageMessage(tr('All open tickets were successfully deleted.'), 'success');
     writeLog(sprintf("%s: deleted all open tickets.", Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
 } elseif (isset($_GET['delete']) && $_GET['delete'] == 'closed') {
-    HelpDesk::deleteTickets('closed', Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+    SupportSystem::deleteTickets('closed', Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     View::setPageMessage(tr('All closed tickets were successfully deleted.'), 'success');
     writeLog(sprintf("%s: deleted all closed tickets.", Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     $previousPage = 'ticket_closed';

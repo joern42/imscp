@@ -28,8 +28,6 @@ use iMSCP\TemplateEngine;
 /**
  * Class Browser
  *
- * This exception writer writes an exception messages to the client browser.
- *
  * @package iMSCP\Exception\Writer
  */
 class Browser implements WriterInterface
@@ -49,6 +47,10 @@ class Browser implements WriterInterface
      */
     public function __invoke(Event $event): void
     {
+        if(PHP_SAPI === 'cli') {
+            return;
+        }
+
         $exception = $event->getException();
 
         try {

@@ -21,7 +21,7 @@
 namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
-use iMSCP\Functions\HelpDesk;
+use iMSCP\Functions\SupportSystem;
 use iMSCP\Functions\View;
 
 require_once 'application.php';
@@ -30,7 +30,7 @@ Application::getInstance()->getAuthService()->checkIdentity(AuthenticationServic
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 Application::getInstance()->getConfig()['IMSCP_SUPPORT_SYSTEM'] or View::showBadRequestErrorPage();
 
-!isset($_GET['ticket_id']) or HelpDesk::closeTicket(intval($_GET['ticket_id']));
+!isset($_GET['ticket_id']) or SupportSystem::closeTicket(intval($_GET['ticket_id']));
 
 if (isset($_GET['psi'])) {
     $start = $_GET['psi'];
@@ -71,7 +71,7 @@ $tpl->assign([
 ]);
 
 View::generateNavigation($tpl);
-HelpDesk::generateTicketList(
+SupportSystem::generateTicketList(
     $tpl,
     Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
     $start, Application::getInstance()->getConfig()['DOMAIN_ROWS_PER_PAGE'],

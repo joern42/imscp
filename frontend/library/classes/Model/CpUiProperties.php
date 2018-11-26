@@ -20,46 +20,61 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class CpUiProperties
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_cp_ui_properties", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class CpUiProperties extends BaseModel
+class CpUiProperties
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $CpUiPropertiesID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\JoinColumn(name="userID", referencedColumnName="userID", onDelete="CASCADE")
+     * @var User
      */
-    private $userID;
+    private $user;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $lang = 'browser';
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $layout = 'default';
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
-    private $layoutColor = 'black';
+    private $layoutColor = 'default';
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string|null
      */
     private $layoutLogo;
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $showMenuLabels = 0;
+    private $showMenuLabels = false;
 
     /**
      * @return int
@@ -70,30 +85,20 @@ class CpUiProperties extends BaseModel
     }
 
     /**
-     * @param int $CpUiPropertiesID
-     * @return CpUiProperties
+     * @return User
      */
-    public function setCpUiPropertiesID(int $CpUiPropertiesID): CpUiProperties
+    public function getUser(): User
     {
-        $this->CpUiPropertiesID = $CpUiPropertiesID;
-        return $this;
+        return $this->user;
     }
 
     /**
-     * @return int
-     */
-    public function getUserID(): int
-    {
-        return $this->userID;
-    }
-
-    /**
-     * @param int $userID
+     * @param User $user
      * @return CpUiProperties
      */
-    public function setUserID(int $userID): CpUiProperties
+    public function setUser(User $user): CpUiProperties
     {
-        $this->userID = $userID;
+        $this->user = $user;
         return $this;
     }
 

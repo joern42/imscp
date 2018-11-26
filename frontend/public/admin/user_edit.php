@@ -21,8 +21,8 @@
 namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
-use iMSCP\Form\UserLoginDataFieldset;
-use iMSCP\Form\UserPersonalDataFieldset;
+use iMSCP\Form\LoginDataFieldset;
+use iMSCP\Form\PersonalDataFieldset;
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
@@ -47,14 +47,14 @@ function updateUserData(Form $form, $userId)
     $form->setData(Application::getInstance()->getRequest()->getPost());
 
     // We do not want validate username in edit mode
-    $form->getInputFilter()->get('loginData')->remove('admin_name');
+    $form->getInputFilter()->get('logindatafieldset')->remove('admin_name');
 
     // Password is optional in edit mode
-    $form->getInputFilter()->get('loginData')->get('admin_pass')->setRequired(false);
-    if ($form->get('loginData')->get('admin_pass')->getValue() == ''
-        && $form->get('loginData')->get('admin_pass_confirmation')->getValue() == ''
+    $form->getInputFilter()->get('logindatafieldset')->get('admin_pass')->setRequired(false);
+    if ($form->get('logindatafieldset')->get('admin_pass')->getValue() == ''
+        && $form->get('logindatafieldset')->get('admin_pass_confirmation')->getValue() == ''
     ) {
-        $form->getInputFilter()->get('loginData')->get('admin_pass_confirmation')->setRequired(false);
+        $form->getInputFilter()->get('logindatafieldset')->get('admin_pass_confirmation')->setRequired(false);
     }
 
     if (!$form->isValid()) {
@@ -62,8 +62,8 @@ function updateUserData(Form $form, $userId)
         return;
     }
 
-    $ldata = $form->getData()['loginData'];
-    $pdata = $form->getData()['personalData'];
+    $ldata = $form->getData()['logindatafieldset'];
+    $pdata = $form->getData()['personaldatafieldset'];
 
     $db = Application::getInstance()->getDb();
 
@@ -105,7 +105,7 @@ function updateUserData(Form $form, $userId)
 
     $ret = false;
     if ($ldata['admin_pass'] != '') {
-        $ret = Mail::sendWelcomeMail($userId, $udata['admin_name'], $ldata['admin_pass'], $pdata['email'], $pdata['fname'], $pdata['lname'],
+        $ret = Mail::sendAcountUpdateMail($userId, $udata['admin_name'], $ldata['admin_pass'], $pdata['email'], $pdata['fname'], $pdata['lname'],
             $udata['admin_type'] == 'admin' ? tr('Administrator') : tr('Customer')
         );
     }
@@ -136,7 +136,7 @@ function generatePage(TemplateEngine $tpl, Form $form, $userId)
     $tpl->editId = $userId;
 
     if (Application::getInstance()->getRequest()->isPost()) {
-        $form->get('loginData')->get('admin_name')->setValue(getUsername($userId));
+        $form->get('logindatafieldset')->get('admin_name')->setValue(getUsername($userId));
         return;
     }
 
@@ -152,8 +152,8 @@ function generatePage(TemplateEngine $tpl, Form $form, $userId)
 
     ($data = $stmt->fetch()) !== false or View::showBadRequestErrorPage();
     $userType = $data['admin_type'];
-    $form->get('loginData')->populateValues($data);
-    $form->get('personalData')->populateValues($data);
+    $form->get('logindatafieldset')->populateValues($data);
+    $form->get('personaldatafieldset')->populateValues($data);
 }
 
 require_once 'application.php';
@@ -161,19 +161,13 @@ require_once 'application.php';
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 ($userId = Application::getInstance()->getRequest()->getQuery('edit_id')) !== NULL or View::showBadRequestErrorPage();
-$userId !== Application::getInstance()->getAuthService()->getIdentity()->getUserId() or redirectTo('personal_change.php');
+$userId != Application::getInstance()->getAuthService()->getIdentity()->getUserId() or redirectTo('personal_change.php');
 
 global $userType;
 
-($form = new Form('UserEditForm'))
-    ->add([
-        'type' => UserLoginDataFieldset::class,
-        'name' => 'loginData'
-    ])
-    ->add([
-        'type' => UserPersonalDataFieldset::class,
-        'name' => 'personalData'
-    ])
+($form = new Form('user-edit-form'))
+    ->add(['type' => LoginDataFieldset::class])
+    ->add(['type' => PersonalDataFieldset::class])
     ->add([
         'type'    => Element\Csrf::class,
         'name'    => 'csrf',

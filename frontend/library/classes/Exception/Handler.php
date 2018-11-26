@@ -36,7 +36,8 @@ class Handler implements EventManagerAwareInterface
         // Must be registered first on event manager so that even if the
         // Browser exception writer raise an exception, mail will be sent
         Writer\Mail::class,
-        Writer\Browser::class
+        Writer\Browser::class,
+        Writer\Cli::class
     ];
 
     use EventManagerAwareTrait;
@@ -55,7 +56,7 @@ class Handler implements EventManagerAwareInterface
 
         try {
             foreach ($this->writers as $writer) {
-                $this->getEventManager()->attach('onUncaughtException', new $writer);
+               $this->getEventManager()->attach('onUncaughtException', new $writer);
             }
 
             $this->getEventManager()->triggerEvent($event);

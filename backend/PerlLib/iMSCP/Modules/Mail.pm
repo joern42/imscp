@@ -82,8 +82,13 @@ sub _loadEntityData
     my ( $self, $entityId ) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
-        'SELECT mail_id, mail_acc, mail_pass, mail_forward, mail_type, mail_auto_respond, status, quota, mail_addr FROM mail_users WHERE mail_id = ?',
-        undef, $entityId
+        '
+            SELECT mail_id, mail_acc, mail_pass, mail_forward, mail_type, mail_auto_respond, status, quota, mail_addr
+            FROM mail_users
+            WHERE mail_id = ?
+        ',
+        undef,
+        $entityId
     );
     $row or die( sprintf( 'Data not found for mail user (ID %d)', $entityId ));
 

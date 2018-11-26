@@ -21,8 +21,7 @@
 namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
-use iMSCP\Form\UserLoginDataFieldset;
-use iMSCP\Form\UserPersonalDataFieldset;
+use iMSCP\Form\ResellerForm;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
@@ -54,15 +53,17 @@ function &getFormData()
 
     foreach (
         [
-            'max_dmn_cnt'                  => 0,
-            'max_sub_cnt'                  => 0,
-            'max_als_cnt'                  => 0,
-            'max_mail_cnt'                 => 0,
-            'max_ftp_cnt'                  => 0,
-            'max_sql_db_cnt'               => 0,
-            'max_sql_user_cnt'             => 0,
-            'max_traff_amnt'               => 0,
-            'max_disk_amnt'                => 0,
+            'domains'                => 0,
+            
+            
+            'mail_accounts'          => 0,
+            'ftp_accounts_'           => 0,
+            'sql_databases'          => 0,
+            'sql_users'              => 0,
+            'monthly_traffic'        => 0,
+            'diskspace'              => 0,
+            'reseller_ips'                 => [],
+            'php'                          => 1,
             'support_system'               => 'yes',
             'php_ini_system'               => $phpini->getResellerPermission('phpiniSystem'),
             'php_ini_al_config_level'      => $phpini->getResellerPermission('phpiniConfigLevel'),
@@ -75,7 +76,11 @@ function &getFormData()
             'max_execution_time'           => $phpini->getResellerPermission('phpiniMaxExecutionTime'),
             'max_input_time'               => $phpini->getResellerPermission('phpiniMaxInputTime'),
             'memory_limit'                 => $phpini->getResellerPermission('phpiniMemoryLimit'),
-            'reseller_ips'                 => []
+            'cgi'                          => 1,
+            'custom_dns'                   => 1,
+            'external_mail_server'         => 1,
+            'backup'                       => 1
+
         ] as $key => $value
     ) {
         $data[$key] = cleanInput($request->getPost($key, $value));
@@ -272,18 +277,6 @@ function addResellerUser(Form $form)
             $error = true;
         }
 
-        // Check for max subdomains limit
-        if (!validateLimit($data['max_sub_cnt'])) {
-            View::setPageMessage(tr('Incorrect limit for %s.', tr('subdomains')), 'error');
-            $error = true;
-        }
-
-        // check for max domain aliases limit
-        if (!validateLimit($data['max_als_cnt'])) {
-            View::setPageMessage(tr('Incorrect limit for %s.', tr('domain aliases')), 'error');
-            $error = true;
-        }
-
         // Check for max mail accounts limit
         if (!validateLimit($data['max_mail_cnt'])) {
             View::setPageMessage(tr('Incorrect limit for %s.', tr('mail accounts')), 'error');
@@ -383,29 +376,25 @@ function addResellerUser(Form $form)
                     INSERT INTO reseller_props (
                         reseller_id, reseller_ips, max_dmn_cnt, current_dmn_cnt, max_sub_cnt, current_sub_cnt, max_als_cnt, current_als_cnt,
                         max_mail_cnt, current_mail_cnt, max_ftp_cnt, current_ftp_cnt, max_sql_db_cnt, current_sql_db_cnt, max_sql_user_cnt,
-                        current_sql_user_cnt, max_traff_amnt, current_traff_amnt, max_disk_amnt, current_disk_amnt, support_system, php_ini_system,
-                        php_ini_al_config_level, php_ini_al_disable_functions, php_ini_al_mail_function, php_ini_al_allow_url_fopen,
-                        php_ini_al_display_errors, php_ini_max_post_max_size, php_ini_max_upload_max_filesize,php_ini_max_max_execution_time,
-                        php_ini_max_max_input_time, php_ini_max_memory_limit
+                        current_sql_user_cnt, max_traff_amnt, current_traff_amnt, max_disk_amnt, current_disk_amnt, support_system, php_perm,
+                        php_ini_system, php_ini_al_config_level, php_ini_al_disable_functions, php_ini_al_mail_function, php_ini_al_allow_url_fopen,
+                        php_ini_al_display_errors, php_ini_max_post_max_size, php_ini_max_upload_max_filesize, php_ini_max_max_execution_time,
+                        php_ini_max_max_input_time, php_ini_max_memory_limit, cgi_perm, custom_dns_perm, external_mail_server_perm, backup_perm
                     ) VALUES (
-                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                     )
                 ',
                 [
                     $resellerId, implode(',', $data['reseller_ips']), $data['max_dmn_cnt'], '0', $data['max_sub_cnt'], '0', $data['max_als_cnt'], '0',
                     $data['max_mail_cnt'], '0', $data['max_ftp_cnt'], '0', $data['max_sql_db_cnt'], '0', $data['max_sql_user_cnt'], '0',
-                    $data['max_traff_amnt'], '0', $data['max_disk_amnt'], '0', $data['support_system'],
-                    $phpini->getResellerPermission('phpiniSystem'),
-                    $phpini->getResellerPermission('phpiniConfigLevel'),
-                    $phpini->getResellerPermission('phpiniDisableFunctions'),
-                    $phpini->getResellerPermission('phpiniMailFunction'),
-                    $phpini->getResellerPermission('phpiniAllowUrlFopen'),
-                    $phpini->getResellerPermission('phpiniDisplayErrors'),
-                    $phpini->getResellerPermission('phpiniPostMaxSize'),
-                    $phpini->getResellerPermission('phpiniUploadMaxFileSize'),
-                    $phpini->getResellerPermission('phpiniMaxExecutionTime'),
-                    $phpini->getResellerPermission('phpiniMaxInputTime'),
-                    $phpini->getResellerPermission('phpiniMemoryLimit')
+                    $data['max_traff_amnt'], '0', $data['max_disk_amnt'], '0', $data['support_system'], $data['php'],
+                    $phpini->getResellerPermission('phpiniSystem'), $phpini->getResellerPermission('phpiniConfigLevel'),
+                    $phpini->getResellerPermission('phpiniDisableFunctions'), $phpini->getResellerPermission('phpiniMailFunction'),
+                    $phpini->getResellerPermission('phpiniAllowUrlFopen'), $phpini->getResellerPermission('phpiniDisplayErrors'),
+                    $phpini->getResellerPermission('phpiniPostMaxSize'), $phpini->getResellerPermission('phpiniUploadMaxFileSize'),
+                    $phpini->getResellerPermission('phpiniMaxExecutionTime'), $phpini->getResellerPermission('phpiniMaxInputTime'),
+                    $phpini->getResellerPermission('phpiniMemoryLimit'), $data['cgi'], $data['custom_dns_perm'], $data['external_mail_server_perm'],
+                    $data['support_center_perm'], $data['backup_perm']
                 ]
             );
 
@@ -460,31 +449,13 @@ Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStar
 $phpini = PHPini::getInstance();
 $phpini->loadResellerPermissions();
 
-($form = new Form('ResellerAddForm'))
-    ->add([
-        'type' => UserLoginDataFieldset::class,
-        'name' => 'loginData'
-    ])
-    ->add([
-        'type' => UserPersonalDataFieldset::class,
-        'name' => 'personalData'
-    ])
-    ->add([
-        'type'    => Element\Csrf::class,
-        'name'    => 'csrf',
-        'options' => [
-            'csrf_options' => [
-                'timeout' => 300,
-                'message' => tr('Validation token (CSRF) was expired. Please try again.')
-            ]
-        ]
-    ])
+($form = new ResellerForm())
     ->add([
         'type'    => Element\Submit::class,
         'name'    => 'submit',
         'options' => ['label' => tr('Add')]
     ])
-    ->get('personalData')->get('gender')->setValue('U');
+    ->get('personaldatafieldset')->get('gender')->setValue('U');
 
 if (Application::getInstance()->getRequest()->isPost()) {
     addResellerUser($form);

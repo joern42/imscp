@@ -143,8 +143,8 @@ sub _step
     return unless defined $callback && $@;
 
     # Make error message free of most ANSI sequences
-    ( my $errorMessage = $@ ) =~ s/\x1b\[[0-9;]*[mGKH]//g;
-    $errorMessage =~ s/^[\s\n]+|[\s\n+]+$//g;
+    ( my $error = $@ ) =~ s/\x1b\[[0-9;]*[mGKH]//g;
+    $error =~ s/^[\s\n]+|[\s\n+]+$//g;
     $dialog->endGauge();
     $dialog->msgbox( <<"EOF" );
 \\Z1[ERROR]\\Zn
@@ -155,7 +155,7 @@ $text
 
 Error was:
 
-\\Z1$errorMessage\\Zn
+\\Z1$error\\Zn
 
 Please have a look at https://i-mscp.net/ if you need help.
 EOF

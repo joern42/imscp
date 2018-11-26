@@ -37,22 +37,22 @@ $tpl->define([
 ]);
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'email_setup') {
-    $data['subject'] = isset($_POST['auto_subject']) ? cleanInput($_POST['auto_subject']) : '';
-    $data['message'] = isset($_POST['auto_message']) ? cleanInput($_POST['auto_message']) : '';
+    $data['emailSubject'] = isset($_POST['auto_subject']) ? cleanInput($_POST['auto_subject']) : '';
+    $data['emailBody'] = isset($_POST['auto_message']) ? cleanInput($_POST['auto_message']) : '';
     $error = false;
 
-    if ($data['subject'] == '') {
+    if (empty(['emailSubject'])) {
         View::setPageMessage(tr('Please specify a message subject.'), 'error');
         $error = true;
     }
 
-    if ($data['message'] == '') {
+    if (empty($data['emailBody'])) {
         View::setPageMessage(tr('Please specify a message content.'), 'error');
         $error = true;
     }
 
     if (!$error) {
-        Mail::setWelcomeEmail(0, $data);
+        Mail::setWelcomeEmail(null, $data);
         View::setPageMessage(tr('Welcome email template has been updated.'), 'success');
         redirectTo('settings_welcome_mail.php');
     }

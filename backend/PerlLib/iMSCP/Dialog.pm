@@ -128,7 +128,7 @@ sub radiolist
     wantarray ? ( $ret, $tag ) : $tag;
 }
 
-=item checkbox( $text, \%choices [, \@defaults = [] [, $showTags =  FALSE ] )
+=item checkbox( $text, \%choices [, \@defaults = [] [, $showTags =  FALSE ] ] )
 
  Show check list dialog
 
@@ -381,7 +381,7 @@ sub setGauge
 
 sub endGauge
 {
-    return 0 unless $_[0]->{'gauge'};
+    return unless $_[0]->{'gauge'};
 
     $_[0]->{'gauge'}->close();
     undef $_[0]->{'gauge'};
@@ -397,7 +397,7 @@ sub endGauge
 
 sub hasGauge
 {
-    $_[0]->{'gauge'} ? 1 : 0;
+    !!$_[0]->{'gauge'};
 }
 
 =back
@@ -492,6 +492,8 @@ sub _init
 =item _resize( )
 
  This method is called whenever the tty is resized, and probes to determine the new screen size.
+
+ Return void
 
 =cut
 
@@ -660,11 +662,9 @@ sub _execute
 sub _textbox
 {
     my ( $self, $text, $type, $init ) = @_;
-
-    my $autosize = $self->{'autosize'};
-    $self->{'autosize'} = undef;
+    
+    local $self->{'autosize'} = undef;
     my ( $ret, $output ) = $self->_execute( $text, $init, $type );
-    $self->{'autosize'} = $autosize;
     wantarray ? ( $ret, $output ) : $output;
 }
 

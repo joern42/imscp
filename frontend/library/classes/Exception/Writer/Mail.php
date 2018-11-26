@@ -28,8 +28,6 @@ use iMSCP\Utility\OpcodeCache;
 /**
  * Class Mail
  *
- * This exception writer writes an exception messages to admin email.
- *
  * @package iMSCP\Exception\Writer
  */
 class Mail implements WriterInterface

@@ -22,6 +22,7 @@ namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
+use Zend\Uri\Http;
 
 /**
  * Check input data
@@ -52,7 +53,7 @@ function reseller_checkData()
 
     $asciiDmnName = encodeIdna($dmnName);
 
-    if (isKnownDomain($asciiDmnName, $identity->getUserId())) {
+    if (isWebDomainKnown($asciiDmnName, $identity->getUserId())) {
         View::setPageMessage(tr('Domain %s is unavailable.', "<strong>$dmnName</strong>"), 'error');
         return;
     }
@@ -75,33 +76,11 @@ function reseller_checkData()
         }
 
         try {
-            try {
-                $uri = iMSCP_Uri_Redirect::fromString($forwardUrl);
-            } catch (Zend_Uri_Exception $e) {
-                throw new \Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
-            }
-
-            $uri->setHost(encodeIdna(mb_strtolower($uri->getHost()))); // Normalize URI host
-            $uri->setPath(rtrim(normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
-
-            if ($uri->getHost() == $asciiDmnName && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))) {
-                throw new \Exception(
-                    tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>") . ' ' .
-                    tr('Domain %s cannot be forwarded on itself.', "<strong>$dmnName</strong>")
-                );
-            }
-
-            if ($forwardType == 'proxy') {
-                $port = $uri->getPort();
-
-                if ($port && $port < 1025) {
-                    throw new \Exception(tr('Unallowed port in forward URL. Only ports above 1024 are allowed.', 'error'));
-                }
-            }
-
-            $forwardUrl = $uri->getUri();
+            $uri = new Http($forwardUrl);
+            $uri->setHost(encodeIdna(mb_strtolower($uri->getHost())));
+            $forwardUrl = $uri->toString();
         } catch (\Exception $e) {
-            View::setPageMessage($e->getMessage(), 'error');
+            View::setPageMessage(tr('Forward URL %s is not valid: %s', "<strong>$forwardUrl</strong>", $e->getMessage()), 'error');
             return;
         }
     }
@@ -111,40 +90,41 @@ function reseller_checkData()
         return;
     }
 
-    $dmnExpire = (isset($_POST['datepicker'])) ? @strtotime(cleanInput($_POST['datepicker'])) : 0;
-    if ($dmnExpire == false) {
+    $dmnExpire = isset($_POST['datepicker']) && !isset($_POST['never_expire']) ? @strtotime(cleanInput($_POST['datepicker'])) : 0;
+    if ($dmnExpire === false) {
         View::setPageMessage('Invalid expiration date.', 'error');
         return;
     }
 
     $hpId = isset($_POST['dmn_tpl']) ? cleanInput($_POST['dmn_tpl']) : 0;
     $customizeHp = $hpId > 0 && isset($_POST['chtpl']) ? $_POST['chtpl'] : '_no_';
+    $session = Application::getInstance()->getSession();
 
     if ($hpId == 0 || $customizeHp == '_yes_') {
-        Application::getInstance()->getSession()['dmn_name'] = $asciiDmnName;
-        Application::getInstance()->getSession()['dmn_expire'] = $dmnExpire;
-        Application::getInstance()->getSession()['dmn_url_forward'] = $forwardUrl;
-        Application::getInstance()->getSession()['dmn_type_forward'] = $forwardType;
-        Application::getInstance()->getSession()['dmn_host_forward'] = $forwardHost;
-        Application::getInstance()->getSession()['dmn_tpl'] = $hpId;
-        Application::getInstance()->getSession()['chtpl'] = '_yes_';
-        Application::getInstance()->getSession()['step_one'] = '_yes_';
+        $session['dmn_name'] = $asciiDmnName;
+        $session['dmn_expire'] = $dmnExpire;
+        $session['dmn_url_forward'] = $forwardUrl;
+        $session['dmn_type_forward'] = $forwardType;
+        $session['dmn_host_forward'] = $forwardHost;
+        $session['dmn_tpl'] = $hpId;
+        $session['chtpl'] = '_yes_';
+        $session['step_one'] = '_yes_';
         redirectTo('user_add2.php');
     }
 
-    if (!validateHostingPlanLimits($hpId, $identity->getUserId())) {
+    if (!validateHostingPlan($hpId, $identity->getUserId(), true)) {
         View::setPageMessage(tr('Hosting plan limits exceed reseller limits.'), 'error');
         return;
     }
 
-    Application::getInstance()->getSession()['dmn_name'] = $asciiDmnName;
-    Application::getInstance()->getSession()['dmn_expire'] = $dmnExpire;
-    Application::getInstance()->getSession()['dmn_url_forward'] = $forwardUrl;
-    Application::getInstance()->getSession()['dmn_type_forward'] = $forwardType;
-    Application::getInstance()->getSession()['dmn_host_forward'] = $forwardHost;
-    Application::getInstance()->getSession()['dmn_tpl'] = $hpId;
-    Application::getInstance()->getSession()['chtpl'] = $customizeHp;
-    Application::getInstance()->getSession()['step_one'] = '_yes_';
+    $session['dmn_name'] = $asciiDmnName;
+    $session['dmn_expire'] = $dmnExpire;
+    $session['dmn_url_forward'] = $forwardUrl;
+    $session['dmn_type_forward'] = $forwardType;
+    $session['dmn_host_forward'] = $forwardHost;
+    $session['dmn_tpl'] = $hpId;
+    $session['chtpl'] = $customizeHp;
+    $session['step_one'] = '_yes_';
     redirectTo('user_add3.php');
 }
 
@@ -205,7 +185,7 @@ require_once 'application.php';
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
-if(Application::getInstance()->getRequest()->isPost()) {
+if (Application::getInstance()->getRequest()->isPost()) {
     reseller_checkData();
 }
 

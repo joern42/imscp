@@ -273,15 +273,7 @@ EOF
     # Create the SQL view for the virtual_mailbox_domains map
     $self->{'mta'}->{'dbh'}->do( <<'EOF' );
 CREATE OR REPLACE VIEW postfix_virtual_mailbox_domains AS
-SELECT domain_name FROM domain WHERE domain_status <> 'disabled' AND external_mail = 'off'
-UNION ALL
-SELECT CONCAT(t1.subdomain_name, '.', t2.domain_name) FROM subdomain AS t1 JOIN domain AS t2 USING(domain_id)
-WHERE t1.subdomain_status <> 'disabled' AND t2.external_mail = 'off'
-UNION ALL
-SELECT alias_name FROM domain_aliases WHERE alias_status <> 'disabled' AND external_mail = 'off'
-UNION ALL
-SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name) FROM subdomain_alias AS t1 JOIN domain_aliases AS t2 USING(alias_id)
-WHERE t1.subdomain_alias_status <> 'disabled' AND t2.external_mail = 'off'
+SELECT domain_name FROM domain WHERE domain_status <> 'disabled' AND domain_external_mail = 'off'
 EOF
     # Create the SQL view for the virtual_mailbox_maps map
     $self->{'mta'}->{'dbh'}->do( <<"EOF" );
@@ -292,9 +284,7 @@ EOF
     # Create SQL view for the relay_domains map
     $self->{'mta'}->{'dbh'}->do( <<"EOF" );
 CREATE OR REPLACE VIEW postfix_relay_domains AS
-SELECT domain_name FROM domain WHERE domain_status <> 'disabled' AND external_mail = 'on'
-UNION ALL
-SELECT alias_name FROM domain_aliases WHERE alias_status <> 'disabled' AND external_mail = 'on'
+SELECT domain_name FROM domain WHERE domain_status <> 'disabled' AND domain_external_mail = 'on'
 EOF
     # Create the SQL view for the transport_maps map (for vacation entries only)
     $self->{'mta'}->{'dbh'}->do( <<'EOF' );

@@ -41,17 +41,10 @@ $tpl->define([
 ]);
 $tpl->assign('TR_PAGE_TITLE', tr('Admin / System Tools / Anti-Rootkits Logs'));
 
-$antiRootkits = [];
-
-if (isset($config['ANTIROOTKITS'])) {
-    $antiRootkits = explode(',', $config['ANTIROOTKITS']);
-}
-
-$antiRootkits[] = 'Other';
+$antiRootkits = explode(',', $config['ANTIROOTKITS']);
 $antiRootkitLogFiles = [
     'Chkrootkit' => 'CHKROOTKIT_LOG',
-    'Rkhunter'   => 'RKHUNTER_LOG',
-    'Other'      => 'OTHER_ROOTKIT_LOG'
+    'Rkhunter'   => 'RKHUNTER_LOG'
 ];
 
 foreach ($antiRootkitLogFiles as $antiRootkit => $logVar) {

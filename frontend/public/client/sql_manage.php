@@ -33,7 +33,7 @@ use iMSCP\Functions\View;
 function canAddSQLUserForDatabase($sqldId)
 {
     $userId = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
-    $domainProps = getCustomerProperties($userId);
+    $domainProps = getClientProperties($userId);
 
     if ($domainProps['domain_sqlu_limit'] == 0) {
         return true;
@@ -133,7 +133,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('sql') or View::showBadRequestErrorPage();
+Counting::userHasFeature('sql') or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([

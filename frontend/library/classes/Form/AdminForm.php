@@ -35,18 +35,18 @@ class AdminForm extends Form
      */
     public function __construct($name = NULL, $options = [])
     {
-        parent::__construct($name ?: 'AdminForm', $options);
+        parent::__construct($name, $options);
 
         $this->setAttribute('method', 'post');
         $this
             // Login data
             ->add([
-                'type' => UserLoginDataFieldset::class,
+                'type' => LoginDataFieldset::class,
                 'name' => 'loginData'
             ])
             // Personal data
             ->add([
-                'type' => UserPersonalDataFieldset::class,
+                'type' => PersonalDataFieldset::class,
                 'name' => 'personalData'
             ])
             // CSRF
@@ -60,7 +60,13 @@ class AdminForm extends Form
                     ]
                 ]
             ]);
+    }
 
+    /**
+     * @inheritdoc
+     */
+    public function init()
+    {
         // Make 3rd-party components able to modify that form
         Application::getInstance()->getEventManager()->trigger('onInitAdminForm', $this);
     }

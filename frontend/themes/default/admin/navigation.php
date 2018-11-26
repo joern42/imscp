@@ -33,9 +33,9 @@ return [
                 'uri'         => '/admin/index.php',
                 'title_class' => 'general'
             ],
-            'services_statuses' => [
-                'label'       => tr('Service statuses'),
-                'uri'         => '/admin/service_statuses.php',
+            'monitored_services' => [
+                'label'       => tr('Service monitoring'),
+                'uri'         => '/admin/service_monitoring.php',
                 'title_class' => 'serverstatus'
             ],
             'admin_log'         => [
@@ -273,9 +273,9 @@ return [
                 'uri'         => '/admin/settings_lostpassword.php',
                 'title_class' => 'email'
             ],
-            'service_ports'      => [
-                'label'       => tr('Service ports'),
-                'uri'         => '/admin/settings_ports.php',
+            'monitored_services'      => [
+                'label'       => tr('Monitored services'),
+                'uri'         => '/admin/settings_monitored_services.php',
                 'title_class' => 'general'
             ],
             'plugins_management' => [

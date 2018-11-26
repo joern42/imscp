@@ -20,38 +20,52 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class ServerIpAddress
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_server_ip_address", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class ServerIpAddress extends BaseModel
+class ServerIpAddress 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $serverIpAddressID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="Server")
+     * @ORM\JoinColumn(name="serverID", referencedColumnName="serverID", onDelete="CASCADE")
+     * @var Server
      */
-    private $serverID;
+    private $server;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $ipAddress;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $netmask;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $nic;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $configMode = 'manual';
@@ -75,20 +89,20 @@ class ServerIpAddress extends BaseModel
     }
 
     /**
-     * @return int
+     * @return Server
      */
-    public function getServerID(): int
+    public function getServer(): Server
     {
-        return $this->serverID;
+        return $this->server;
     }
 
     /**
-     * @param int $serverID
+     * @param Server $server
      * @return ServerIpAddress
      */
-    public function setServerID(int $serverID): ServerIpAddress
+    public function setServer(Server $server): ServerIpAddress
     {
-        $this->serverID = $serverID;
+        $this->server = $server;
         return $this;
     }
 

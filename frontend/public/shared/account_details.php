@@ -33,7 +33,7 @@ use iMSCP\Functions\View;
 function generateMailQuotaData($clientId)
 {
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    $clientProps = getCustomerProperties($clientId, $identity->getUserType() == 'reseller' ? $identity->getUserId() : NULL);
+    $clientProps = getClientProperties($clientId, $identity->getUserType() == 'reseller' ? $identity->getUserId() : NULL);
     $mailQuota = execQuery('SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE domain_id = ?', [$clientProps['domain_id']])->fetchColumn();
     return [bytesHuman($mailQuota), $clientProps['mail_quota'] == 0 ? '∞' : bytesHuman($clientProps['mail_quota'])];
 }

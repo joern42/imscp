@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Form\SignIn;
+use iMSCP\Form\SignInForm;
 use iMSCP\Functions\View;
 
 require_once 'application.php';
@@ -28,7 +28,7 @@ require_once 'application.php';
 Application::getInstance()->getEventManager()->trigger(Events::onLoginScriptStart);
 
 $authService = Application::getInstance()->getAuthService();
-$form = new SignIn();
+$form = new SignInForm();
 
 if (Application::getInstance()->getRequest()->isPost()) {
     $form->setData(Application::getInstance()->getRequest()->getPost());

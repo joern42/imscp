@@ -126,7 +126,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('sql') && !customerSqlDbLimitIsReached() or View::showBadRequestErrorPage();
+Counting::userHasFeature('sql') && !customerSqlDbLimitIsReached() or View::showBadRequestErrorPage();
 
 if(Application::getInstance()->getRequest()->isPost()) {
     addSqlDb();

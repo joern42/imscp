@@ -26,9 +26,10 @@ package iMSCP::Providers::Service::Systemd;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Debug qw/ debug /;
 use File::Basename;
 use File::Spec;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::File;
 use iMSCP::Dir;
 use parent 'iMSCP::Providers::Service::Sysvinit';
@@ -336,7 +337,7 @@ sub resolveUnit
         delete $resolved{$unit};
     } elsif ( exists $resolved{$unit} ) {
         defined $resolved{$unit} or die( sprintf( "Couldn't resolve the %s unit", $unit ));
-        return $resolved{$unit}->[$withpath ? 0 : 1];
+        return $resolved{$unit}->[$withpath ? FALSE : TRUE];
     }
 
     my $unitFilePath = eval { $self->_searchUnitFile( $unit ); };

@@ -23,11 +23,9 @@ namespace iMSCP\Update;
 use iMSCP\Application;
 use iMSCP\Crypt as Crypt;
 use iMSCP\PHPini;
-use iMSCP_Uri_Redirect as UriRedirect;
-use PDO;
 use phpseclib\Crypt\RSA;
 use Zend\Db\Exception\RuntimeException;
-use Zend\Uri\Uri;
+use Zend\Uri\Http;
 
 /**
  * Class UpdateDatabase
@@ -38,7 +36,7 @@ class Database extends DatabaseAbstract
     /**
      * @var int Last database update revision
      */
-    protected $lastUpdate = 284;
+    protected $lastUpdate = 287;
 
     /**
      * Decrypt any SSL private key
@@ -438,45 +436,6 @@ class Database extends DatabaseAbstract
     }
 
     /**
-     * Updated hosting_plans.props values for backup feature
-     *
-     * @return array|null SQL statements to be executed
-     */
-    protected function r204()
-    {
-        $sqlQueries = [];
-        $stmt = execQuery('SELECT id, props FROM hosting_plans');
-
-        if (!$stmt->rowCount()) {
-            return NULL;
-        }
-
-        while ($row = $stmt->fetch()) {
-            $needUpdate = true;
-            $id = quoteValue($row['id']);
-            $props = explode(';', $row['props']);
-
-            switch ($props[10]) {
-                case '_full_':
-                    $props[10] = '_dmn_|_sql_|_mail_';
-                    break;
-                case '_no_':
-                    $props[10] = '';
-                    break;
-                default:
-                    $needUpdate = false;
-            }
-
-            if ($needUpdate) {
-                $props = quoteValue(implode(';', $props));
-                $sqlQueries[] = "UPDATE hosting_plans SET props = $props WHERE id = $id";
-            }
-        }
-
-        return $sqlQueries;
-    }
-
-    /**
      * Add plugin.plugin_lock field
      *
      * @return string SQL statement to be executed
@@ -522,7 +481,6 @@ class Database extends DatabaseAbstract
      * Makes the PHP mail function disableable
      * - Adds reseller_props.php_ini_al_mail_function permission column
      * - Adds domain.phpini_perm_mail_function permission column
-     * - Adds PHP mail permission property in hosting plans if any
      *
      * @return array SQL statements to be executed
      */
@@ -538,18 +496,6 @@ class Database extends DatabaseAbstract
         $sqlQueries[] = $this->addColumn(
             'domain', 'phpini_perm_mail_function', "VARCHAR(20) NOT NULL DEFAULT 'yes' AFTER `phpini_perm_disable_functions`"
         );
-
-        // Add PHP mail permission property in hosting plans if any
-        $stmt = execQuery('SELECT id, props FROM hosting_plans');
-        while ($row = $stmt->fetch()) {
-            $id = quoteValue($row['id']);
-            $props = explode(';', $row['props']);
-
-            if (sizeof($props) < 26) {
-                array_splice($props, 18, 0, 'yes'); // Insert new property at position 18
-                $sqlQueries[] = 'UPDATE hosting_plansSET props = ' . quoteValue(implode(';', $props)) . ' WHERE id = ' . $id;
-            }
-        }
 
         return $sqlQueries;
     }
@@ -577,17 +523,6 @@ class Database extends DatabaseAbstract
             'error_reporting',
             "error_reporting VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT 'E_ALL & ~E_DEPRECATED & ~E_STRICT'"
         );
-    }
-
-    /**
-     * Deletes obsolete hosting plans
-     * Hosting plans defined at administrator level are no longer supported
-     *
-     * @return string SQL statement to be executed
-     */
-    protected function r216()
-    {
-        return "DELETE FROM hosting_plans WHERE reseller_id NOT IN(SELECT admin_id FROM admin WHERE admin_type = 'reseller')";
     }
 
     /**
@@ -755,32 +690,30 @@ class Database extends DatabaseAbstract
     {
         $stmt = execQuery("SELECT alias_id, url_forward FROM domain_aliasses WHERE url_forward <> 'no'");
 
-        $uri = new Uri();
-
         while ($row = $stmt->fetch()) {
-            $uri = UriRedirect::fromString($row['url_forward']);
+            $uri = new Http($row['url_forward']);
             $uriPath = rtrim(preg_replace('#/+#', '/', $uri->getPath()), '/') . '/';
             $uri->setPath($uriPath);
-            execQuery('UPDATE domain_aliasses SET url_forward = ? WHERE alias_id = ?', [$uri->getUri(), $row['alias_id']]);
+            execQuery('UPDATE domain_aliasses SET url_forward = ? WHERE alias_id = ?', [$uri->toString(), $row['alias_id']]);
         }
 
         $stmt = execQuery("SELECT subdomain_id, subdomain_url_forward FROM subdomain WHERE subdomain_url_forward <> 'no'");
 
         while ($row = $stmt->fetch()) {
-            $uri = UriRedirect::fromString($row['subdomain_url_forward']);
+            $uri = new Http($row['subdomain_url_forward']);
             $uriPath = rtrim(preg_replace('#/+#', '/', $uri->getPath()), '/') . '/';
             $uri->setPath($uriPath);
-            execQuery('UPDATE subdomain SET subdomain_url_forward = ? WHERE subdomain_id = ?', [$uri->getUri(), $row['subdomain_id']]);
+            execQuery('UPDATE subdomain SET subdomain_url_forward = ? WHERE subdomain_id = ?', [$uri->toString(), $row['subdomain_id']]);
         }
 
         $stmt = execQuery("SELECT subdomain_alias_id, subdomain_alias_url_forward FROM subdomain_alias WHERE subdomain_alias_url_forward <> 'no'");
         while ($row = $stmt->fetch()) {
-            $uri = UriRedirect::fromString($row['subdomain_alias_url_forward']);
+            $uri = new Http($row['subdomain_alias_url_forward']);
             $uriPath = rtrim(preg_replace('#/+#', '/', $uri->getPath()), '/') . '/';
             $uri->setPath($uriPath);
             execQuery('UPDATE subdomain_alias SET subdomain_alias_url_forward = ? WHERE subdomain_alias_id = ?', [
-                    $uri->getUri(), $row['subdomain_alias_id']]
-            );
+                $uri->toString(), $row['subdomain_alias_id']
+            ]);
         }
     }
 
@@ -1463,7 +1396,7 @@ class Database extends DatabaseAbstract
      * Schema review (server_traffic table):
      *  - Remove server_traffic.dtraff_id column (PRIMARY KEY, AUTO_INCREMENT)
      *  - Remove `traff_time` unique index (traff_time)
-     *  - Create new PRIMARY KEY (traff_time)
+     *  - Add compound PRIMARY KEY (traff_time)
      *
      * Note: Repeated update due to mistake in previous implementation (was r273)
      *
@@ -1509,30 +1442,6 @@ class Database extends DatabaseAbstract
                 "ENUM( 'per_domain', 'per_site', 'per_user' ) NOT NULL DEFAULT 'per_site' AFTER php_ini_system"
             )
         ];
-    }
-
-    /**
-     * Add PHP configuration level property in hosting plans if any
-     *
-     * @return array SQL statements to be executed
-     */
-    protected function r276()
-    {
-        $sqlQueries = [];
-
-        // Add PHP mail permission property in hosting plans if any
-        $stmt = execQuery('SELECT id, props FROM hosting_plans');
-        while ($row = $stmt->fetch()) {
-            $id = quoteValue($row['id']);
-            $props = explode(';', $row['props']);
-
-            if (sizeof($props) < 27) {
-                array_splice($props, 14, 0, 'per_site'); // Insert new property at position 14
-                $sqlQueries[] = 'UPDATE hosting_plans SET props = ' . quoteValue(implode(';', $props)) . ' WHERE id = ' . $id;
-            }
-        }
-
-        return $sqlQueries;
     }
 
     /**
@@ -1691,5 +1600,73 @@ class Database extends DatabaseAbstract
     protected function r284()
     {
         return $this->renameTable('domain_aliasses', 'domain_aliases');
+    }
+
+    /**
+     * Remove all software installer related tables and columns
+     *
+     * @return array SQL statements to be executed
+     */
+    protected function r285()
+    {
+        $sqlQueries = [];
+
+        // Columns in domain table
+        $sqlQueries[] = $this->dropColumn('domain', 'domain_software_allowed');
+
+        // Columns in reseller_props table
+        $sqlQueries[] = $this->dropColumn('reseller_props', 'software_allowed');
+        $sqlQueries[] = $this->dropColumn('reseller_props', 'softwaredepot_allowed');
+        $sqlQueries[] = $this->dropColumn('reseller_props', 'websoftwaredepot_allowed');
+
+        // Tables
+        $sqlQueries[] = $this->dropTable('web_software');
+        $sqlQueries[] = $this->dropTable('web_software_inst');
+        $sqlQueries[] = $this->dropTable('web_software_depot');
+        $sqlQueries[] = $this->dropTable('web_software_options');
+
+        return $sqlQueries;
+    }
+
+    /**
+     * Update reseller permissions columns (new permission columns, naming, reordering) 
+     *
+     * @return array SQL statements to be executed
+     */
+    protected function r286()
+    {
+        return [
+            $this->dropColumn('reseller_props', 'support_system'),
+
+            $this->changeColumn('reseller_props', 'php_ini_system', "`php_ini` tinyint(1) NOT NULL DEFAULT '0',"),
+            $this->changeColumn('reseller_props', 'php_ini_al_config_level', "`php_ini_config_level` ENUM( 'per_domain', 'per_site', 'per_user' ) NOT NULL DEFAULT 'per_site'"),
+            $this->changeColumn('reseller_props', 'php_ini_al_disable_functions', "`php_ini_disable_functions` tinyint(1) NOT NULL DEFAULT '0',"),
+            $this->changeColumn('reseller_props', 'php_ini_al_mail_function', "`php_ini_mail_function` tinyint(1) NOT NULL DEFAULT '0',"),
+            $this->changeColumn('reseller_props', 'php_ini_al_allow_url_fopen', "`php_ini_allow_url_fopen` tinyint(1) NOT NULL DEFAULT '0',"),
+            $this->changeColumn('reseller_props', 'php_ini_al_display_errors', "`php_ini_display_errors` tinyint(1) NOT NULL DEFAULT '0',"),
+            $this->changeColumn('reseller_props', 'php_ini_max_post_max_size', ""),
+            $this->changeColumn('reseller_props', 'php_ini_max_upload_max_filesize', ""),
+            $this->changeColumn('reseller_props', 'php_ini_max_max_execution_time', ""),
+            $this->changeColumn('reseller_props', 'php_ini_max_max_input_time', ""),
+            $this->changeColumn('reseller_props', 'php_ini_max_memory_limit', ""),
+
+            $this->addColumn('reseller_props', 'php', "php tinyint(1) NOT NULL DEFAULT '0' BEFORE php_ini_system"),
+            $this->addColumn('reseller_props', 'cgi', "`cgi` tinyint(1) NOT NULL DEFAULT '0'"),
+            $this->addColumn('reseller_props', 'custom_dns', "`custom_dns` tinyint(1) NOT NULL DEFAULT '0'"),
+            $this->addColumn('reseller_props', 'external_mail_server', "`external_mail_server` tinyint(1) NOT NULL DEFAULT '0'"),
+            $this->addColumn('reseller_props', 'support_system', "`support_system` tinyint(1) NOT NULL DEFAULT '0'"),
+            $this->addColumn('reseller_props', 'backup', "`backup` tinyint(1) NOT NULL DEFAULT '0',"),
+            $this->addColumn('reseller_props', 'webstats', "`webstats` tinyint(1) NOT NULL DEFAULT '0',"),
+        ];
+    }
+
+    /**
+     * Reset hosting_plans table due to major changes
+     *
+     * @return string SQL statements to be executed
+     */
+    protected function r287()
+    {
+        return 'TRUNCATE hosting_plans';
     }
 }

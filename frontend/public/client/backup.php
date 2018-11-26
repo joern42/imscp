@@ -43,7 +43,9 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('backup') or View::showBadRequestErrorPage();
+(
+    Counting::userHasFeature('webBackup') || Counting::userHasFeature('mailBackup') | Counting::userHasFeature('sqlBackup')
+) or View::showBadRequestErrorPage();
 
 if (Application::getInstance()->getRequest()->isPost()) {
     scheduleBackupRestoration(Application::getInstance()->getAuthService()->getIdentity()->getUserId());

@@ -41,149 +41,108 @@ class Statistics
     }
 
     /**
-     * Get monthly traffic data for the given customer
+     * Get monthly traffic data for the given client
      *
-     * @param int $domainId Customer primary domain unique identifier
+     * @param int $clientID Client unique identifier
      * @return array An array container Web, FTP, SMTP, POP and total traffic (for the current month)
      */
-    public static function getClientMonthlyTrafficStats(int $domainId): array
+    public static function getClientMonthlyTrafficStats(int $clientID): array
     {
         static $stmt = NULL;
 
         if (NULL === $stmt) {
             $stmt = Application::getInstance()->getDb()->createStatement(
                 '
-                    SELECT IFNULL(SUM(dtraff_web), 0) AS dtraff_web, IFNULL(SUM(dtraff_ftp), 0) AS dtraff_ftp,
-                    IFNULL(SUM(dtraff_mail), 0) AS dtraff_smtp, IFNULL(SUM(dtraff_pop), 0) AS dtraff_pop
-                    FROM domain_traffic
-                    WHERE domain_id = ? 
-                    AND dtraff_time BETWEEN ? AND ?
+                  SELECT IFNULL(SUM(web), 0) AS web, IFNULL(SUM(ftp), 0) AS ftp, IFNULL(SUM(smtp), 0) AS smtp, IFNULL(SUM(po), 0) AS po
+                  FROM imscp_traffic
+                  WHERE userID = ? 
+                  AND trafficTime BETWEEN ? AND ?
                 '
             );
             $stmt->prepare();
         }
 
-        $result = $stmt->execute([$domainId, getFirstDayOfMonth(), getLastDayOfMonth()])->getResource();
-        if (($row = $result->fetch()) === false) {
+        $result = $stmt->execute([$clientID, getFirstDayOfMonth(), getLastDayOfMonth()])->getResource();
+        if (FALSE === ($row = $result->fetch())) {
             return array_fill(0, 5, 0);
         }
 
-        return [
-            $row['dtraff_web'],
-            $row['dtraff_ftp'],
-            $row['dtraff_smtp'],
-            $row['dtraff_pop'],
-            $row['dtraff_web'] + $row['dtraff_ftp'] + $row['dtraff_smtp'] + $row['dtraff_pop']
-        ];
+        return [$row['web'], $row['ftp'], $row['smtp'], $row['po'], $row['web'] + $row['ftp'] + $row['smtp'] + $row['po']];
     }
 
     /**
      * Get statistics for the given client
      *
-     * @param int $clientId User unique identifier
+     * @param int $clientID Client unique identifier
      * @return array
      */
-    public static function getClientTrafficAndDiskStats(int $clientId): array
+    public static function getClientTrafficAndDiskStats(int $clientID): array
     {
-        static $stmt = NULL;
-
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement(
-                'SELECT domain_id, IFNULL(domain_disk_usage, 0) AS disk_usage FROM domain WHERE domain_admin_id = ?'
-            );
-            $stmt->prepare();
-        }
-
-        $result = $stmt->execute([$clientId])->getResource();
-        $row = $result->fetch() !== false or View::showBadRequestErrorPage();
-        list($webTraffic, $ftpTraffic, $smtpTraffic, $popTraffic, $totalTraffic) = static::getClientMonthlyTrafficStats($row['domain_id']);
-
-        return [$webTraffic, $ftpTraffic, $smtpTraffic, $popTraffic, $totalTraffic, $row['disk_usage']];
+        return array_merge(static::getClientMonthlyTrafficStats($clientID), getClientProperties($clientID)['diskUsage']);
     }
 
     /**
-     * Get count of consumed and max items for the given customer
+     * Get objects count and limits for the given client
      *
-     * Note: For disk and traffic, only limit are returned.
+     * Diskspace and monthly traffic, only limit are returned.
      *
-     * @param  int $clientId Client unique identifier
+     * @param  int $clientID Client unique identifier
      * @return array
      */
-    public static function getClientItemsCountAndLimits(int $clientId): array
+    public static function getClientObjectsCountAndLimits(int $clientID): array
     {
-        $stmt = NULL;
-
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement(
-                '
-                    SELECT domain_id, domain_subd_limit, domain_alias_limit, domain_mailacc_limit, domain_ftpacc_limit, domain_sqld_limit,
-                        domain_sqlu_limit, domain_traffic_limit, domain_disk_limit
-                    FROM domain
-                    WHERE domain_admin_id = ?
-                '
-            );
-            $stmt->prepare();
-        }
-
-        $result = $stmt->execute([$clientId])->getResource();
-
-        if (($row = $result->fetch()) === false) {
-            return array_fill(0, 14, 0);
-        }
+        $clientProps = getClientProperties($clientID);
 
         return [
-            $row['domain_subd_limit'] == -1 ? 0 : Counting::getCustomerSubdomainsCount($row['domain_id']), $row['domain_subd_limit'],
-            $row['domain_alias_limit'] == -1 ? 0 : Counting::getCustomerDomainAliasesCount($row['domain_id']), $row['domain_alias_limit'],
-            $row['domain_mailacc_limit'] == -1 ? 0 : Counting::getCustomerMailAccountsCount($row['domain_id']), $row['domain_mailacc_limit'],
-            $row['domain_ftpacc_limit'] == -1 ? 0 : Counting::getCustomerFtpUsersCount($clientId), $row['domain_ftpacc_limit'],
-            $row['domain_sqld_limit'] == -1 ? 0 : Counting::getCustomerSqlDatabasesCount($row['domain_id']), $row['domain_sqld_limit'],
-            $row['domain_sqlu_limit'] == -1 ? 0 : Counting::getCustomerSqlUsersCount($row['domain_id']), $row['domain_sqlu_limit'],
-            $row['domain_traffic_limit'] * 1048576,
-            $row['domain_disk_limit'] * 1048576
+            $clientProps['domainsLimit'] == -1 ? 0 : Counting::getClientDomainsCount($clientID), $clientProps['domainsLimit'],
+            $clientProps['subdomainsLimit'] == -1 ? 0 : Counting::getClientSubdomainsCount($clientID), $clientProps['subdomainsLimit'],
+            $clientProps['mailboxesLimit'] == -1 ? 0 : Counting::getClientMailboxesCount($clientID), $clientProps['mailboxesLimit'],
+            $clientProps['ftpUsersLimit'] == -1 ? 0 : Counting::getClientFtpUsersCount($clientID), $clientProps['ftpUsersLimit'],
+            $clientProps['sqlDatabasesLimit'] == -1 ? 0 : Counting::getClientSqlDatabasesCount($clientID), $clientProps['sqlDatabasesLimit'],
+            $clientProps['sqlUsersLimit'] == -1 ? 0 : Counting::getClientSqlDatabasesCount($clientID), $clientProps['sqlUsersLimit'],
+            $clientProps['monthlyTrafficLimit'] * 1048576,
+            $clientProps['diskspaceLimit'] * 1048576
         ];
     }
 
     /**
      * Returns statistics about consumed items for the given reseller
      *
-     * @param  int $resellerId Reseller unique indentifier
+     * @param  int $resellerID Reseller unique indentifier
      * @return array An array containing total consumed for each items
      */
-    public static function getResellerStats(int $resellerId): array
+    public static function getResellerStats(int $resellerID): array
     {
         static $stmt = NULL;
 
         if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement(
-                'SELECT t1.domain_admin_id FROM domain AS t1 JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id) WHERE t2.created_by = ?'
-            );
+            $stmt = Application::getInstance()->getDb()->createStatement('SELECT userID FROM imscp_user WHERE created_by = ?');
             $stmt->prepare();
         }
 
-        $result = $stmt->execute([$resellerId])->getResource();
-
+        $result = $stmt->execute([$resellerID])->getResource();
         if ($result->rowCount() < 1) {
             return array_fill(0, 9, 0);
         }
 
-        $rtraffConsumed = $rdiskConsumed = 0;
+        $trafficConsumption = 0;
+        $diskspaceConsumption = 0;
 
-        while ($domainAdminId = $result->fetchColumn()) {
-            $customerStats = static::getClientTrafficAndDiskStats($domainAdminId);
-            $rtraffConsumed += $customerStats[4];
-            $rdiskConsumed += $customerStats[5];
+        while ($row = $result->fetch()) {
+            $customerStats = static::getClientTrafficAndDiskStats($row['userID']);
+            $trafficConsumption += $customerStats[4];
+            $diskspaceConsumption += $customerStats[5];
         }
 
         return [
-            Counting::getResellerDomainsCount($resellerId),
-            Counting::getResellerSubdomainsCount($resellerId),
-            Counting::getResellerDomainAliasesCount($resellerId),
-            Counting::getResellerMailAccountsCount($resellerId),
-            Counting::getResellerFtpUsersCount($resellerId),
-            Counting::getResellerSqlDatabasesCount($resellerId),
-            Counting::getResellerSqlUsersCount($resellerId),
-            $rtraffConsumed,
-            $rdiskConsumed
+            Counting::getResellerDomainsCount($resellerID),
+            Counting::getResellerSubdomainsCount($resellerID),
+            Counting::getResellerMailboxesCount($resellerID),
+            Counting::getResellerFtpUsersCount($resellerID),
+            Counting::getResellerSqlDatabasesCount($resellerID),
+            Counting::getResellerSqlUsersCount($resellerID),
+            $trafficConsumption,
+            $diskspaceConsumption
         ];
     }
 }

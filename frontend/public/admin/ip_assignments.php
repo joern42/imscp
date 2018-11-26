@@ -103,7 +103,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
-Counting::systemHasCustomers() or View::showBadRequestErrorPage();
+Counting::systemHasClients() or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([

@@ -20,14 +20,22 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class WebDomain
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_web_domain", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class WebDomain extends BaseModel
+class WebDomain 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $webDomainID;
 
@@ -37,11 +45,14 @@ class WebDomain extends BaseModel
     private $webDomainPID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\JoinColumn(name="userID", referencedColumnName="userID", onDelete="CASCADE")
+     * @var User
      */
-    private $userID;
+    private $user;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $domainName;
@@ -52,9 +63,10 @@ class WebDomain extends BaseModel
     private $ipAddresses = [];
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $automaticDNS = 1;
+    private $hasAutomaticDNS = true;
 
     /**
      * @var WebDomainAlias[]
@@ -62,44 +74,52 @@ class WebDomain extends BaseModel
     private $domainAliases = [];
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $php = 0;
+    private $hasPHP = false;
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $cgi = 0;
+    private $hasCGI = false;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $documentRoot = '/htdocs';
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string|null
      */
     private $forwardURL;
 
     /**
+     * @ORM\Column(type="enumforwardtype", nullable=true)
      * @var string|null
      */
     private $forwardType;
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $forwardKeepHost = 0;
+    private $forwardKeepHost = false;
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $webFolderProtection = 0;
+    private $webFolderProtection = true;
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $isActive = 1;
+    private $isActive = true;
 
     /**
      * @return int
@@ -138,20 +158,20 @@ class WebDomain extends BaseModel
     }
 
     /**
-     * @return int
+     * @return User
      */
-    public function getUserID(): int
+    public function getUser(): User
     {
-        return $this->userID;
+        return $this->user;
     }
 
     /**
-     * @param int $userID
+     * @param User $user
      * @return WebDomain
      */
-    public function setUserID(int $userID): WebDomain
+    public function setUser(User $user): WebDomain
     {
-        $this->userID = $userID;
+        $this->user = $user;
         return $this;
     }
 
@@ -192,20 +212,20 @@ class WebDomain extends BaseModel
     }
 
     /**
-     * @return int
+     * @return bool
      */
-    public function getAutomaticDNS(): int
+    public function getHasAutomaticDNS(): bool
     {
-        return $this->automaticDNS;
+        return $this->hasAutomaticDNS;
     }
 
     /**
-     * @param string $automaticDNS
+     * @param bool $hasAutomaticDNS
      * @return WebDomain
      */
-    public function setAutomaticDNS(string $automaticDNS): WebDomain
+    public function setHasAutomaticDNS(bool $hasAutomaticDNS): WebDomain
     {
-        $this->automaticDNS = $automaticDNS;
+        $this->hasAutomaticDNS = $hasAutomaticDNS;
         return $this;
     }
 
@@ -228,38 +248,38 @@ class WebDomain extends BaseModel
     }
 
     /**
-     * @return int
+     * @return bool
      */
-    public function getPhp(): int
+    public function getHasPHP(): bool
     {
-        return $this->php;
+        return $this->hasPHP;
     }
 
     /**
-     * @param int $php
+     * @param bool $hasPHP
      * @return WebDomain
      */
-    public function setPhp(int $php): WebDomain
+    public function setHasPHP(bool $hasPHP): WebDomain
     {
-        $this->php = $php;
+        $this->hasPHP = $hasPHP;
         return $this;
     }
 
     /**
-     * @return int
+     * @return bool
      */
-    public function getCgi(): int
+    public function getHasCGI(): bool
     {
-        return $this->cgi;
+        return $this->hasCGI;
     }
 
     /**
-     * @param int $cgi
+     * @param bool $hasCGI
      * @return WebDomain
      */
-    public function setCgi(int $cgi): WebDomain
+    public function setHasCGI(bool $hasCGI): WebDomain
     {
-        $this->cgi = $cgi;
+        $this->hasCGI = $hasCGI;
         return $this;
     }
 
@@ -318,54 +338,54 @@ class WebDomain extends BaseModel
     }
 
     /**
-     * @return int
+     * @return bool
      */
-    public function getForwardKeepHost(): int
+    public function getForwardKeepHost(): bool
     {
         return $this->forwardKeepHost;
     }
 
     /**
-     * @param int $forwardKeepHost
+     * @param bool $forwardKeepHost
      * @return WebDomain
      */
-    public function setForwardKeepHost(int $forwardKeepHost): WebDomain
+    public function setForwardKeepHost(bool $forwardKeepHost): WebDomain
     {
         $this->forwardKeepHost = $forwardKeepHost;
         return $this;
     }
 
     /**
-     * @return int
+     * @return bool
      */
-    public function getWebFolderProtection(): int
+    public function getWebFolderProtection(): bool
     {
         return $this->webFolderProtection;
     }
 
     /**
-     * @param int $webFolderProtection
+     * @param bool $webFolderProtection
      * @return WebDomain
      */
-    public function setWebFolderProtection(int $webFolderProtection): WebDomain
+    public function setWebFolderProtection(bool $webFolderProtection): WebDomain
     {
         $this->webFolderProtection = $webFolderProtection;
         return $this;
     }
 
     /**
-     * @return int
+     * @return bool
      */
-    public function getIsActive(): int
+    public function getIsActive(): bool
     {
         return $this->isActive;
     }
 
     /**
-     * @param int $isActive
+     * @param bool $isActive
      * @return WebDomain
      */
-    public function setIsActive(int $isActive): WebDomain
+    public function setIsActive(bool $isActive): WebDomain
     {
         $this->isActive = $isActive;
         return $this;

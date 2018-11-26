@@ -182,9 +182,9 @@ sub dumpdb
         "SELECT COUNT(ENGINE) FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND ENGINE <> 'InnoDB'", undef, $dbName
     );
 
-    unless ( $self->{'_sql_default_extra_file'} ) {
-        $self->{'_sql_default_extra_file'} = File::Temp->new();
-        print { $self->{'_sql_default_extra_file'} } <<"EOF";
+    unless ( $self->{'_sql_default_file'} ) {
+        $self->{'_sql_default_file'} = File::Temp->new();
+        print { $self->{'_sql_default_file'} } <<"EOF";
 [mysqldump]
 host = $self->{'db'}->{'DATABASE_HOST'}
 port = $self->{'db'}->{'DATABASE_PORT'}
@@ -209,12 +209,12 @@ triggers = true
 @{ [ $innoDbOnly ? 'skip-lock-tables = true' : '' ] }
 @{ [ index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) == -1 ? 'compress = true' : '' ] }
 EOF
-        $self->{'_sql_default_extra_file'}->close();
+        $self->{'_sql_default_file'}->close();
     }
 
     my $stderr;
     execute(
-        "nice -n 19 ionice -c2 -n7 /usr/bin/mysqldump --defaults-extra-file=$self->{'_sql_default_extra_file'} @{ [ escapeShell( $dbName ) ] } >"
+        "nice -n 19 ionice -c2 -n7 /usr/bin/mysqldump --defaults-file=$self->{'_sql_default_file'} @{ [ escapeShell( $dbName ) ] } >"
             . escapeShell( "$dbDumpTargetDir/$encodedDbName.sql" ),
         undef,
         \$stderr
@@ -297,6 +297,32 @@ sub AUTOLOAD
 sub DESTROY
 {
     # Needed due to AUTOLOAD
+}
+
+=back
+
+=head1 MONKEY PATCHES
+
+=over 4
+
+=item begin_work( )
+
+ Monkey patch for https://github.com/perl5-dbi/DBD-mysql/issues/202
+
+=cut
+
+{
+    no warnings qw/ once redefine /;
+
+    *DBD::_::db::begin_work = sub {
+        my $dbh = shift;
+        return $dbh->set_err($DBI::stderr, 'Already in a transaction')
+            unless $dbh->FETCH('AutoCommit');
+        $dbh->ping(); # Make sure that connection is alive (mysql_auto_reconnect)
+        $dbh->STORE('AutoCommit', 0); # will croak if driver doesn't support it
+        $dbh->STORE('BegunWork',  1); # trigger post commit/rollback action
+        return 1;
+    };
 }
 
 =back

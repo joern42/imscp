@@ -53,13 +53,13 @@ my $NETPLAN_CONF_DIR = '/etc/netplan';
 
 =over 4
 
-=item addIpAddr( \%data )
+=item addIpAddress( \%data )
 
- See iMSCP::Providers::Networking::Interface
+ See iMSCP::Providers::Networking::Interface::addIpAddress
 
 =cut
 
-sub addIpAddr
+sub addIpAddress
 {
     my ( $self, $data ) = @_;
 
@@ -102,13 +102,13 @@ sub addIpAddr
     $self;
 }
 
-=item removeIpAddr( \%data )
+=item removeIpAddress( \%data )
 
- See iMSCP::Providers::Networking::Interface
+ See iMSCP::Providers::Networking::Interface::removeIpAddress
 
 =cut
 
-sub removeIpAddr
+sub removeIpAddress
 {
     my ( $self, $data ) = @_;
 
@@ -156,7 +156,7 @@ sub _init
 
 =item _updateConfig( $action, \%data )
 
- Write or remove netplan configuration file for the given vlan
+ Write or remove netplan configuration file for the given IP address
 
  Param string $action Action to perform (add|remove)
  Param hashref \%data IP data

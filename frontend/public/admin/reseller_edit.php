@@ -21,8 +21,8 @@
 namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
-use iMSCP\Form\UserLoginDataFieldset;
-use iMSCP\Form\UserPersonalDataFieldset;
+use iMSCP\Form\LoginDataFieldset;
+use iMSCP\Form\PersonalDataFieldset;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Statistics;
 use iMSCP\Functions\View;
@@ -712,11 +712,11 @@ $phpini->loadResellerPermissions($resellerId);
 
 ($form = new Form('ResellerEditForm'))
     ->add([
-        'type' => UserLoginDataFieldset::class,
+        'type' => LoginDataFieldset::class,
         'name' => 'loginData'
     ])
     ->add([
-        'type' => UserPersonalDataFieldset::class,
+        'type' => PersonalDataFieldset::class,
         'name' => 'personalData'
     ])
     ->add([

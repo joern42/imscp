@@ -53,38 +53,6 @@ function cli_getMailData($domainName)
         return $data[$domainName];
     }
 
-    $stmt = execQuery(
-        "SELECT domain_id, subdomain_id FROM subdomain JOIN domain USING(domain_id) WHERE CONCAT(subdomain_name, '.', domain_name) = ?", [$domainName]
-    );
-    if ($stmt->rowCount()) {
-        $row = $stmt->fetch();
-        $data[$domainName] = [$row['domain_id'], $row['subdomain_id'], Mail::MT_SUBDOM_MAIL];
-        return $data[$domainName];
-    }
-
-    $stmt = execQuery('SELECT domain_id FROM domain_aliases WHERE alias_name = ?', [$domainName]);
-    if ($stmt->rowCount()) {
-        $data[$domainName] = [$stmt->fetchColumn(), 0, Mail::MT_ALIAS_MAIL];
-        return $data[$domainName];
-    }
-
-    $stmt = execQuery(
-        "
-            SELECT domain_id, subdomain_alias_id
-            FROM subdomain_alias
-            JOIN domain_aliases USING(alias_id)
-            JOIN domain USING(domain_id)
-            WHERE CONCAT(subdomain_alias_name, '.', alias_name) = ?
-        ",
-        [$domainName]
-    );
-    if ($stmt->rowCount()) {
-        $row = $stmt->fetch();
-        $data[$domainName] = [$row['domain_id'], $row['subdomain_alias_id'], Mail::MT_ALSSUB_MAIL];
-        return $data[$domainName];
-    }
-    $data[$domainName] = NULL;
-
     throw new \Exception('This script can only add mail accounts for domains which are already managed by i-MSCP.');
 }
 

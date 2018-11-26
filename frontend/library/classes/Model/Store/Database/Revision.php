@@ -18,32 +18,20 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP\Model\Store\Service\Database;
+namespace iMSCP\Model\Store\Database;
 
-use Doctrine\KeyValueStore\Mapping\Annotations as KeyValue;
+use Doctrine\ORM\Mapping as ORM;
 use iMSCP\Model\Store\StoreAbstract;
 
 /**
  * Class DatabaseRevision
- * @package iMSCP\Model\Store
- * @KeyValue\Entity(storageName="imscp_storage")
+ * @package iMSCP\Model\Store\Database
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_storages", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
+ * @ORM\ChangeTrackingPolicy("DEFERRED_EXPLICIT")
  */
 class Revision extends StoreAbstract
 {
-    /**
-     * @var int
-     */
-    private $revision;
-
-    /**
-     * DatabaseRevision constructor.
-     * @param int $revision
-     */
-    public function __construct(int $revision = 0)
-    {
-        $this->revision = $revision;
-    }
-
     /**
      * Get database revision
      *
@@ -51,7 +39,7 @@ class Revision extends StoreAbstract
      */
     public function getRevision(): int
     {
-        return $this->revision;
+        return $this->storageData;
     }
 
     /**
@@ -62,7 +50,7 @@ class Revision extends StoreAbstract
      */
     public function setRevision(int $revision): Revision
     {
-        $this->revision = $revision;
+        $this->storageData = $revision;
         return $this;
     }
 }

@@ -20,8 +20,12 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Interface UserIdentityInterface
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_user", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
 interface UserIdentityInterface

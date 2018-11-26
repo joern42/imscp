@@ -115,7 +115,7 @@ function admin_sendToResellers($senderName, $senderEmail, $subject, $body)
  */
 function admin_sendToCustomers($senderName, $senderEmail, $subject, $body)
 {
-    if (!Counting::systemHasCustomers()) {
+    if (!Counting::systemHasClients()) {
         return;
     }
 
@@ -280,11 +280,11 @@ function generatePage($tpl)
         $rcptToOptions[] = ['administrators_resellers', tr('Administrators and resellers')];
     }
 
-    if (Counting::systemHasManyAdmins() && Counting::systemHasCustomers()) {
+    if (Counting::systemHasManyAdmins() && Counting::systemHasClients()) {
         $rcptToOptions[] = ['administrators_customers', tr('Administrators and customers')];
     }
 
-    if (Counting::systemHasResellers() && Counting::systemHasCustomers()) {
+    if (Counting::systemHasResellers() && Counting::systemHasClients()) {
         $rcptToOptions[] = ['resellers_customers', tr('Resellers and customers')];
     }
 
@@ -296,7 +296,7 @@ function generatePage($tpl)
         $rcptToOptions[] = ['resellers', tr('Resellers')];
     }
 
-    if (Counting::systemHasCustomers()) {
+    if (Counting::systemHasClients()) {
         $rcptToOptions[] = ['customers', tr('Customers')];
     }
 
@@ -314,7 +314,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
-Counting::systemHasAdminsOrResellersOrCustomers() or View::showBadRequestErrorPage();
+Counting::systemHasAdminsOrResellersOrClients() or View::showBadRequestErrorPage();
 
 if (Application::getInstance()->getRequest()->isPost() && admin_sendCircular()) {
     redirectTo('users.php');

@@ -22,14 +22,14 @@ namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
-use iMSCP\Functions\HelpDesk;
+use iMSCP\Functions\SupportSystem;
 use iMSCP\Functions\View;
 
 require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
-Counting::resellerHasFeature('support') or View::showBadRequestErrorPage();
+Counting::userHasFeature('supportSystem') or View::showBadRequestErrorPage();
 
 if (isset($_POST['uaction'])) {
     if (empty($_POST['subject'])) {
@@ -38,7 +38,7 @@ if (isset($_POST['uaction'])) {
         View::setPageMessage(tr('You must specify a message.'), 'error');
     } else {
         $identity = Application::getInstance()->getAuthService()->getIdentity();
-        HelpDesk::createTicket($identity->getUserId(), $identity->getUserCreatedBy(), $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2);
+        SupportSystem::createTicket($identity->getUserId(), $identity->getUserCreatedBy(), $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2);
         redirectTo('ticket_system.php');
     }
 }

@@ -61,7 +61,7 @@ Before upgrading, you must not forget to read the
 ### 2. Make sure to make a backup of your data
 
 Before any upgrade attempt it is highly recommended to make a backup of the
-following directories:
+following directories (assuming default Debian layout):
 
 - /etc/imscp
 - /var/www/virtual

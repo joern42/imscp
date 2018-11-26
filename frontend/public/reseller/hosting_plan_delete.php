@@ -27,9 +27,9 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
-isset($_GET['id']) or View::showBadRequestErrorPage();
+($id = Application::getInstance()->getRequest()->getQuery('id') !== NULL) or View::showBadRequestErrorPage();
 $stmt = execQuery('DELETE FROM hosting_plans WHERE id = ? AND reseller_id = ?', [
-    intval($_GET['id']), Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+    $id, Application::getInstance()->getAuthService()->getIdentity()->getUserId()
 ]);
 $stmt->rowCount() or View::showBadRequestErrorPage();
 View::setPageMessage(tr('Hosting plan successfully deleted.'), 'success');

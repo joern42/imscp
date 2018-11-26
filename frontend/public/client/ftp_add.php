@@ -143,7 +143,7 @@ function addAccount()
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
 
-    Counting::customerHasDomain($dmnName, $identity->getUserId()) or View::showBadRequestErrorPage();
+    Counting::clientOwnDomain($identity->getUserId(), $dmnName) or View::showBadRequestErrorPage();
 
     if (!validateUsername($username)) {
         View::setPageMessage(tr('Invalid FTP username.'), 'error');
@@ -166,7 +166,7 @@ function addAccount()
         return false;
     }
 
-    $mainDmnProps = getCustomerProperties($identity->getUserId());
+    $mainDmnProps = getClientProperties($identity->getUserId());
 
     $vfs = new VirtualFileSystem($identity->getUsername());
     if ($homeDir !== '/' && !$vfs->exists($homeDir, VirtualFileSystem::VFS_TYPE_DIR)) {
@@ -265,7 +265,7 @@ function addAccount()
 function generatePage($tpl)
 {
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    $mainDmnProps = getCustomerProperties($identity->getUserId());
+    $mainDmnProps = getClientProperties($identity->getUserId());
 
     # Set parameters for the FTP chooser
     Application::getInstance()->getSession()['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
@@ -300,10 +300,10 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('ftp') or View::showBadRequestErrorPage();
+Counting::userHasFeature('ftp') or View::showBadRequestErrorPage();
 
 $identity = Application::getInstance()->getAuthService()->getIdentity();
-$mainDmnProps = getCustomerProperties($identity->getUserId());
+$mainDmnProps = getClientProperties($identity->getUserId());
 
 if (isXhr() && isset($_POST['domain_type'])) {
     echo json_encode(getDomainList($mainDmnProps['domain_name'], $mainDmnProps['domain_id'], cleanInput($_POST['domain_type'])));

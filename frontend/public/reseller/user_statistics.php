@@ -38,7 +38,7 @@ function _generateUserStatistics(TemplateEngine $tpl, $adminId)
 {
     list($webTraffic, $ftpTraffic, $smtpTraffic, $pop3Traffic, $trafficUsage, $diskUsage) = Statistics::getClientTrafficAndDiskStats($adminId);
     list($subCount, $subLimit, $alsCount, $alsLimit, $mailCount, $mailLimit, $ftpCount, $ftpLimit, $sqlDbCount, $sqlDbLimit, $sqlUsersCount,
-        $sqlUsersLlimit, $trafficLimit, $diskLimit) = Statistics::getClientItemsCountAndLimits($adminId);
+        $sqlUsersLlimit, $trafficLimit, $diskLimit) = Statistics::getClientObjectsCountAndLimits($adminId);
     $trafficPercent = Statistics::getPercentUsage($trafficUsage, $trafficLimit);
     $diskPercent = Statistics::getPercentUsage($diskUsage, $diskLimit);
     $tpl->assign([
@@ -86,7 +86,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
-Counting::resellerHasCustomers() or View::showBadRequestErrorPage();
+Counting::resellerHasClients() or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([

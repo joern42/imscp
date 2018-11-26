@@ -20,28 +20,40 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class WebDomainAlias
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_web_domain_alias", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class WebDomainAlias extends BaseModel
+class WebDomainAlias 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $webDomainAliasId;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\JoinColumn(name="userID", referencedColumnName="userID")
+     * @var User
      */
-    private $userID;
+    private $user;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $domainAliasName;
 
     /**
+     * @ORM\Column(type="boolean")
      * @var int
      */
     private $automaticDNS = 1;
@@ -65,20 +77,20 @@ class WebDomainAlias extends BaseModel
     }
 
     /**
-     * @return int
+     * @return User
      */
-    public function getUserID(): int
+    public function getUser(): User
     {
-        return $this->userID;
+        return $this->user;
     }
 
     /**
-     * @param int $userID
+     * @param User $user
      * @return WebDomainAlias
      */
-    public function setUserID(int $userID): WebDomainAlias
+    public function setUser(User $user): WebDomainAlias
     {
-        $this->userID = $userID;
+        $this->user = $user;
         return $this;
     }
 

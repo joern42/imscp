@@ -298,14 +298,7 @@
             <td>{TR_RESELLER_SUBDOMAINS_COMSUPTION}</td>
         </tr>
         <!-- EDP: subdomain_limit_block -->
-        <!-- BDP: domain_aliases_limit_block -->
-        <tr>
-            <td><label for="domain_alias_limit">{TR_ALIASES_LIMIT}</label></td>
-            <td><input type="number" name="domain_alias_limit" id="domain_alias_limit" min="-1" value="{DOMAIN_ALIASES_LIMIT}"></td>
-            <td>{TR_CUSTOMER_DOMAIN_ALIASES_COMSUPTION}</td>
-            <td>{TR_RESELLER_DOMAIN_ALIASES_COMSUPTION}</td>
-        </tr>
-        <!-- EDP: domain_aliases_limit_block -->
+        
         <!-- BDP: mail_accounts_limit_block -->
         <tr>
             <td><label for="domain_mailacc_limit">{TR_MAIL_ACCOUNTS_LIMIT}</label></td>

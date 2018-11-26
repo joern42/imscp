@@ -20,28 +20,40 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class WebErrorPage
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_web_error_page", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class WebErrorPage extends BaseModel
+class WebErrorPage 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $webErrorPageID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\JoinColumn(name="userID", referencedColumnName="userID", onDelete="CASCADE")
+     * @var User
      */
-    private $userID;
+    private $user;
 
     /**
+     * @ORM\Column(type="integer")
      * @var int
      */
     private $code;
 
     /**
+     * @ORM\Column(type="text")
      * @var string
      */
     private $content;
@@ -65,20 +77,20 @@ class WebErrorPage extends BaseModel
     }
 
     /**
-     * @return int
+     * @return User
      */
-    public function getUserID(): int
+    public function getUser(): User
     {
-        return $this->userID;
+        return $this->user;
     }
 
     /**
-     * @param int $userID
+     * @param User $user
      * @return WebErrorPage
      */
-    public function setUserID(int $userID): WebErrorPage
+    public function setUser(User $user): WebErrorPage
     {
-        $this->userID = $userID;
+        $this->user = $user;
         return $this;
     }
 

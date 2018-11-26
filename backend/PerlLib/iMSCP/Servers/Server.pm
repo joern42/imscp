@@ -53,48 +53,48 @@ sub getServerPriority
 
 =over 4
 
-=item addIP( \%moduleData )
+=item addIpAddress( \%moduleData )
 
- Process addIP tasks
+ Process addIpAddress tasks
 
  The following events *MUST* be triggered:
-  - before<SNAME>AddIpAddr( \%moduleData )
-  - after<SNAME>AddIpAddr( \%moduleData )
+  - before<SNAME>AddIpAddress( \%moduleData )
+  - after<SNAME>AddIpAddress( \%moduleData )
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the IpAddr module
+ Param hashref \%moduleData Data as provided by the IpAddress module
  Return void, die on failure
 
 =cut
 
-sub addIpAddr
+sub addIpAddress
 {
     my ( $self ) = @_;
 
-    die( sprintf( 'The %s class must implement the addIpAddr() method', ref $self ));
+    die( sprintf( 'The %s class must implement the addIpAddress() method', ref $self ));
 }
 
-=item deleteIpAddr( \%moduleData )
+=item deleteIpAddress( \%moduleData )
 
- Process deleteIpAddr tasks
+ Process deleteIpAddress tasks
 
  The following events *MUST* be triggered:
-  - before<SNAME>DeleteIpAddr( \%moduleData )
-  - after<SNAME>DeleteIpAddr( \%moduleData )
+  - before<SNAME>DeleteIpAddress( \%moduleData )
+  - after<SNAME>DeleteIpAddress( \%moduleData )
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the IpAddr module
+ Param hashref \%moduleData Data as provided by the IpAddress module
  Return void, die on failure
 
 =cut
 
-sub deleteIpAddr
+sub deleteIpAddress
 {
     my ( $self ) = @_;
 
-    die( sprintf( 'The %s class must implement the deleteIpAddr() method', ref $self ));
+    die( sprintf( 'The %s class must implement the deleteIpAddress() method', ref $self ));
 }
 
 =item addUser( \%moduleData )

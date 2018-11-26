@@ -29,7 +29,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('protected_areas') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::userHasFeature('webProtectedAreas') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $id = intval($_GET['id']);
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 $stmt = execQuery("UPDATE htaccess SET status = 'todelete' WHERE id = ? AND dmn_id = ? AND status = 'ok'", [

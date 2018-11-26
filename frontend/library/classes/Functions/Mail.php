@@ -44,92 +44,101 @@ class Mail
         MT_ALSSUB_CATCHALL = 'alssub_catchall';
 
     /**
-     * Gets data for the given email template and the given user
+     * Gets email template data
      *
-     * @param int $userId User unique identifier
-     * @param string $tplName Template name
+     * @param int $userID Email template owner
+     * @param string $templateName Email template name
      * @return array An associative array containing mail data:
-     *                - sender_name:  Sender name
-     *                - sender_email: Sender email
-     *                - subject:      Subject
-     *                - message:      Message
+     *                - senderName   : Sender name
+     *                - senderEmail  : Sender email
+     *                - emailSubject : Email subject
+     *                - emailBody    : Email body
      */
-    public static function getEmailTplData(int $userId, string $tplName): array
+    public static function getEmailTemplateData(int $userID, string $templateName): array
     {
         $stmt = execQuery(
             "
-                SELECT admin_name, fname, lname, email, IFNULL(subject, '') AS subject, IFNULL(message, '') AS message
-                FROM admin AS t1
-                LEFT JOIN email_tpls AS t2 ON(owner_id = IF(admin_type = 'admin', 0, admin_id) AND name = ?)
-                WHERE admin_id = ?
+                SELECT username, firstName, lastName, email, emailTemplateSubject, emailTemplateBody
+                FROM imscp_user AS t1
+                LEFT JOIN imscp_email_template AS t2 USING(userId)
+                WHERE t1.userId = ?
+                AND t2.emailTemplateName = ? 
             ",
-            [$tplName, $userId]
+            [$userID, $templateName]
         );
 
         if (!$stmt->rowCount()) {
-            throw new \Exception("Couldn't find user data");
+            throw new \InvalidArgumentException("Couldn't find user data");
         }
 
         $row = $stmt->fetch();
 
-        if ($row['fname'] != '' && $row['lname'] != '') {
-            $data['sender_name'] = $row['fname'] . ' ' . $row['lname'];
-        } else if ($row['fname'] != '') {
-            $data['sender_name'] = $row['fname'];
+        if ($row['firstName'] != '' && $row['lastName'] != '') {
+            $senderName = $row['firstName'] . ' ' . $row['lastName'];
+        } else if ($row['firstName'] != '') {
+            $senderName = $row['firstName'];
         } else if ($row['lname'] != '') {
-            $data['sender_name'] = $row['lname'];
+            $senderName = $row['lastName'];
         } else {
-            $data['sender_name'] = $row['admin_name'];
+            $senderName = $row['username'];
         }
 
-        $data['sender_email'] = $row['email'];
-        $data['subject'] = $row['subject'];
-        $data['message'] = $row['message'];
-        return $data;
+        return [
+            'senderName'  => $senderName,
+            'senderEmail' => $row['email'],
+            'emailSubject'=> $row['emailTemplateSubject'],
+            'emailBody'   => $row['emailTemplateBody']
+        ];
     }
 
     /**
-     * Sets data for the given email template and the given user using the given data
+     * Set email template data
      *
-     * @param int $userId User unique identifier
-     * @param string $tplName Template name
+     * @param int $userID Email template owner
+     * @param string $emailTemplateName Email Template name
      * @param array $data An associative array containing mail data:
-     *                     - subject: Subject
-     *                     - message: Message
+     *                     - emailSubject : Email subject
+     *                     - emailBody    : Email body
      * @return void
      */
-    public static function setEmailTplData(int $userId, string $tplName, array $data): void
+    public static function setEmailTemplateData(int $userID, string $emailTemplateName, array $data): void
     {
-        $stmt = execQuery('SELECT subject, message FROM email_tpls WHERE owner_id = ? AND name = ?', [$userId, $tplName]);
+        $stmt = execQuery('SELECT emailTemplateSubject, emailTemplateBody FROM imscp_email_template WHERE userID = ? AND emailTemplateName = ?', [
+            $userID, $emailTemplateName
+        ]);
 
         if ($stmt->rowCount()) {
-            $query = 'UPDATE email_tpls SET subject = ?, message = ? WHERE owner_id = ? AND name = ?';
-        } else {
-            $query = 'INSERT INTO email_tpls (subject, message, owner_id, name) VALUES (?, ?, ?, ?)';
+            execQuery('UPDATE imscp_email_template SET emailTemplateSubject = ?, emailTemplateBody = ? WHERE userID = ? AND emailTemplateName = ?', [
+                $data['emailSubject'], $data['emailBody'], $userID, $emailTemplateName
+            ]);
+            return;
         }
 
-        execQuery($query, [$data['subject'], $data['message'], $userId, $tplName]);
+        execQuery('INSERT INTO imscp_email_template (emailTemplateSubject, emailTemplateBody, userID, emailTemplateName) VALUES (?, ?, ?, ?)', [
+            $data['emailSubject'], $data['emailBody'], $userID, $emailTemplateName
+        ]);
     }
 
     /**
-     * Gets welcome email data for the given user
+     * Get welcome email
      *
-     * @param int $userId User unique identifier - Template owner
+     * @param int $userID Email template owner
      * @return array An associative array containing mail data:
-     *                - sender_name:  Sender name
-     *                - sender_email: Sender email
-     *                - subject:      Subject
-     *                - message:      Message
+     *                - senderName   : Sender name
+     *                - senderEmail  : Sender email
+     *                - emailSubject : Email subject
+     *                - emailBody    : Email body
      */
-    public static function getWelcomeEmail(int $userId): array
+    public static function getWelcomeEmail(int $userID): array
     {
-        $data = static::getEmailTplData($userId, 'add-user-auto-msg');
+        $data = static::getEmailTemplateData($userID, 'add-user-auto-msg');
 
-        if ($data['subject'] == '') {
-            $data['subject'] = tr('Welcome {USERNAME} to i-MSCP');
+        if (empty($data['emailSubject'])) {
+            $data['emailSubject'] = tr('Welcome {USERNAME} to i-MSCP');
         }
-        if ($data['message'] == '') {
-            $data['message'] = tr('Dear {NAME},
+
+        if (empty($data['emailBody'])) {
+            $data['emailBody'] = tr('Dear {NAME},
 
 A new account has been created for you.
 
@@ -153,39 +162,75 @@ i-MSCP Mailer');
     }
 
     /**
-     * Sets welcome email data for the given user using the given data
+     * Gets update account email for the given user
      *
-     * @param  int $userId Template owner unique identifier (0 for administrators)
+     * @param int $userId User unique identifier - Template owner
+     * @return array An associative array containing mail data:
+     *                - senderName   : Sender name
+     *                - senderEmail  : Sender email
+     *                - emailSubject : Email subject
+     *                - emailBody    : Email body
+     */
+    public static function getUpdateAccountEmail(int $userId): array
+    {
+        $data = static::getEmailTemplateData($userId, 'update-user-auto-msg');
+
+        if (empty($data['emailSubject'])) {
+            $data['emailSubject'] = tr('Your new i-MSCP account data');
+        }
+
+        if (empty($data['emailBody'])) {
+            $data['emailBody'] = tr('Dear {NAME},
+
+Your account data were updated.
+
+Account type: {USERTYPE}
+User name: {USERNAME}
+Password: {PASSWORD}
+
+Please do not reply to this email.
+
+___________________________
+i-MSCP Mailer');
+        }
+
+        return $data;
+    }
+    
+    /**
+     * Set welcome email
+     *
+     * @param int $userId Template owner unique identifier (0 for administrators)
      * @param array $data An associative array containing mail data:
-     *                     - subject: Subject
-     *                     - message: Message
+     *                     - emailSubject : Email subject
+     *                     - emailBody    : Email body
      * @return void
      */
     public static function setWelcomeEmail(int $userId, array $data): void
     {
-        static::setEmailTplData($userId, 'add-user-auto-msg', $data);
+        static::setEmailTemplateData($userId, 'add-user-auto-msg', $data);
     }
 
     /**
-     * Gets lostpassword activation email data for the given user
+     * Get lost password activation email
      *
-     * @param int $userId User unique identifier - Template owner
+     * @param int $userID Email template owner
      * @return array An associative array containing mail data:
-     *                - sender_name:  Sender name
-     *                - sender_email: Sender email
-     *                - subject:      Subject
-     *                - message:      Message
+     *                - senderName   : Sender name
+     *                - senderEmail  : Sender email
+     *                - emailSubject : Email subject
+     *                - emailBody    : Email body
      */
-    public static function getLostpasswordActivationEmail(int $userId): array
+    public static function getLostpasswordActivationEmail(int $userID): array
     {
-        $data = static::getEmailTplData($userId, 'lostpw-msg-1');
+        $data = static::getEmailTemplateData($userID, 'lostpw-msg-1');
 
-        if ($data['subject'] == '') {
-            $data['subject'] = tr('Please activate your new i-MSCP password');
+        if (empty($data['emailSubject'])) {
+            $data['emailSubject'] = tr('Please activate your new i-MSCP password');
         }
 
-        if ($data['message'] == '') {
-            $data['message'] = tr('Dear {NAME},
+        if (empty($data['emailBody'])) {
+            $data['emailBody'] = tr('Dear {NAME},
 
 Please click on the link below to renew your password:
 
@@ -203,39 +248,39 @@ i-MSCP Mailer');
     }
 
     /**
-     * Sets lostpassword activation email template data for the given user, using given data
+     * Set lost password activation email
      *
-     * @param int $adminId User unique identifier
+     * @param int $userID Email template owner
      * @param array $data An associative array containing mail data:
-     *                     - subject: Subject
-     *                     - message: Message
+     *                     - emailSubject : Email subject
+     *                     - emailBody    : Email body
      * @return void
      */
-    public static function setLostpasswordActivationEmail(int $adminId, array $data): void
+    public static function setLostpasswordActivationEmail(int $userID, array $data): void
     {
-        static::setEmailTplData($adminId, 'lostpw-msg-1', $data);
+        static::setEmailTemplateData($userID, 'lostpw-msg-1', $data);
     }
 
     /**
      * Get lostpassword password email for the given user
      *
-     * @param int $userId User uniqaue identifier - Template owner
+     * @param int $userID Email template owner
      * @return array An associative array containing mail data:
-     *                - sender_name:  Sender name
-     *                - sender_email: Sender email
-     *                - subject:      Subject
-     *                - message:      Message
+     *                - senderName   : Sender name
+     *                - senderEmail  : Sender email
+     *                - emailSubject : Email subject
+     *                - emailBody    : Email body
      */
-    public static function getLostpasswordEmail(int $userId): array
+    public static function getLostpasswordEmail(int $userID): array
     {
-        $data = static::getEmailTplData($userId, 'lostpw-msg-2');
+        $data = static::getEmailTemplateData($userID, 'lostpw-msg-2');
 
-        if ($data['subject'] == '') {
-            $data['subject'] = tr('Your new i-MSCP login');
+        if (empty($data['emailSubject'])) {
+            $data['emailSubject'] = tr('Your new i-MSCP login');
         }
 
-        if ($data['message'] == '') {
-            $data['message'] = tr('Dear {NAME},
+        if (empty($data['emailBody'])) {
+            $data['emailBody'] = tr('Dear {NAME},
 
 Your password has been successfully renewed.
 
@@ -255,37 +300,37 @@ i-MSCP Mailer');
     /**
      * Sets lostpassword password email template data for the given user, usinggiven data
      *
-     * @param int $userId User unique identifier - Template owner
+     * @param int $userID Email template owner
      * @param array $data An associative array containing mail data:
-     *                     - subject: Subject
-     *                     - message: Message
+     *                     - emailSubject : Email subject
+     *                     - emailBody    : Email body
      * @return void
      */
-    public static function setLostpasswordEmail(int $userId, array $data): void
+    public static function setLostpasswordEmail(int $userID, array $data): void
     {
-        static::setEmailTplData($userId, 'lostpw-msg-2', $data);
+        static::setEmailTemplateData($userID, 'lostpw-msg-2', $data);
     }
 
     /**
-     * Get alias order email for the given reseller
+     * Get alias order email
      *
-     * @param int $resellerId Reseller User unique identifier
+     * @param int $userID Email template owner
      * @return array An associative array containing mail data:
-     *                - sender_name:  Sender name
-     *                - sender_email: Sender email
-     *                - subject:      Subject
-     *                - message:      Message
+     *                - senderName   : Sender name
+     *                - senderEmail  : Sender email
+     *                - emailSubject : Email subject
+     *                - emailBody    : Email body
      */
-    public static function getDomainAliasOrderEmail(int $resellerId): array
+    public static function getDomainAliasOrderEmail(int $userID): array
     {
-        $data = static::getEmailTplData($resellerId, 'alias-order-msg');
+        $data = static::getEmailTemplateData($userID, 'alias-order-msg');
 
-        if ($data['subject'] == '') {
-            $data['subject'] = tr('New alias order for {CUSTOMER}');
+        if (empty($data['emailSubject'])) {
+            $data['emailSubject'] = tr('New alias order for {CUSTOMER}');
         }
 
-        if ($data['message'] == '') {
-            $data['message'] = tr('Dear {NAME},
+        if (empty($data['emailBody'])) {
+            $data['emailBody'] = tr('Dear {NAME},
 
 Your customer {CUSTOMER} is awaiting for approval of a new domain alias:
 
@@ -345,15 +390,15 @@ i-MSCP Mailer');
      * Send a mail using given data
      *
      * @param array $data An associative array containing mail data:
-     *  - mail_id      : Email identifier
-     *  - fname        : OPTIONAL Receiver firstname
-     *  - lname        : OPTIONAL Receiver lastname
-     *  - username     : Receiver username
-     *  - email        : Receiver email
-     *  - sender_name  : OPTIONAL sender name (if present, passed through `Reply-To' header)
-     *  - sender_email : OPTIONAL Sender email (if present, passed through `Reply-To' header)
-     *  - subject      : Subject of the email to be sent
-     *  - message      : Message to be sent
+     *  - mailId       : Email identifier
+     *  - firstName    : OPTIONAL Receiver firstname
+     *  - lastName     : OPTIONAL Receiver lastname
+     *  - username     : Recipient username
+     *  - email        : Recipient email
+     *  - senderName   : OPTIONAL sender name (if present, passed through `Reply-To' header)
+     *  - senderEmail  : OPTIONAL Sender email (if present, passed through `Reply-To' header)
+     *  - emailSubject : Email subject
+     *  - emailBody    : Email body
      *  - placeholders : OPTIONAL An array where keys are placeholders to replace and values, the replacement values. Those placeholders take
      *                            precedence on the default placeholders.
      * @return bool TRUE on success, FALSE on failure
@@ -361,13 +406,15 @@ i-MSCP Mailer');
     public static function sendMail(array $data): bool
     {
         $data = new \ArrayObject($data);
-        $responses = Application::getInstance()->getEventManager()->trigger(Events::onSendMail, NULL, ['mail_data' => new \ArrayObject($data)]);
+        $responses = Application::getInstance()->getEventManager()->trigger(Events::onSendMail, NULL, [
+            'mailData' => new \ArrayObject($data)
+        ]);
 
         if ($responses->stopped()) { // Allow third-party components to short-circuit this event.
             return true;
         }
 
-        foreach (['mail_id', 'username', 'email', 'subject', 'message'] as $parameter) {
+        foreach (['mailId', 'username', 'email', 'emailSubject', 'emailBody'] as $parameter) {
             if (!isset($data[$parameter]) || !is_string($data[$parameter])) {
                 throw new  \Exception(sprintf("%s parameter is not defined or not a string", $parameter));
             }
@@ -379,12 +426,12 @@ i-MSCP Mailer');
 
         $username = decodeIdna($data['username']);
 
-        if (isset($data['fname']) && $data['fname'] != '' && isset($data['lname']) && $data['lname'] != '') {
-            $name = $data['fname'] . ' ' . $data['lname'];
-        } else if (isset($data['fname']) && $data['fname'] != '') {
-            $name = $data['fname'];
-        } else if (isset($data['lname']) && $data['lname'] != '') {
-            $name = $data['lname'];
+        if (isset($data['firstName']) && $data['firstName'] != '' && isset($data['lastName']) && $data['lastName'] != '') {
+            $name = $data['firstName'] . ' ' . $data['lname'];
+        } else if (isset($data['firstName']) && $data['firstName'] != '') {
+            $name = $data['firstName'];
+        } else if (isset($data['lastName']) && $data['lastName'] != '') {
+            $name = $data['lastName'];
         } else {
             $name = $username;
         }
@@ -423,19 +470,19 @@ i-MSCP Mailer');
         # Prepare recipient
         $to = static::encodeMimeHeader($name) . ' <' . $data['email'] . '>';
         # Prepare subject
-        $subject = static::encodeMimeHeader(str_replace($search, $replace, $data['subject']));
+        $subject = static::encodeMimeHeader(str_replace($search, $replace, $data['emailSubject']));
         # Prepare message
-        $message = wordwrap(str_replace($search, $replace, $data['message']), 75, "\r\n");
+        $message = wordwrap(str_replace($search, $replace, $data['emailBody']), 75, "\r\n");
         # Prepare headers
         $headers[] = 'From: ' . static::encodeMimeHeader("i-MSCP ($host)") . " <$from>";
-        if (isset($data['sender_email'])) {
+        if (isset($data['senderEmail'])) {
             # Note: We cannot use the real sender email address in the FROM header because the email's domain could be
             # hosted on external server, meaning that if the domain implements SPF, the mail could be rejected. However we
             # pass the real sender email through the `Reply-To' header
-            if (isset($data['sender_name'])) {
-                $headers[] = 'Reply-To: ' . static::encodeMimeHeader($data['sender_name']) . ' <' . $data['sender_email'] . '>';
+            if (isset($data['senderName'])) {
+                $headers[] = 'Reply-To: ' . static::encodeMimeHeader($data['senderName']) . ' <' . $data['senderEmail'] . '>';
             } else {
-                $headers[] = 'Reply-To: ' . $data['sender_email'];
+                $headers[] = 'Reply-To: ' . $data['senderEmail'];
             }
         } else {
             $headers[] = 'Reply-To: ' . $cfg['DEFAULT_ADMIN_ADDRESS'];
@@ -448,8 +495,6 @@ i-MSCP Mailer');
 
         return mail($to, $subject, $message, implode("\r\n", $headers), "-f $from");
     }
-
-    // In progress...
 
     /**
      * Send add user email
@@ -481,13 +526,50 @@ i-MSCP Mailer');
         ]);
 
         if (!$ret) {
-            writeLog(sprintf("Lost Password: Couldn't send welcome email to %s", $uname), E_USER_ERROR);
+            writeLog(sprintf("Couldn't send welcome email to %s", $uname), E_USER_ERROR);
             return false;
         }
 
         return true;
     }
 
+    /**
+     * Send edit user email
+     *
+     * @param int $adminId Administrator or reseller unique identifier
+     * @param string $uname Username
+     * @param string $upass User password
+     * @param string $uemail User email
+     * @param string $ufname User firstname
+     * @param string $ulname User lastname
+     * @param string $utype User type
+     * @return bool TRUE on success, FALSE on failure
+     */
+    public static function sendAcountUpdateMail(int $adminId, string $uname, string $upass, string $uemail, string $ufname, string $ulname, string $utype): bool
+    {
+        $data = static::getUpdateAccountEmail($adminId);
+        $ret = static::sendMail([
+            'mail_id'      => 'edit-user-auto-msg',
+            'fname'        => $ufname,
+            'lname'        => $ulname,
+            'username'     => $uname,
+            'email'        => decodeIdna($uemail),
+            'subject'      => $data['subject'],
+            'message'      => $data['message'],
+            'placeholders' => [
+                '{USERTYPE}' => $utype,
+                '{PASSWORD}' => $upass
+            ]
+        ]);
+
+        if (!$ret) {
+            writeLog(sprintf("Couldn't send account update email to %s", $uname), E_USER_ERROR);
+            return false;
+        }
+
+        return true;
+    }
+    
     /**
      * Create default mails accounts
      *

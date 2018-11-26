@@ -32,22 +32,19 @@ use version;
 #
 # This listener is only compatible with the fpm PHP SAPI.
 #
-# PHP configuration level (Per site, per domain or per user FPM settings):
+# PHP configuration level (per site, per domain or per user FPM settings):
 #
 # Depending on the PHP configuration level set for a given customer, this
 # listener file acts differently:
 #
-# - Per site   : FPM settings can be set for the main domain, domain aliases
-#                and subdomains. FPM settings set will apply only to the
-#                targeted domain, domain alias or subdomain.
+# - Per site   : FPM settings are set on a site basis. They apply only to the
+#                targeted domain.
 #
-# - Per domain : FPM settings can be set for the main domain and domain aliases
-#                only. FPM settings set for the main domain will also apply to
-#                the main domain's subdomains, and PHP directives set for domain
-#                aliases will also apply to domain aliases's subdomains.
+# - Per domain : FPM settings are set on a per domain basis. They apply to the
+#                targeted domain and all its subdomains.
 #
-# - Per user   : FPM settings can be set for the main domain name only. They
-#                will apply to the main domain, domain aliases and subdomains.
+# - Per user   : FPM settings are set on a per user basis. They apply to all
+#                domains, including their subdomains.
 #
 # The PHP configuration level is set on a per customer basis. You can change it
 # for a specific customer as follows:
@@ -59,7 +56,7 @@ use version;
 #
 
 
-# Note that domain names must be in ASCII format.
+# Note that domain names must be in ASCII form.
 my %SETTINGS = (
     # Global FPM settings 
     # These settings apply to all domains.

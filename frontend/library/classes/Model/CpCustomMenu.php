@@ -20,46 +20,60 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class CpCustomMenu
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_cp_custom_menu", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class CpCustomMenu extends BaseModel
+class CpCustomMenu
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $cpCustomMenuID;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $menuLevel;
 
     /**
+     * @ORM\Column(type="integer")
      * @var int
      */
     private $menuOrder = 0;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $menuName;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $menuLink;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $menuTarget = '_blank';
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $isActive = 1;
+    private $isActive = true;
 
     /**
      * @return int
@@ -67,16 +81,6 @@ class CpCustomMenu extends BaseModel
     public function getCpCustomMenuID(): int
     {
         return $this->cpCustomMenuID;
-    }
-
-    /**
-     * @param int $cpCustomMenuID
-     * @return CpCustomMenu
-     */
-    public function setCpCustomMenuID(int $cpCustomMenuID): CpCustomMenu
-    {
-        $this->cpCustomMenuID = $cpCustomMenuID;
-        return $this;
     }
 
     /**
@@ -170,18 +174,18 @@ class CpCustomMenu extends BaseModel
     }
 
     /**
-     * @return int
+     * @return bool
      */
-    public function getIsActive(): int
+    public function getIsActive(): bool
     {
         return $this->isActive;
     }
 
     /**
-     * @param int $isActive
+     * @param bool $isActive
      * @return CpCustomMenu
      */
-    public function setIsActive(int $isActive): CpCustomMenu
+    public function setIsActive(bool $isActive): CpCustomMenu
     {
         $this->isActive = $isActive;
         return $this;

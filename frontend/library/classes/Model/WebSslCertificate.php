@@ -20,51 +20,83 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class WebSslCertificate
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_web_ssl_certificate", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class WebSslCertificate extends BaseModel
+class WebSslCertificate
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $webSslCertificateID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="WebDomain")
+     * @ORM\JoinColumn(name="webDomainID", referencedColumnName="webDomainID", onDelete="CASCADE")
+     * @var WebDomain
      */
-    private $webDomainID;
+    private $webDomain;
 
     /**
+     * @ORM\Column(type="text")
      * @var string
      */
     private $privateKey;
 
     /**
+     * @ORM\Column(type="text")
      * @var string
      */
     private $certificate;
 
     /**
+     * @ORM\Column(type="text")
      * @var string
      */
     private $caBundle;
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $hsts = 0;
+    private $hsts = false;
 
     /**
+     * @ORM\Column(type="integer")
      * @var int
      */
     private $hstsMaxAge = 31536000;
 
     /**
+     * @ORM\Column(type="boolean")
      * @var int
      */
     private $hstsIncludeSubdomains = 0;
+
+    /**
+     * WebSslCertificate constructor
+     *
+     * @param WebDomain $webDomain
+     * @param string $privateKey
+     * @param string $certificate
+     * @param string $caBundle
+     */
+    public function __construct(WebDomain $webDomain, string $privateKey, string $certificate, string $caBundle)
+    {
+        $this->setWebDomain($webDomain);
+        $this->setPrivateKey($privateKey);
+        $this->setCertificate($certificate);
+        $this->setCaBundle($caBundle);
+    }
 
     /**
      * @return int
@@ -75,30 +107,20 @@ class WebSslCertificate extends BaseModel
     }
 
     /**
-     * @param int $webSslCertificateID
-     * @return WebSslCertificate
+     * @return WebDomain
      */
-    public function setWebSslCertificateID(int $webSslCertificateID): WebSslCertificate
+    public function getWebDomain(): WebDomain
     {
-        $this->webSslCertificateID = $webSslCertificateID;
-        return $this;
+        return $this->webDomain;
     }
 
     /**
-     * @return int
-     */
-    public function getWebDomainID(): int
-    {
-        return $this->webDomainID;
-    }
-
-    /**
-     * @param int $webDomainID
+     * @param WebDomain $webDomain
      * @return WebSslCertificate
      */
-    public function setWebDomainID(int $webDomainID): WebSslCertificate
+    public function setWebDomain(WebDomain $webDomain): WebSslCertificate
     {
-        $this->webDomainID = $webDomainID;
+        $this->webDomain = $webDomain;
         return $this;
     }
 

@@ -26,7 +26,7 @@ use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Statistics;
 use iMSCP\Functions\View;
-use iMSCP\Model\SuIdentityInterface;
+use iMSCP\Model\CpSuIdentityInterface;
 use Zend\EventManager\Event;
 
 /**
@@ -258,7 +258,7 @@ function &getData($clientId, $forUpdate = false)
             }
         }
 
-        if (Application::getInstance()->getConfig()['BACKUP_DOMAINS'] == 'yes') {
+        if (Application::getInstance()->getConfig()['BACKUP_FEATURE'] == 'yes') {
             $data['allowbackup'] = isset($_POST['allowbackup']) && is_array($_POST['allowbackup'])
                 ? array_intersect($_POST['allowbackup'], ['dmn', 'sql', 'mail']) : [];
         } else {
@@ -302,7 +302,6 @@ function updateClientAccount($clientId)
 
         // Check for client IP addresses
         if (array_diff($data['domain_client_ips'], $data['reseller_ips'])) {
-            print "god";
             $data['domain_client_ips'] = $data['fallback_domain_client_ips'];
         }
 
@@ -524,9 +523,9 @@ function updateClientAccount($clientId)
                 'webFolderProtection' => $data['web_folder_protection'],
                 'subdomainLimit'      => $data['domain_subd_limit'],
                 'domainAliasesLimit'  => $data['domain_alias_limit'],
-                'mailAccountsLimit'   => $data['domain_mailacc_limit'],
+                'mailboxesLimit'      => $data['domain_mailacc_limit'],
                 'mailQuota'           => $data['mail_quota'] * 1048576,
-                'ftpAccountsLimit'    => $data['domain_ftpacc_limit'],
+                'ftpUsersLimit'       => $data['domain_ftpacc_limit'],
                 'sqlDatabasesLimit'   => $data['domain_sqld_limit'],
                 'sqlUsersLimit'       => $data['domain_sqlu_limit'],
                 'monthlyTrafficLimit' => $data['domain_traffic_limit'],
@@ -546,7 +545,7 @@ function updateClientAccount($clientId)
             execQuery(
                 '
                     UPDATE domain
-                    SET domain_expires = ?, domain_last_modified = ?, domain_mailacc_limit = ?, domain_ftpacc_limit = ?, domain_traffic_limit = ?,
+                    SET domain_expires = ?, domain_mailacc_limit = ?, domain_ftpacc_limit = ?, domain_traffic_limit = ?,
                         domain_sqld_limit = ?, domain_sqlu_limit = ?, domain_alias_limit = ?, domain_subd_limit = ?, domain_client_ips = ?,
                         domain_disk_limit = ?, domain_php = ?, domain_cgi = ?, allowbackup = ?, domain_dns = ?, domain_external_mail = ?,
                         web_folder_protection = ?, mail_quota = ?
@@ -608,9 +607,9 @@ function updateClientAccount($clientId)
                 'webFolderProtection' => $data['web_folder_protection'],
                 'subdomainLimit'      => $data['domain_subd_limit'],
                 'domainAliasesLimit'  => $data['domain_alias_limit'],
-                'mailAccountsLimit'   => $data['domain_mailacc_limit'],
+                'mailboxesLimit'      => $data['domain_mailacc_limit'],
                 'mailQuota'           => $data['mail_quota'] * 1048576,
-                'ftpAccountsLimit'    => $data['domain_ftpacc_limit'],
+                'ftpUsersLimit'       => $data['domain_ftpacc_limit'],
                 'sqlDatabasesLimit'   => $data['domain_sqld_limit'],
                 'sqlUsersLimit'       => $data['domain_sqlu_limit'],
                 'monthlyTrafficLimit' => $data['domain_traffic_limit'],
@@ -933,7 +932,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
         'CGI_NO'  => $data['domain_cgi'] != 'yes' ? ' checked' : ''
     ]);
 
-    if (Counting::resellerHasFeature('custom_dns_records')) {
+    if (Counting::userHasFeature('webDnsEditor')) {
         $tpl->assign([
             'TR_DNS'  => toHtml(tr('Custom DNS records')),
             'DNS_YES' => $data['domain_dns'] == 'yes' ? ' checked' : '',
@@ -953,7 +952,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
         ]);
     }
 
-    if (Application::getInstance()->getConfig()['BACKUP_DOMAINS'] == 'yes') {
+    if (Application::getInstance()->getConfig()['BACKUP_FEATURE'] == 'yes') {
         $tpl->assign([
             'TR_BACKUP'        => toHtml(tr('Backup')),
             'TR_BACKUP_DOMAIN' => toHtml(tr('Domain')),
@@ -983,7 +982,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
         'TR_LIMITS'               => toHtml(tr('Limits')),
         'TR_VALUE'                => toHtml(tr('Value')),
         'TR_CUSTOMER_CONSUMPTION' => toHtml(tr('Customer consumption')),
-        'TR_RESELLER_CONSUMPTION' => toHtml($identity instanceof SuIdentityInterface ? tr('Reseller consumption') : tr('Your consumption'))
+        'TR_RESELLER_CONSUMPTION' => toHtml($identity instanceof CpSuIdentityInterface ? tr('Reseller consumption') : tr('Your consumption'))
     ]);
 
     // Subdomains limit

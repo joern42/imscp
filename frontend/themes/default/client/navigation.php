@@ -22,7 +22,7 @@ namespace iMSCP;
 
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\View;
-use iMSCP\Model\SuIdentityInterface;
+use iMSCP\Model\CpSuIdentityInterface;
 
 return [
     'general'    => [
@@ -80,7 +80,7 @@ return [
                 ]
             ],
             'add_domain_alias'      => [
-                'label'              => Application::getInstance()->getAuthService()->getIdentity() instanceof SuIdentityInterface
+                'label'              => Application::getInstance()->getAuthService()->getIdentity() instanceof CpSuIdentityInterface
                     ? tr('Add domain alias') : tr('Order domain alias'),
                 'uri'                => '/client/alias_add.php',
                 'title_class'        => 'domains',

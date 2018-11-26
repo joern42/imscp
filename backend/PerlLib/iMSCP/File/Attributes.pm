@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::File::Attributes - Provide an interface to ioctl() operations for inode flags-attributes
+ iMSCP::File::Attributes - Interface to ioctl() operations for inode flags-attributes
 
 =cut
 
@@ -168,239 +168,308 @@ my %constants = (
 
 =item setAppendOnly( $name [, $recursive ] )
 
- Takes a filename and attempts to set its append only inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its append only inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
+
  Return void, die on failure
 
 =item clearAppendOnly( $name [, $recursive ] )
 
- Takes a filename and removes the append only inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the append only inode flag if it is present. If
+ a second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isAppendOnly( $name )
 
- Takes a filename and returns true if the append only inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the append only inode flag is set and
+ FALSE if it isn't.
 
 =item setCompress( $name [, $recursive ] )
 
- Takes a filename and attempts to set its compress inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its compress inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
+
  Return void, die on failure
 
 =item clearCompress( $name [, $recursive ] )
 
- Takes a filename and removes the compress inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the compress inode flag if it is present. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isCompress( $name )
 
- Takes a filename and returns true if the compress inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the compress inode flag is set and FALSE
+ if it isn't.
 
 =item setDirSync( $name [, $recursive ] )
 
- Takes a filename and attempts to set its dirsync inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its dirsync inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
+
  Return void, die on failure
 
 =item clearDirSync( $name [, $recursive ] )
 
- Takes a filename and removes the dirsync inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the dirsync inode flag if it is present. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isDirSync( $name )
 
- Takes a filename and returns true if the dirsync inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the dirsync inode flag is set and FALSE
+ if it isn't.
 
 =item setImmutable( $name [, $recursive ] )
 
- Takes a filename and attempts to set its immutable inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its immutable inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
+
  Return void, die on failure
 
 =item clearImmutable( $name [, $recursive ] )
 
- Takes a filename and removes the immutable inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the immutable inode flag if it is present. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isImmutable
 
- Takes a filename and returns true if the immutable inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the immutable inode flag is set and
+ FALSE if it isn't.
 
 =item setJournalData( $name [, $recursive ] )
 
- Takes a filename and attempts to set its journal data inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its journal data inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
+
  Return void, die on failure
 
 =item clearJournalData( $name [, $recursive ] )
 
- Takes a filename and removes the journal data inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the journal data inode flag if it is present. If
+ a second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isJournalData
 
- Takes a filename and returns true if the journal data inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the journal data inode flag is set and
+ FALSE if it isn't.
 
 =item setNoAtime( $name )
 
- Takes a filename and attempts to set its noatime inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its noatime inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
+
  Return void, die on failure
 
 =item clearNoAtime( $name [, $recursive ] )
 
- Takes a filename and removes the only noatime inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the only noatime inode flag if it is present. If
+ a second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isNoAtime( $name )
 
- Takes a filename and returns true if the noatime inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the noatime inode flag is set and FALSE
+ if it isn't.
 
 =item setNoCow( $name )
 
- Takes a filename and attempts to set its nocow inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its nocow inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
+
  Return void, die on failure
 
 =item clearNoCow( $name [, $recursive ] )
 
- Takes a filename and removes the only nocow inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the only nocow inode flag if it is present. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isNoCow( $name )
 
- Takes a filename and returns true if the nocow inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the nocow inode flag is set and FALSE if
+ it isn't.
 
 =item setNoDump( $name )
 
- Takes a filename and attempts to set its nodump inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its nodump inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
 
 =item clearNoDump( $name [, $recursive ] )
 
- Takes a filename and removes the only nodump inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the only nodump inode flag if it is present. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isNoDump( $name )
 
- Takes a filename and returns true if the nodump inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the nodump inode flag is set and FALSE if
+ it isn't.
 
 =item setNoTail( $name )
 
- Takes a filename and attempts to set its notail inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its notail inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
 
 =item clearNoTail( $name [, $recursive ] )
 
- Takes a filename and removes the only notail inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the only notail inode flag if it is present. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isNoTail( $name )
 
- Takes a filename and returns true if the notail inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the notail inode flag is set and FALSE if
+ it isn't.
 
 =item setProjInherit( $name )
 
- Takes a filename and attempts to set its projinherit inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its projinherit inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
 
 =item clearProjInherit( $name [, $recursive ] )
 
  Takes a filename and removes the only projinherit inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ If a second arguement is passed with TRUE value, and $name is a directory,
+ this function will operate recursively.
+
  Return void, die on failure
 
-=item isNoProjInherit( $name )
+=item isProjInherit( $name )
 
- Takes a filename and returns true if the projinherit inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the projinherit inode flag is set and
+ FALSE if it isn't.
 
 =item setSecureDeletion( $name [, $recursive ] )
 
- Takes a filename and attempts to set its secure deletion inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its secure deletion inode flag. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item clearSecureDeletion( $name [, $recursive ] )
 
  Takes a filename and removes the secure deletion inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ If a second arguement is passed with TRUE value, and $name is a directory,
+ this function will operate recursively.
 
 =item isSecureDeletion( $name )
 
- Takes a filename and returns true if the secure deletion inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the secure deletion inode flag is set and
+ FALSE if it isn't.
 
 =item setSyncUpdate( $name [, $recursive ] )
 
- Takes a filename and attempts to set its synchronous updates inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its synchronous updates inode flag. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
 
 =item clearSyncUpdate( $name [, $recursive ] )
 
- Takes a filename and removes the synchronous updates inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the synchronous updates inode flag if it is
+ present. If a second arguement is passed with TRUE value, and $name is a
+ directory, this function will operate recursively.
 
 =item isSyncUpdate( $name )
 
- Takes a filename and returns true if the sync inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the sync inode flag is set and FALSE if
+ it isn't.
 
 =item setTopDir( $name [, $recursive ] )
 
- Takes a filename and attempts to set its synchronous updates inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its synchronous updates inode flag. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item clearTopDir( $name [, $recursive ] )
 
- Takes a filename and removes the topdir inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the topdir inode flag if it is present. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isTopDir( $name )
 
- Takes a filename and returns true if the topdir inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the topdir inode flag is set and FALSE if
+ it isn't.
 
 =item setUndelete( $name [, $recursive ] )
 
- Takes a filename and attempts to set its undelete inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its undelete inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
+
  Return void, die on failure
 
 =item clearUndelete( $name [, $recursive ] )
 
- Takes a filename and removes the undelete inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the undelete inode flag if it is present. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isUndelete
 
- Takes a filename and returns true if the undelete inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the undelete inode flag is set and FALSE
+ if it isn't.
 
 =cut
 
 =item setExtent( $name [, $recursive ] )
 
- Takes a filename and attempts to set its extent inode flag.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and attempts to set its extent inode flag. If a second
+ arguement is passed with TRUE value, and $name is a directory, this function
+ will operate recursively.
+
  Return void, die on failure
 
 =item clearExtent( $name [, $recursive ] )
 
- Takes a filename and removes the extent inode flag if it is present.
- If a second arguement is passed with true value, and $name is a directory, this function will operate recursively.
+ Takes a filename and removes the extent inode flag if it is present. If a
+ second arguement is passed with TRUE value, and $name is a directory, this
+ function will operate recursively.
+
  Return void, die on failure
 
 =item isExtent
 
- Takes a filename and returns true if the extent inode flag is set and false if it isn't.
+ Takes a filename and returns TRUE if the extent inode flag is set and FALSE if
+ it isn't.
 
 =cut
 

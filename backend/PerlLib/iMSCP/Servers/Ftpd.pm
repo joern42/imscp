@@ -57,7 +57,7 @@ sub getServerPriority
 
  Process addUser tasks
 
- The following event *MUST* be triggered:
+ The following events *MUST* be triggered:
   - before<SNAME>AddFtpUser( \%moduleData )
   - after<SNAME>AddFtpUser( \%moduleData )
 
@@ -79,7 +79,7 @@ sub addUser
 
  Add FTP user
 
- The following event *MUST* be triggered:
+ The following events *MUST* be triggered:
   - before<SNAME>AddFtpUser( \%moduleData )
   - after<SNAME>AddFtpUser( \%moduleData )
 
@@ -101,7 +101,7 @@ sub addFtpUser
 
  Disable FTP user
 
- The following event *MUST* be triggered:
+ The following events *MUST* be triggered:
   - before<SNAME>DisableFtpUser( \%moduleData )
   - after<SNAME>DisableFtpUser( \%moduleData )
 
@@ -123,7 +123,7 @@ sub disableFtpUser
 
  Delete FTP user
 
- The following event *MUST* be triggered:
+ The following events *MUST* be triggered:
   - before<SNAME>DeleteFtpUser( \%moduleData )
   - after<SNAME>DeleteFtpUser( \%moduleData )
 

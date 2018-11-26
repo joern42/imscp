@@ -19,6 +19,22 @@ CREATE DATABASE IF NOT EXISTS `{DATABASE_NAME}`
 
 USE `{DATABASE_NAME}`;
 
+CREATE TABLE IF NOT EXISTS `imscp_monitored_service` (
+  `monitoredServiceID` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `serverID` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `protocol` enum('tcp', 'udp') NOT NULL,
+  `address` varchar(255) NOT NULL,
+  `port` int(11) UNSIGNED NOT NULL,
+  `isActive` tinyint(1) UNSIGNED NOT NULL DEFAULT '1',
+  PRIMARY KEY (`monitoredServiceID`),
+  KEY `serverID` (`serverID`),
+  CONSTRAINT `monitoredServiceConstraint01` FOREIGN KEY (`serverID`) REFERENCES `imscp_server` (`serverID`) ON DELETE CASCADE
+)
+ENGINE = InnoDB
+DEFAULT CHARSET = ascii
+ROW_FORMAT = DYNAMIC;
+
 -- --------------------------------------------------------
 
 --
@@ -29,7 +45,9 @@ CREATE TABLE IF NOT EXISTS `imscp_autoreply` (
   `autoreplyTime` datetime     NOT NULL,
   `autoreplyFrom` varchar(255) NOT NULL,
   `autoreplTo`    varchar(255) NOT NULL,
-  KEY `autoreplyTime` (`autoreplyTime`)
+  KEY `autoreplyTime` (`autoreplyTime`),
+  KEY `autoreplyFrom` (`autoreplyFrom`),
+  KEY `autoreplTo` (`autoreplTo`)
 )
   ENGINE = InnoDB
   DEFAULT CHARSET = ascii
@@ -102,39 +120,19 @@ CREATE TABLE IF NOT EXISTS `imscp_client_properties` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `imscp_config`
+-- Table structure for table `imscp_stores`
 --
 
-CREATE TABLE IF NOT EXISTS `imscp_config` (
-  `configName`  varchar(255) CHARACTER SET ascii
+CREATE TABLE IF NOT EXISTS `imscp_storage` (
+  `storageID`  varchar(255) CHARACTER SET ascii
   COLLATE ascii_bin                                 NOT NULL,
-  `configValue` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`configName`)
+  `storageData` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`storageID`)
 )
   ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
   ROW_FORMAT = DYNAMIC;
-
---
--- Dumping data for table `imscp_config`
---
-
-INSERT IGNORE INTO `imscp_config` (`configName`, `configValue`) VALUES
-  ('DATABASE_REVISION', '0'),
-  ('PORT_DNS', '53;tcp;DNS;1;0.0.0.0'),
-  ('PORT_FTP', '21;tcp;FTP;1;0.0.0.0'),
-  ('PORT_HTTP', '80;tcp;HTTP;1;0.0.0.0'),
-  ('PORT_HTTPS', '443;tcp;HTTPS;0;0.0.0.0'),
-  ('PORT_IMAP', '143;tcp;IMAP;1;0.0.0.0'),
-  ('PORT_IMAP-SSL', '993;tcp;IMAP-SSL;0;0.0.0.0'),
-  ('PORT_IMSCP_DAEMON', '9876;tcp;i-MSCP-Daemon;1;127.0.0.1'),
-  ('PORT_POP3', '110;tcp;POP3;1;0.0.0.0'),
-  ('PORT_POP3-SSL', '995;tcp;POP3-SSL;0;0.0.0.0'),
-  ('PORT_SMTP', '25;tcp;SMTP;1;0.0.0.0'),
-  ('PORT_SMTP-SSL', '465;tcp;SMTP-SSL;0;0.0.0.0'),
-  ('PORT_SSH', '22;tcp;SSH;1;0.0.0.0'),
-  ('PORT_TELNET', '23;tcp;TELNET;1;0.0.0.0');
 
 -- --------------------------------------------------------
 
@@ -200,11 +198,11 @@ CREATE TABLE IF NOT EXISTS `imscp_cp_log` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `imscp_cp_login`
+-- Table structure for table `imscp_cp_user_login`
 --
 
 CREATE TABLE IF NOT EXISTS `imscp_cp_login` (
-  `cpLoginID`      varchar(255) COLLATE ascii_bin NOT NULL,
+  `cpUserLogin`      varchar(255) COLLATE ascii_bin NOT NULL,
   `username`       varchar(255) CHARACTER SET utf8mb4
   COLLATE utf8mb4_bin                                      DEFAULT NULL,
   `ipAddress`      varchar(255) COLLATE ascii_bin NOT NULL,

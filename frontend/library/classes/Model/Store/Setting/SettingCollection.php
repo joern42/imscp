@@ -20,41 +20,29 @@
 
 namespace iMSCP\Model\Store\Setting;
 
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\KeyValueStore\Mapping\Annotations as KeyValue;
-use iMSCP\Model\Store\StoreAbstract;
+use Doctrine\ORM\Mapping as ORM;
+use iMSCP\Model\Store\StoreCollectionAbstract;
 
 /**
  * Class SettingCollection
- * @package iMSCP\Model\Store
- * @KeyValue\Entity(storageName="imscp_storage")
+ * @package iMSCP\Model\Store\Setting
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_storage", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
+ * @ORM\ChangeTrackingPolicy("DEFERRED_EXPLICIT")
  */
-class SettingCollection extends StoreAbstract implements \IteratorAggregate
+class SettingCollection extends StoreCollectionAbstract
 {
-    /**
-     * @var SettingInterface[]
-     */
-    private $settings = [];
-
-    /**
-     * Services constructor.
-     */
-    public function __construct()
-    {
-        parent::__construct();
-        $this->settings = new ArrayCollection();
-    }
-
     /**
      * Return setting
      *
      * @param string $name
-     * @return mixed|null
+     * @return SettingInterface
      */
     public function getSetting(string $name)
     {
-        $setting = $this->settings->get($name);
-        if (NULL === $this->settings) {
+        $setting = $this->storageData[$name] ?? NULL;
+
+        if (NULL === $setting) {
             throw new \RuntimeException(sprintf("Couldn't find setting by name: %s", $name));
         }
 
@@ -62,26 +50,14 @@ class SettingCollection extends StoreAbstract implements \IteratorAggregate
     }
 
     /**
-     * Add a setting
+     * Add or replace a setting
      *
      * @param SettingInterface $setting
      * @return SettingCollection
      */
     public function addSetting(SettingInterface $setting): SettingCollection
     {
-        $this->settings[$setting->getName()] = $setting;
-        return $this;
-    }
-
-    /**
-     * Remove a setting
-     *
-     * @param SettingInterface $setting
-     * @return SettingCollection
-     */
-    public function removeSetting(SettingInterface $setting): SettingCollection
-    {
-        $this->settings->removeElement($setting);
+        $this->storageData[$setting->getName()] = $setting;
         return $this;
     }
 
@@ -91,17 +67,9 @@ class SettingCollection extends StoreAbstract implements \IteratorAggregate
      * @param string $name
      * @return SettingCollection
      */
-    public function removeSettingByName(string $name): SettingCollection
+    public function deleteSetting(string $name): SettingCollection
     {
-        $this->settings->remove($name);
+        unset($this->storageData[$name]);
         return $this;
-    }
-
-    /**
-     * @return \ArrayIterator
-     */
-    public function getIterator(): \ArrayIterator
-    {
-        return $this->settings->getIterator();
     }
 }

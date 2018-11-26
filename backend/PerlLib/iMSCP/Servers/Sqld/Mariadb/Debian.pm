@@ -266,16 +266,16 @@ sub _updateServerConfig
 
     # Upgrade MySQL tables if necessary
     {
-        my $defaultsExtraFile = File::Temp->new();
-        print $defaultsExtraFile <<'EOF';
+        my $mysqlDefaultsExtraFile = File::Temp->new();
+        print $mysqlDefaultsExtraFile <<'EOF';
 [mysql_upgrade]
 host = {HOST}
 port = {PORT}
 user = "{USER}"
 password = "{PASSWORD}"
 EOF
-        $defaultsExtraFile->close();
-        $self->buildConfFile( $defaultsExtraFile, undef, undef,
+        $mysqlDefaultsExtraFile->close();
+        $self->buildConfFile( $mysqlDefaultsExtraFile, undef, undef,
             {
                 HOST     => ::setupGetQuestion( 'DATABASE_HOST' ),
                 PORT     => ::setupGetQuestion( 'DATABASE_PORT' ),
@@ -283,12 +283,14 @@ EOF
                 PASSWORD => decryptRijndaelCBC( $::imscpKEY, $::imscpIV, ::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
             },
             {
-                srcname => 'defaults-extra-file'
+                srcname => 'mysql-defaults-file'
             }
         );
         # Simply mimic Debian behavior (/usr/share/mysql/debian-start.inc.sh)
         my $rs = execute(
-            "mysql_upgrade --defaults-extra-file=$defaultsExtraFile 2>&1 | egrep -v '^(1|\@had|ERROR (1054|1060|1061))'", \my $stdout, \my $stderr
+            "mysql_upgrade --defaults-extra-file=$mysqlDefaultsExtraFile 2>&1 | egrep -v '^(1|\@had|ERROR (1054|1060|1061))'",
+            \my $stdout,
+            \my $stderr
         );
         debug( $stdout ) if length $stdout;
         $rs == 0 or die( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' ));

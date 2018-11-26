@@ -29,7 +29,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('ftp') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::userHasFeature('ftp') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 $userid = cleanInput($_GET['id']);
 $stmt = execQuery('SELECT admin_name as groupname FROM ftp_users JOIN admin USING(admin_id) WHERE userid = ? AND admin_id = ?', [

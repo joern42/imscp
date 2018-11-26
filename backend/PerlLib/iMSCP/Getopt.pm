@@ -80,7 +80,7 @@ $usage
  -h,-?  --help                    Show this help.
  -n,    --noprompt                Run in non-interactive mode.
  -p,    --preseed <file>          Path to preseed file.
- -r,    --reconfigure [item,...]  Type `help` for list of allowed items.
+ -r,    --reconfigure [item,...]  Type `help` for list of available items.
  -v,    --verbose                 Enable verbose mode.
  -x,    --fix-permissions         Fix file/directory permissions.
  -z     --no-ansi                 Disable ANSI output
@@ -214,7 +214,7 @@ my %RECONFIGURATION_ITEMS = (
  Reconfiguration items
 
  Param string $items OPTIONAL List of comma separated items to reconfigure
- Return string Name of item to reconfigure or none
+ Return array_ref List of item to reconfigure
 
 =cut
 
@@ -254,6 +254,7 @@ EOF
     }
 
     $options->{'reconfigure'} = [ @items ];
+    $options->{'reconfigure'};
 }
 
 =item preseed( [ $file = undef ] )

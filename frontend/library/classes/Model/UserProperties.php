@@ -59,6 +59,12 @@ class UserProperties
 
     /**
      * @ORM\Column(type="integer")
+     * @var int 
+     */
+    private $usersLimit = 0;
+    
+    /**
+     * @ORM\Column(type="integer")
      * @var int
      */
     private $domainsLimit = 0;
@@ -130,16 +136,16 @@ class UserProperties
     private $maxBackups = 0;
 
     /**
-     * @var @ORM\Column(type="setbackup")
+     * @var @ORM\Column(type="setbackuptype")
      * @var array
      */
-    private $hasBackupTypes;
+    private $backupTypes;
 
     /**
      * @ORM\Column(type="boolean")
      * @var bool
      */
-    private $hasPhp = false;
+    private $hasPHP = false;
 
     /**
      * @ORM\Column(type="boolean")
@@ -167,13 +173,13 @@ class UserProperties
      * @ORM\Column(type="boolean")
      * @var bool
      */
-    private $hasCgi = false;
+    private $hasCGI = false;
 
     /**
      * @ORM\Column(type="boolean")
      * @var boolean
      */
-    private $hasDns = false;
+    private $hasDNS = false;
 
     /**
      * @ORM\Column(type="boolean")
@@ -197,7 +203,7 @@ class UserProperties
      * @ORM\Column(type="boolean")
      * @var int
      */
-    private $hasProtectedArea = false;
+    private $hasProtectedAreas = false;
 
     /**
      * @ORM\Column(type="boolean")
@@ -213,9 +219,15 @@ class UserProperties
 
     /**
      * @ORM\Column(type="boolean")
+     * @var bool 
+     */
+    private $hasSSL = true;
+
+    /**
+     * @ORM\Column(type="boolean")
      * @var boolean
      */
-    private $webFolderProtection = false;
+    private $hasWebFolderProtection = false;
 
     /**
      * @ORM\Column(type="boolean")
@@ -285,6 +297,24 @@ class UserProperties
         return $this;
     }
 
+    /**
+     * @return int
+     */
+    public function getUsersLimit(): int
+    {
+        return $this->usersLimit;
+    }
+
+    /**
+     * @param int $usersLimit
+     * @return UserProperties
+     */
+    public function setUsersLimit(int $usersLimit): UserProperties
+    {
+        $this->usersLimit = $usersLimit;
+        return $this;
+    }
+    
     /**
      * @return int
      */
@@ -502,45 +532,45 @@ class UserProperties
     }
 
     /**
-     * @return mixed
+     * @return array
      */
-    public function getHasBackupTypes()
+    public function getBackupTypes(): array
     {
-        return $this->hasBackupTypes;
+        return $this->backupTypes;
     }
 
     /**
-     * @param mixed $hasBackupTypes
+     * @param mixed $backupTypes
      * @return UserProperties
      */
-    public function setHasBackupTypes($hasBackupTypes)
+    public function setBackupTypes(array $backupTypes): UserProperties
     {
-        $this->hasBackupTypes = $hasBackupTypes;
+        $this->backupTypes = $backupTypes;
         return $this;
     }
 
     /**
      * @return bool
      */
-    public function getHasPhp(): bool
+    public function hasPHP(): bool
     {
-        return $this->hasPhp;
+        return $this->hasPHP;
     }
 
     /**
-     * @param bool $hasPhp
+     * @param bool $hasPHP
      * @return UserProperties
      */
-    public function setHasPhp(bool $hasPhp): UserProperties
+    public function setHasPHP(bool $hasPHP): UserProperties
     {
-        $this->hasPhp = $hasPhp;
+        $this->hasPHP = $hasPHP;
         return $this;
     }
 
     /**
      * @return bool
      */
-    public function getHasPhpEditor(): bool
+    public function hasPhpEditor(): bool
     {
         return $this->hasPhpEditor;
     }
@@ -612,43 +642,43 @@ class UserProperties
     /**
      * @return bool
      */
-    public function getHasCgi(): bool
+    public function hasCGI(): bool
     {
-        return $this->hasCgi;
+        return $this->hasCGI;
     }
 
     /**
-     * @param bool $hasCgi
+     * @param bool $hasCGI
      * @return UserProperties
      */
-    public function setHasCgi(bool $hasCgi): UserProperties
+    public function setHasCGI(bool $hasCGI): UserProperties
     {
-        $this->hasCgi = $hasCgi;
+        $this->hasCGI = $hasCGI;
         return $this;
     }
 
     /**
      * @return bool
      */
-    public function getHasDns(): bool
+    public function hasDNS(): bool
     {
-        return $this->hasDns;
+        return $this->hasDNS;
     }
 
     /**
-     * @param bool $hasDns
+     * @param bool $hasDNS
      * @return UserProperties
      */
-    public function setHasDns(bool $hasDns): UserProperties
+    public function setHasDNS(bool $hasDNS): UserProperties
     {
-        $this->hasDns = $hasDns;
+        $this->hasDNS = $hasDNS;
         return $this;
     }
 
     /**
      * @return bool
      */
-    public function getHasDnsEditor(): bool
+    public function hasDnsEditor(): bool
     {
         return $this->hasDnsEditor;
     }
@@ -666,7 +696,7 @@ class UserProperties
     /**
      * @return bool
      */
-    public function isHasMailCatchall(): bool
+    public function hasMailCatchall(): bool
     {
         return $this->hasMailCatchall;
     }
@@ -684,7 +714,7 @@ class UserProperties
     /**
      * @return bool
      */
-    public function getHasMailExternalServer(): bool
+    public function hasMailExternalServer(): bool
     {
         return $this->hasMailExternalServer;
     }
@@ -702,25 +732,25 @@ class UserProperties
     /**
      * @return bool
      */
-    public function getHasProtectedArea(): bool
+    public function hasProtectedArea(): bool
     {
-        return $this->hasProtectedArea;
+        return $this->hasProtectedAreas;
     }
 
     /**
-     * @param bool $hasProtectedArea
+     * @param bool $hasProtectedAreas
      * @return UserProperties
      */
-    public function setHasProtectedArea(bool $hasProtectedArea): UserProperties
+    public function setHasProtectedAreas(bool $hasProtectedAreas): UserProperties
     {
-        $this->hasProtectedArea = $hasProtectedArea;
+        $this->hasProtectedAreas = $hasProtectedAreas;
         return $this;
     }
 
     /**
      * @return bool
      */
-    public function getHasCustomErrorPages(): bool
+    public function hasCustomErrorPages(): bool
     {
         return $this->hasCustomErrorPages;
     }
@@ -738,7 +768,7 @@ class UserProperties
     /**
      * @return bool
      */
-    public function getHasSupportSystem(): bool
+    public function hasSupportSystem(): bool
     {
         return $this->hasSupportSystem;
     }
@@ -756,25 +786,43 @@ class UserProperties
     /**
      * @return bool
      */
-    public function getWebFolderProtection(): bool
+    public function hasSSL(): bool
     {
-        return $this->webFolderProtection;
+        return $this->hasSSL;
     }
 
     /**
-     * @param bool $webFolderProtection
+     * @param bool $hasSSL
      * @return UserProperties
      */
-    public function setWebFolderProtection(bool $webFolderProtection): UserProperties
+    public function setHasSSL(bool $hasSSL): UserProperties
     {
-        $this->webFolderProtection = $webFolderProtection;
+        $this->hasSSL = $hasSSL;
+        return $this;
+    }
+    
+    /**
+     * @return bool
+     */
+    public function hasWebFolderProtection(): bool
+    {
+        return $this->hasWebFolderProtection;
+    }
+
+    /**
+     * @param bool $hasWebFolderProtection
+     * @return UserProperties
+     */
+    public function setHasWebFolderProtection(bool $hasWebFolderProtection): UserProperties
+    {
+        $this->hasWebFolderProtection = $hasWebFolderProtection;
         return $this;
     }
 
     /**
      * @return bool
      */
-    public function getHasWebstats(): bool
+    public function hasWebstats(): bool
     {
         return $this->hasWebstats;
     }

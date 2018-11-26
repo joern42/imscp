@@ -42,7 +42,7 @@ class Patch extends UpdateAbstract
     public function applyUpdates()
     {
         // Fixme: make it possible to trigger execution of imscp-patcher through frontend
-        $this->setError('i-MSCP patch can be applied throug the imscp-patcher script only.');
+        $this->setError('i-MSCP patch can be applied through the imscp-patcher script only.');
         return false;
     }
 

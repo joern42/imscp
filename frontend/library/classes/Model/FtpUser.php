@@ -20,26 +20,38 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class FtpUser
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_ftp_user", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class FtpUser extends BaseModel
+class FtpUser 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $ftpUserID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\JoinColumn(name="userID", referencedColumnName="userID", onDelete="CASCADE")
+     * @var User
      */
-    private $userID;
+    private $user;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="Server")
+     * @ORM\JoinColumn(name="serverID", referencedColumnName="serverID", onDelete="CASCADE")
+     * @var Server
      */
-    private $serverID;
+    private $server;
 
     /**
      * @var int
@@ -47,31 +59,37 @@ class FtpUser extends BaseModel
     private $ftpGroupID;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $username;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $passwordHash;
 
     /**
+     * @ORM\Column(type="integer")
      * @var int
      */
     private $uid;
 
     /**
+     * @ORM\Column(type="integer")
      * @var int
      */
     private $gid;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $shell = '/bin/sh';
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $homedir;
@@ -85,48 +103,38 @@ class FtpUser extends BaseModel
     }
 
     /**
-     * @param int $ftpUserID
+     * @return User
+     */
+    public function getUser(): User
+    {
+        return $this->user;
+    }
+
+    /**
+     * @param User $user
      * @return FtpUser
      */
-    public function setFtpUserID(int $ftpUserID): FtpUser
+    public function setUser(User $user): FtpUser
     {
-        $this->ftpUserID = $ftpUserID;
+        $this->user = $user;
         return $this;
     }
 
     /**
      * @return int
      */
-    public function getUserID(): int
+    public function getServer(): Server
     {
-        return $this->userID;
+        return $this->server;
     }
 
     /**
-     * @param int $userID
+     * @param Server $server
      * @return FtpUser
      */
-    public function setUserID(int $userID): FtpUser
+    public function setServer(Server $server): FtpUser
     {
-        $this->userID = $userID;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getServerID(): int
-    {
-        return $this->serverID;
-    }
-
-    /**
-     * @param int $serverID
-     * @return FtpUser
-     */
-    public function setServerID(int $serverID): FtpUser
-    {
-        $this->serverID = $serverID;
+        $this->server = $server;
         return $this;
     }
 

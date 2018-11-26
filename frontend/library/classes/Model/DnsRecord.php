@@ -20,61 +20,80 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class DnsRecord
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_dns_record", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class DnsRecord extends BaseModel
+class DnsRecord
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $dnsRecordID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="DnsZone")
+     * @ORM\JoinColumn(name="dnsZoneID", referencedColumnName="dnsZoneID", onDelete="CASCADE")
+     * @var DnsZone
      */
-    private $dnsZoneID;
+    private $dnsZone;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="Server")
+     * @ORM\JoinColumn(name="serverID", referencedColumnName="serverID", onDelete="CASCADE")
+     * @var Server
      */
-    private $serverID;
+    private $server;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $name;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $type;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $class;
 
     /**
+     * @ORM\Column(type="integer")
      * @var int
      */
     private $ttl = 3600;
 
     /**
+     * @ORM\Column(type="text")
      * @var string
      */
     private $rdata;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $owner = 'core';
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $isActive = 1;
+    private $isActive = true;
 
     /**
      * @return int
@@ -85,48 +104,38 @@ class DnsRecord extends BaseModel
     }
 
     /**
-     * @param int $dnsRecordID
+     * @return DnsZone
+     */
+    public function getDnsZone(): DnsZone
+    {
+        return $this->dnsZone;
+    }
+
+    /**
+     * @param DnsZone $dnsZone
      * @return DnsRecord
      */
-    public function setDnsRecordID(int $dnsRecordID): DnsRecord
+    public function setDnsZone(DnsZone $dnsZone): DnsRecord
     {
-        $this->dnsRecordID = $dnsRecordID;
+        $this->dnsZone = $dnsZone;
         return $this;
     }
 
     /**
-     * @return int
+     * @return Server
      */
-    public function getDnsZoneID(): int
+    public function getServer(): Server
     {
-        return $this->dnsZoneID;
+        return $this->server;
     }
 
     /**
-     * @param int $dnsZoneID
+     * @param Server $server
      * @return DnsRecord
      */
-    public function setDnsZoneID(int $dnsZoneID): DnsRecord
+    public function setServer(Server $server): DnsRecord
     {
-        $this->dnsZoneID = $dnsZoneID;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getServerID(): int
-    {
-        return $this->serverID;
-    }
-
-    /**
-     * @param int $serverID
-     * @return DnsRecord
-     */
-    public function setServerID(int $serverID): DnsRecord
-    {
-        $this->serverID = $serverID;
+        $this->server = $server;
         return $this;
     }
 

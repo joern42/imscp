@@ -39,11 +39,12 @@ our @EXPORT_OK = qw/ addMountEntry getMounts isMountpoint mount setPropagationFl
 our %EXPORT_TAGS = ( all => \@EXPORT_OK );
 
 # Mount options
+# MT_INVERT -> &~
 my %MOUNT_FLAGS = (
     defaults      => sub { 0 },
 
     ro            => sub { $_[0] | &iMSCP::H2ph::MS_RDONLY },
-    rw            => sub { $_[0] & ~&iMSCP::H2ph::MS_RDONLY },
+    rw            => sub { $_[0] &~ &iMSCP::H2ph::MS_RDONLY },
     exec          => sub { $_[0] & ~&iMSCP::H2ph::MS_NOEXEC },
     noexec        => sub { $_[0] | &iMSCP::H2ph::MS_NOEXEC },
     suid          => sub { $_[0] & ~&iMSCP::H2ph::MS_NOSUID },
@@ -176,6 +177,7 @@ sub mount( $ )
     my @mountArgv;
 
     if ( $mflags & &iMSCP::H2ph::MS_BIND ) {
+        print "here bind\n";
         # Create a bind mount or remount an existing bind mount
         push @mountArgv, [ $fsSpec, $fsFile, $fsVfstype, $mflags, $data ];
 
@@ -190,10 +192,10 @@ sub mount( $ )
         # Create a new mount or remount an existing mount
         push @mountArgv, [ $fsSpec, $fsFile, $fsVfstype, $mflags, $data ];
     }
-
+    
     # Change the propagation type of an existing mount
     push @mountArgv, [ 'none', $fsFile, 0, $pflags, 0 ] if $pflags;
-
+    
     # Process the mount(2) calls
     for my $mountArg ( @mountArgv ) {
         ( syscall( &iMSCP::H2ph::SYS_mount, @{ $mountArg } ) == 0 || $fields->{'ignore_failures'} ) or die(

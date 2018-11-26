@@ -28,7 +28,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('custom_error_pages') or View::showBadRequestErrorPage();
+Counting::userHasFeature('webCustomErrorPages') or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([

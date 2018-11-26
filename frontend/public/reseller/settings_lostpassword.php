@@ -37,26 +37,23 @@ $tpl->define([
     'custom_buttons' => 'page'
 ]);
 
-$userId = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
-
-$selected_on = '';
-$selected_off = '';
-$data_1 = Mail::getLostpasswordActivationEmail($userId);
-$data_2 = Mail::getLostpasswordEmail($userId);
+$userID = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
+$data1 = Mail::getLostpasswordActivationEmail($userID);
+$data2 = Mail::getLostpasswordEmail($userID);
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
     $error = false;
-    $data_1['subject'] = cleanInput($_POST['subject1']);
-    $data_1['message'] = cleanInput($_POST['message1']);
-    $data_2['subject'] = cleanInput($_POST['subject2']);
-    $data_2['message'] = cleanInput($_POST['message2']);
+    $data1['emailSubject'] = cleanInput($_POST['subject1']);
+    $data1['emailBody'] = cleanInput($_POST['message1']);
+    $data2['emailSubject'] = cleanInput($_POST['subject2']);
+    $data2['emailBody'] = cleanInput($_POST['message2']);
 
-    if (empty($data_1['subject']) || empty($data_2['subject'])) {
+    if (empty($data1['emailSubject']) || empty($data2['emailSubject'])) {
         View::setPageMessage(tr('You must specify a subject.'), 'error');
         $error = true;
     }
 
-    if (empty($data_1['message']) || empty($data_2['message'])) {
+    if (empty($data1['emailBody']) || empty($data2['emailBody'])) {
         View::setPageMessage(tr('You must specify a message.'), 'error');
         $error = true;
     }
@@ -65,8 +62,8 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
         return false;
     }
 
-    Mail::setLostpasswordActivationEmail($userId, $data_1);
-    Mail::setLostpasswordEmail($userId, $data_2);
+    Mail::setLostpasswordActivationEmail($userID, $data1);
+    Mail::setLostpasswordEmail($userID, $data2);
     View::setPageMessage(tr('Lost password email templates were updated.'), 'success');
 }
 
@@ -75,12 +72,12 @@ $tpl->assign([
     'TR_PAGE_TITLE'               => tr('Reseller / Customers / Lost Password Email'),
     'TR_MESSAGE_TEMPLATE_INFO'    => tr('Message template info'),
     'TR_MESSAGE_TEMPLATE'         => tr('Message template'),
-    'SUBJECT_VALUE1'              => toHtml($data_1['subject']),
-    'MESSAGE_VALUE1'              => toHtml($data_1['message']),
-    'SUBJECT_VALUE2'              => toHtml($data_2['subject']),
-    'MESSAGE_VALUE2'              => toHtml($data_2['message']),
-    'SENDER_EMAIL_VALUE'          => toHtml($data_1['sender_email']),
-    'SENDER_NAME_VALUE'           => toHtml($data_1['sender_name']),
+    'SUBJECT_VALUE1'              => toHtml($data1['emailSubject']),
+    'MESSAGE_VALUE1'              => toHtml($data1['emailBody']),
+    'SUBJECT_VALUE2'              => toHtml($data2['emailSubject']),
+    'MESSAGE_VALUE2'              => toHtml($data2['emailBody']),
+    'SENDER_EMAIL_VALUE'          => toHtml($data1['senderEmail']),
+    'SENDER_NAME_VALUE'           => toHtml($data1['senderName']),
     'TR_ACTIVATION_EMAIL'         => tr('Activation email'),
     'TR_PASSWORD_EMAIL'           => tr('Password email'),
     'TR_USER_LOGIN_NAME'          => tr('User login (system) name'),

@@ -28,7 +28,7 @@ defined('PERSISTENT_PATH') || define('PERSISTENT_PATH', FRONTEND_ROOT_DIR . '/da
 defined('IMSCP_CONF_DIR') || define('IMSCP_CONF_DIR', getenv('IMSCP_CONF') ?: '/etc/imscp');
 
 // Application environment
-defined('APPLICATION_ENV') || define('APPLICATION_ENV', getenv('APPLICATION_ENVSSS') ?: 'development');
+defined('APPLICATION_ENV') || define('APPLICATION_ENV', getenv('APPLICATION_ENV') ?: 'development');
 
 // Include Composer autoloader
 $autoloader = include FRONTEND_ROOT_DIR . '/vendor/autoload.php';

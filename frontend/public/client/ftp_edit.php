@@ -62,7 +62,7 @@ function updateFtpAccount($userid)
     }
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    $mainDmnProps = getCustomerProperties($identity->getUserId());
+    $mainDmnProps = getClientProperties($identity->getUserId());
 
     $vfs = new VirtualFileSystem($identity->getUsername());
     if ($homeDir !== '/' && !$vfs->exists($homeDir, VirtualFileSystem::VFS_TYPE_DIR)) {
@@ -110,7 +110,7 @@ function updateFtpAccount($userid)
 function generatePage($tpl, $ftpUserId)
 {
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    $mainDmnProps = getCustomerProperties($identity->getUserId());
+    $mainDmnProps = getClientProperties($identity->getUserId());
 
     # Set parameters for the FTP chooser
     Application::getInstance()->getSession()['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
@@ -143,7 +143,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('ftp') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::userHasFeature('ftp') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 $userid = cleanInput($_GET['id']);
 $stmt = execQuery('SELECT COUNT(admin_id) FROM ftp_users WHERE userid = ? AND admin_id = ?', [

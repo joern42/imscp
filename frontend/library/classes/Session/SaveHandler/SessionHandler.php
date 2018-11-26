@@ -21,7 +21,7 @@
 namespace iMSCP\Session\SaveHandler;
 
 use iMSCP\Application;
-use iMSCP\Model\SuIdentityInterface;
+use iMSCP\Model\CpUserLogin;
 use iMSCP\Model\UserIdentityInterface;
 use Zend\Session\SaveHandler\SaveHandlerInterface;
 
@@ -45,23 +45,21 @@ class SessionHandler extends \SessionHandler implements SaveHandlerInterface
 
         try {
             if ($identity instanceof UserIdentityInterface) {
-                if ($identity instanceof SuIdentityInterface) {
-                    // In case of a SU identity, we do not want change 'user_name' field
-                    Application::getInstance()->getDb()->createStatement(
-                        'UPDATE login SET lastaccess = UNIX_TIMESTAMP() WHERE session_id = ?'
-                    )->execute([$sessionId]);
+                $em = Application::getInstance()->getEntityManager();
+                $cpUserLogin = $em->find(CpUserLogin::class, $sessionId);
+
+                if (NULL === $cpUserLogin) {
+                    // New session
+                    $cpUserLogin = new CpUserLogin($sessionId, $identity->getUsername(), getIpAddr());
                 } else {
-                    // Covers both new sessions and sessions' last access time
-                    Application::getInstance()->getDb()->createStatement(
-                        '
-                            INSERT INTO login (session_id, ipaddr, lastaccess, user_name) VALUES (?, ?, UNIX_TIMESTAMP(), ?)
-                            ON DUPLICATE KEY UPDATE lastaccess = UNIX_TIMESTAMP()
-                        '
-                    )->execute([$sessionId, getIpAddr(), $identity->getUsername()]);
+                    // Session last access time
+                    $cpUserLogin->setLastAccessTime();
                 }
+
+                $em->persist($cpUserLogin);
+                $em->flush();
             }
         } catch (\Throwable $e) {
-            writeLog(sprintf("Couldn't write '%s' user session identifier in database: %s", $identity->getUsername(), $e->getMessage()));
             return false;
         }
 
@@ -74,9 +72,16 @@ class SessionHandler extends \SessionHandler implements SaveHandlerInterface
     public function destroy($sessionId)
     {
         try {
-            Application::getInstance()->getDb()->createStatement('DELETE FROM login WHERE session_id = ?')->execute([$sessionId]);
+            $em = Application::getInstance()->getEntityManager();
+            /** @var CpUserLogin $cpUserLogin */
+            $cpUserLogin = $em->getReference(CpUserLogin::class, $sessionId);
+
+            if (NULL !== $cpUserLogin) {
+                $em->remove($cpUserLogin);
+                $em->flush();
+            }
         } catch (\Throwable $e) {
-            writeLog(sprintf("Couldn't remove '%s' session data from database: %s", $sessionId, $e->getMessage()));
+            return false;
         }
 
         return parent::destroy($sessionId);
@@ -88,13 +93,20 @@ class SessionHandler extends \SessionHandler implements SaveHandlerInterface
     public function gc($maxlifetime)
     {
         try {
-            // We need ignore rows for which 'user_name' field is empty as this denote
-            // data stored by 3rd-party components such as the Bruteforce plugin.
-            Application::getInstance()->getDb()->createStatement(
-                'DELETE FROM login WHERE lastaccess < (UNIX_TIMESTAMP() - ?)  AND user_name IS NOT NULL')->execute([$maxlifetime]
-            );
+            $datetime = new \DateTime();
+            $datetime->setTimestamp(time() - $maxlifetime);
+            $qb = Application::getInstance()->getEntityManager()->createQueryBuilder();
+            $qb
+                ->delete(CpUserLogin::class, 'l')
+                ->where($qb->expr()->lte('l.lastAccessTime', '?'))
+                // We need ignore rows for which 'username' field is empty as this denote
+                // data stored by 3rd-party components such as the Bruteforce plugin.
+                ->andWhere($qb->expr()->isNotNull(':username'))
+                ->setParameter(0, $datetime)
+                ->getQuery()
+                ->execute();
         } catch (\Throwable $e) {
-            writeLog(sprintf("Couldn't cleanup old session data in database: %s", $e->getMessage()));
+            return false;
         }
 
         return parent::gc($maxlifetime);

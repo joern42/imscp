@@ -20,36 +20,49 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class EmailTemplate
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_cp_email_template", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class CpEmailTemplate extends BaseModel
+class CpEmailTemplate
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $cpEmailTemplateID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\JoinColumn(name="userID", referencedColumnName="userID", onDelete="CASCADE")
+     * @var User
      */
-    private $userID;
+    private $user;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
-    private $emailTemplateName;
+    private $name;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
-    private $emailTemplateSubject;
+    private $subject;
 
     /**
+     * @ORM\Column(type="text", length=16777215)
      * @var string
      */
-    private $emailTemplateBody;
+    private $body;
 
     /**
      * @return int
@@ -60,84 +73,74 @@ class CpEmailTemplate extends BaseModel
     }
 
     /**
-     * @param int $cpEmailTemplateID
-     * @return CpEmailTemplate
+     * @return User
      */
-    public function setCpEmailTemplateID(int $cpEmailTemplateID): CpEmailTemplate
+    public function getUser(): User
     {
-        $this->cpEmailTemplateID = $cpEmailTemplateID;
-        return $this;
+        return $this->user;
     }
 
     /**
-     * @return int
-     */
-    public function getUserID(): int
-    {
-        return $this->userID;
-    }
-
-    /**
-     * @param int $userID
+     * @param User $user
      * @return CpEmailTemplate
      */
-    public function setUserID(int $userID): CpEmailTemplate
+    public function setUser(User $user): CpEmailTemplate
     {
-        $this->userID = $userID;
+        $this->user = $user;
         return $this;
     }
 
     /**
      * @return string
      */
-    public function getEmailTemplateName(): string
+    public function getName(): string
     {
-        return $this->emailTemplateName;
+        return $this->name;
     }
 
     /**
-     * @param string $emailTemplateName
+     * @param string $name
      * @return CpEmailTemplate
      */
-    public function setEmailTemplateName(string $emailTemplateName): CpEmailTemplate
+    public function setName(string $name): CpEmailTemplate
     {
-        $this->emailTemplateName = $emailTemplateName;
+        $this->name = $name;
         return $this;
     }
 
     /**
      * @return string
      */
-    public function getEmailTemplateSubject(): string
+    public function getSubject(): string
     {
-        return $this->emailTemplateSubject;
+        return $this->subject;
     }
 
     /**
-     * @param string $emailTemplateSubject
+     * @param string $subject
      * @return CpEmailTemplate
      */
-    public function setEmailTemplateSubject(string $emailTemplateSubject): CpEmailTemplate
+    public function setSubject(string $subject): CpEmailTemplate
     {
-        $this->emailTemplateSubject = $emailTemplateSubject;
+        $this->subject = $subject;
         return $this;
     }
 
     /**
      * @return string
      */
-    public function getEmailTemplateBody(): string
+    public function getBody(): string
     {
-        return $this->emailTemplateBody;
+        return $this->body;
     }
 
     /**
-     * @param string $emailTemplateBody
+     * @param string $body
      * @return CpEmailTemplate
      */
-    public function setEmailTemplateBody(string $emailTemplateBody): CpEmailTemplate
+    public function setBody(string $body): CpEmailTemplate
     {
-        $this->emailTemplateBody = $emailTemplateBody;
+        $this->body = $body;
         return $this;
     }
 }

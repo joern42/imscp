@@ -21,7 +21,7 @@
 namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
-use iMSCP\Model\SuIdentityInterface;
+use iMSCP\Model\CpSuIdentityInterface;
 
 require_once 'application.php';
 
@@ -31,7 +31,7 @@ Application::getInstance()->getAuthService()->su(Application::getInstance()->get
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 
 if (Application::getInstance()->getRequest()->getQuery('id')) {
-    if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
+    if ($identity->getSuIdentity() instanceof CpSuIdentityInterface) {
         $log = sprintf(
             "%s signed in as %s switched onto %s's interface",
             $identity->getSuIdentity()->getSuUsername(),
@@ -41,7 +41,7 @@ if (Application::getInstance()->getRequest()->getQuery('id')) {
     } else {
         $log = sprintf("%s switched onto %s's interface", $identity->getSuUsername(), $identity->getUsername());
     }
-} elseif ($identity instanceof SuIdentityInterface) {
+} elseif ($identity instanceof CpSuIdentityInterface) {
     $log = sprintf("%s switched back onto %s's interface", $identity->getSuUsername(), $identity->getUsername());
 } else {
     $log = sprintf("%s switched back into its interface", $identity->getUsername());

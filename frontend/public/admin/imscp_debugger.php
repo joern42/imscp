@@ -97,110 +97,6 @@ function debugger_getDmnErrors(TemplateEngine $tpl)
 }
 
 /**
- * Get domain aliases errors
- *
- * @param TemplateEngine $tpl Template engine instance
- * @return void
- */
-function debugger_getAlsErrors(TemplateEngine $tpl)
-{
-    $stmt = execQuery(
-        "
-            SELECT alias_name, alias_status, alias_id
-            FROM domain_aliases
-            WHERE alias_status NOT IN ('ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete', 'ordered')
-        "
-    );
-
-    if (!$stmt->rowCount()) {
-        $tpl->assign(['ALS_ITEM' => '', 'TR_ALS_MESSAGE' => tr('No error found')]);
-        $tpl->parse('ALS_MESSAGE', 'als_message');
-        return;
-    }
-
-    while ($row = $stmt->fetch()) {
-        $tpl->assign([
-            'ALS_MESSAGE' => '',
-            'ALS_NAME'    => toHtml(decodeIdna($row['alias_name'])),
-            'ALS_ERROR'   => toHtml($row['alias_status']),
-            'CHANGE_ID'   => $row['alias_id'],
-            'CHANGE_TYPE' => 'alias',
-        ]);
-        $tpl->parse('ALS_ITEM', '.als_item');
-    }
-}
-
-/**
- * Get subdomains errors
- *
- * @param TemplateEngine $tpl Template engine instance
- * @return void
- */
-function debugger_getSubErrors(TemplateEngine $tpl)
-{
-    $stmt = execQuery(
-        "
-            SELECT subdomain_name, subdomain_status, subdomain_id, domain_name
-            FROM subdomain
-            LEFT JOIN domain ON (subdomain.domain_id = domain.domain_id)
-            WHERE subdomain_status NOT IN ('ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete'                )
-        "
-    );
-
-    if (!$stmt->rowCount()) {
-        $tpl->assign(['SUB_ITEM' => '', 'TR_SUB_MESSAGE' => tr('No error found')]);
-        $tpl->parse('SUB_MESSAGE', 'sub_message');
-        return;
-    }
-
-    while ($row = $stmt->fetch()) {
-        $tpl->assign([
-            'SUB_MESSAGE' => '',
-            'SUB_NAME'    => toHtml(decodeIdna($row['subdomain_name'] . '.' . $row['domain_name'])),
-            'SUB_ERROR'   => toHtml($row['subdomain_status']),
-            'CHANGE_ID'   => $row['subdomain_id'],
-            'CHANGE_TYPE' => 'subdomain'
-        ]);
-        $tpl->parse('SUB_ITEM', '.sub_item');
-    }
-}
-
-/**
- * Get subdomain aliases errors
- *
- * @param TemplateEngine $tpl Template engine instance
- * @return void
- */
-function debugger_getAlssubErrors(TemplateEngine $tpl)
-{
-    $stmt = execQuery(
-        "
-            SELECT subdomain_alias_name, subdomain_alias_status, subdomain_alias_id, alias_name
-            FROM subdomain_alias
-            LEFT JOIN domain_aliases ON (subdomain_alias_id = domain_aliases.alias_id)
-            WHERE subdomain_alias_status NOT IN ('ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete')
-        "
-    );
-
-    if (!$stmt->rowCount()) {
-        $tpl->assign(['ALSSUB_ITEM' => '', 'TR_ALSSUB_MESSAGE' => tr('No error found')]);
-        $tpl->parse('ALSSUB_MESSAGE', 'alssub_message');
-        return;
-    }
-
-    while ($row = $stmt->fetch()) {
-        $tpl->assign([
-            'ALSSUB_MESSAGE' => '',
-            'ALSSUB_NAME'    => toHtml(decodeIdna($row['subdomain_alias_name'] . '.' . $row['alias_name'])),
-            'ALSSUB_ERROR'   => toHtml($row['subdomain_alias_status']),
-            'CHANGE_ID'      => $row['subdomain_alias_id'],
-            'CHANGE_TYPE'    => 'subdomain_alias'
-        ]);
-        $tpl->parse('ALSSUB_ITEM', '.alssub_item');
-    }
-}
-
-/**
  * Get custom dns errors
  *
  * @param TemplateEngine $tpl Template engine instance
@@ -649,9 +545,6 @@ $tpl->define([
 ]);
 debugger_getUserErrors($tpl);
 debugger_getDmnErrors($tpl);
-debugger_getAlsErrors($tpl);
-debugger_getSubErrors($tpl);
-debugger_getAlssubErrors($tpl);
 debugger_getCustomDNSErrors($tpl);
 debugger_getFtpUserErrors($tpl);
 debugger_getMailsErrors($tpl);

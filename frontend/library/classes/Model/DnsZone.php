@@ -20,91 +20,116 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class DnsZone
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_dns_zone", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class DnsZone extends BaseModel
+class DnsZone 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $dnsZoneID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\JoinColumn(name="userID", referencedColumnName="userID", onDelete="CASCADE")
+     * @var User
      */
-    private $userID;
+    private $user;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="Server")
+     * @ORM\JoinColumn(name="serverID", referencedColumnName="serverID", onDelete="CASCADE")
+     * @var Server
      */
-    private $serverID;
+    private $server;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $zoneType = 'master';
     
     /**
+     * @ORM\Column(type="integer")
      * @var int
      */
     private $zoneTTL = 10800;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $origin;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $name = '@';
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $class = 'IN';
 
     /**
+     * @ORM\Column(type="string")
      * @var int string
      */
     private $mname;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $rname;
 
     /**
+     * @ORM\Column(type="string")
      * @var int
      */
     private $serial;
 
     /**
+     * @ORM\Column(type="string")
      * @var int
      */
     private $refresh = 10800;
 
     /**
+     * @ORM\Column(type="string")
      * @var int
      */
     private $retry = 3600;
 
     /**
+     * @ORM\Column(type="string")
      * @var int
      */
     private $expire = 1209600;
 
     /**
+     * @ORM\Column(type="string")
      * @var int
      */
     private $ttl = 3600;
 
     /**
-     * @var int 
+     * @ORM\Column(type="boolean")
+     * @var bool 
      */
-    private $isActive = 1;
+    private $isActive = true;
 
     /**
      * @return int
@@ -115,48 +140,38 @@ class DnsZone extends BaseModel
     }
 
     /**
-     * @param int $dnsZoneID
+     * @return User
+     */
+    public function getUser(): User
+    {
+        return $this->user;
+    }
+
+    /**
+     * @param User $user
      * @return DnsZone
      */
-    public function setDnsZoneID(int $dnsZoneID): DnsZone
+    public function setUser(User $user): DnsZone
     {
-        $this->dnsZoneID = $dnsZoneID;
+        $this->user = $user;
         return $this;
     }
 
     /**
-     * @return int
+     * @return Server
      */
-    public function getUserID(): int
+    public function getServer(): Server
     {
-        return $this->userID;
+        return $this->server;
     }
 
     /**
-     * @param int $userID
+     * @param Server $server
      * @return DnsZone
      */
-    public function setUserID(int $userID): DnsZone
+    public function setServer(Server $server): DnsZone
     {
-        $this->userID = $userID;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getServerID(): int
-    {
-        return $this->serverID;
-    }
-
-    /**
-     * @param int $serverID
-     * @return DnsZone
-     */
-    public function setServerID(int $serverID): DnsZone
-    {
-        $this->serverID = $serverID;
+        $this->server = $server;
         return $this;
     }
 

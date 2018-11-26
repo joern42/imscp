@@ -966,9 +966,7 @@ sub _addDmnDb
 
 =item _updateSOAserialNumber( $zone, \$zoneFileC, \$oldZoneFileC )
 
- Update SOA serial number for the given zone
- 
- Note: Format follows RFC 1912 section 2.2 recommendations.
+ Update SOA serial for the given zone according RFC 1912 section 2.2 recommendations
 
  Param string zone Zone name
  Param scalarref \$zoneFileC Reference to zone file content
@@ -983,12 +981,12 @@ sub _updateSOAserialNumber
 
     $oldZoneFileC = $zoneFileC unless defined ${ $oldZoneFileC };
     ${ $oldZoneFileC } =~ /^\s+(?:(?<date>\d{8})(?<nn>\d{2})|(?<placeholder>\{TIMESTAMP\}))\s*;[^\n]*\n/m or die(
-        sprintf( "Couldn't update SOA serial number for the %s DNS zone: Serial data not found", $zone )
+        sprintf( "Couldn't update SOA serial number for the %s DNS zone: SOA serial number or placeholder not found in input files.", $zone )
     );
 
     my %rc = %+;
     my ( $d, $m, $y ) = ( gmtime() )[3 .. 5];
-    my $nowDate = sprintf( "%d%02d%02d", $y+1900, $m+1, $d );
+    my $nowDate = sprintf( '%d%02d%02d', $y+1900, $m+1, $d );
 
     if ( exists $+{'placeholder'} ) {
         $self->{'serials'}->{$zone} = $nowDate . '00';
@@ -1000,7 +998,6 @@ sub _updateSOAserialNumber
 
     if ( $rc{'date'} >= $nowDate ) {
         $rc{'nn'}++;
-
         if ( $rc{'nn'} >= 99 ) {
             $rc{'date'}++;
             $rc{'nn'} = '00';
@@ -1032,13 +1029,19 @@ sub _compileZone
     local $UMASK = 0027;
     my $rs = execute(
         [
-            'named-compilezone', '-i', 'full', '-f', 'text', '-F', $self->{'config'}->{'NAMED_DB_FORMAT'}, '-s', 'relative', '-o',
-            "$self->{'config'}->{'NAMED_DB_MASTER_DIR'}/$zonename.db", $zonename, $filename
+            'named-compilezone',
+            '-i', 'full',
+            '-f', 'text',
+            '-F', $self->{'config'}->{'NAMED_DB_FORMAT'},
+            '-s', 'relative',
+            '-o', "$self->{'config'}->{'NAMED_DB_MASTER_DIR'}/$zonename.db",
+            $zonename,
+            $filename
         ],
         \my $stdout, \my $stderr
     );
     debug( $stdout ) if length $stdout;
-    $rs == 0 or die( sprintf( "Couldn't compile the %s zone: %s", $zonename, $stderr || 'Unknown error' ));
+    $rs == 0 or die( sprintf( "Couldn't compile the '%s' DNS zone: %s", $zonename, $stderr || 'Unknown error' ));
 }
 
 =item _bkpConfFile( $cfgFile )

@@ -33,7 +33,7 @@ use Fcntl;
 use POSIX qw/ isatty /;
 use parent 'Exporter';
 
-our @EXPORT_OK = qw/ debug warning error newDebug endDebug getMessage getLastError getMessageByType debugRegisterCallBack output /;
+our @EXPORT_OK = qw/ debug warning error newDebug endDebug getMessage getLastError getMessageByType output /;
 
 BEGIN {
     $SIG{'__DIE__'} = sub {
@@ -106,9 +106,8 @@ sub endDebug
     # FIXME Should not be done there
     my $logDir = $::imscpConfig{'LOG_DIR'} || '/tmp';
     if ( $logDir ne '/tmp' && !-d $logDir ) {
-        require iMSCP::Dir;
-        local $@;
         eval {
+            require iMSCP::Dir;
             iMSCP::Dir->new( dirname => $logDir )->make( {
                 user  => $::imscpConfig{'ROOT_USER'},
                 group => $::imscpConfig{'ROOT_GROUP'},

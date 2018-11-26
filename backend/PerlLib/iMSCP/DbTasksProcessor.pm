@@ -105,45 +105,6 @@ sub processDbTasks
             ORDER BY domain_id ASC
         "
     );
-    # Process toadd|tochange|torestore|toenable|todisable subdomains tasks
-    # For each entity, process only if the parent entity is in a consistent state
-    $self->_processDbTasks(
-        'iMSCP::Modules::Subdomain',
-        "
-            SELECT subdomain_id AS id, CONCAT(subdomain_name, '.', domain_name) AS name
-            FROM subdomain
-            JOIN domain USING(domain_id)
-            WHERE subdomain_status IN ('toadd', 'tochange', 'torestore', 'toenable', 'todisable')
-            AND domain_status IN('ok', 'disabled')
-            ORDER BY subdomain_id ASC
-        "
-    );
-    # Process toadd|tochange|torestore|toenable|todisable domain aliases tasks
-    # (for each entity, process only if the parent entity is in a consistent state)
-    $self->_processDbTasks(
-        'iMSCP::Modules::Alias',
-        "
-           SELECT alias_id AS id, alias_name AS name
-           FROM domain_aliases
-           JOIN domain USING(domain_id)
-           WHERE alias_status IN ('toadd', 'tochange', 'torestore', 'toenable', 'todisable')
-           AND domain_status IN('ok', 'disabled')
-           ORDER BY alias_id ASC
-        "
-    );
-    # Process toadd|tochange|torestore|toenable|todisable subdomains of domain aliases tasks
-    # For each entity, process only if the parent entity is in a consistent state
-    $self->_processDbTasks(
-        'iMSCP::Modules::SubAlias',
-        "
-            SELECT subdomain_alias_id AS id, CONCAT(subdomain_alias_name, '.', alias_name) AS name
-            FROM subdomain_alias
-            JOIN domain_aliases USING(alias_id)
-            WHERE subdomain_alias_status IN ('toadd', 'tochange', 'torestore', 'toenable', 'todisable')
-            AND alias_status IN('ok', 'disabled')
-            ORDER BY subdomain_alias_id ASC
-        "
-    );
     # Process toadd|tochange|toenable||todisable|todelete custom DNS records group which belong to domains
     # For each entity, process only if the parent entity is in a consistent state
     $self->_processDbTasks(
@@ -156,20 +117,6 @@ sub processDbTasks
             AND t1.alias_id = 0
             AND t2.domain_status IN('ok', 'disabled')
             GROUP BY t1.domain_id, t2.domain_name
-        "
-    );
-    # Process toadd|tochange|toenable|todisable|todelete custom DNS records group which belong to domain aliases
-    # For each entity, process only if the parent entity is in a consistent state
-    $self->_processDbTasks(
-        'iMSCP::Modules::CustomDNS',
-        "
-            SELECT CONCAT(t1.domain_id, ';', t1.alias_id) AS id, t2.alias_name AS name
-            FROM domain_dns AS t1
-            JOIN domain_aliases AS t2 ON(t2.alias_id = t1.alias_id)
-            WHERE t1.domain_dns_status IN ('toadd', 'tochange', 'toenable', 'todisable', 'todelete')
-            AND t1.alias_id <> 0
-            AND t2.alias_status IN('ok', 'disabled')
-            GROUP BY t1.alias_id, t1.domain_id, t2.alias_name
         "
     );
     # Process toadd|tochange|toenable|todisable|todelete ftp users tasks
@@ -235,41 +182,6 @@ sub processDbTasks
             WHERE status IN ('toadd', 'tochange', 'toenable', 'todelete', 'todisable')
             AND domain_status IN('ok', 'todelete', 'disabled')
             ORDER BY id ASC
-        "
-    );
-    # Process todelete subdomain aliases tasks
-    $self->_processDbTasks(
-        'iMSCP::Modules::SubAlias',
-        "
-            SELECT subdomain_alias_id AS id, concat(subdomain_alias_name, '.', alias_name) AS name
-            FROM subdomain_alias
-            JOIN domain_aliases USING(alias_id)
-            WHERE subdomain_alias_status = 'todelete'
-            ORDER BY subdomain_alias_id ASC
-        "
-    );
-    # Process todelete domain aliases tasks
-    # For each entity, process only if the entity do not have any direct children
-    $self->_processDbTasks(
-        'iMSCP::Modules::Alias',
-        "
-            SELECT alias_id AS id, alias_name AS name
-            FROM domain_aliases
-            LEFT JOIN (SELECT DISTINCT alias_id FROM subdomain_alias) AS subdomain_alias  USING(alias_id)
-            WHERE alias_status = 'todelete'
-            AND subdomain_alias.alias_id IS NULL
-            ORDER BY alias_id ASC
-        "
-    );
-    # Process todelete subdomains tasks
-    $self->_processDbTasks(
-        'iMSCP::Modules::Subdomain',
-        "
-            SELECT subdomain_id AS id, CONCAT(subdomain_name, '.', domain_name) AS name
-            FROM subdomain
-            JOIN domain USING(domain_id)
-            WHERE subdomain_status = 'todelete'
-            ORDER BY subdomain_id ASC
         "
     );
     # Process todelete domains tasks

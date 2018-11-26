@@ -1,8 +1,8 @@
 <?php
-    /** @var \Zend\Form\Fieldset $ldata */
-    $ldata = $this->form->get('loginData');
-    /** @var \Zend\Form\Fieldset $pdata */
-    $pdata = $this->form->get('personalData');
+    /** @var \Zend\Form\FieldsetInterface $ldata */
+    $ldata = $this->form->get('logindatafieldset');
+    /** @var \Zend\Form\FieldsetInterface $pdata */
+    $pdata = $this->form->get('personaldatafieldset');
 ?>
 <form name="<?= toHtml($this->form->getName(), 'htmlAttr') ?>" method="post" autocomplete="off">
     <table class="firstColFixed">
@@ -14,15 +14,15 @@
         <tbody>
         <tr>
             <td><label for="admin_name"><?= toHtml($ldata->get('admin_name')->getLabel()) ?></label></td>
-            <td><input type="text" name="loginData[admin_name]" id="admin_name" value="<?= toHtml($ldata->get('admin_name')->getValue(), 'htmlAttr') ?>" required></td>
+            <td><input type="text" name="logindatafieldset[admin_name]" id="admin_name" value="<?= toHtml($ldata->get('admin_name')->getValue(), 'htmlAttr') ?>" required></td>
         </tr>
         <tr>
             <td><label for="password"><?= $ldata->get('admin_pass')->getLabel() ?></label></td>
-            <td><input type="password" name="loginData[admin_pass]" id="password" class="pwd_generator" value="<?= toHtml($ldata->get('admin_pass')->getValue(), 'htmlAttr') ?>" autocomplete="new-password" required></td>
+            <td><input type="password" name="logindatafieldset[admin_pass]" id="password" class="pwd_generator" value="<?= toHtml($ldata->get('admin_pass')->getValue(), 'htmlAttr') ?>" autocomplete="new-password" required></td>
         </tr>
         <tr>
             <td><label for="cpassword"><?= $ldata->get('admin_pass_confirmation')->getLabel() ?></label></td>
-            <td><input type="password" name="loginData[admin_pass_confirmation]" id="cpassword" value="<?= toHtml($ldata->get('admin_pass_confirmation')->getValue(), 'htmlAttr') ?>" autocomplete="new-password" required></td>
+            <td><input type="password" name="logindatafieldset[admin_pass_confirmation]" id="cpassword" value="<?= toHtml($ldata->get('admin_pass_confirmation')->getValue(), 'htmlAttr') ?>" autocomplete="new-password" required></td>
         </tr>
         </tbody>
     </table>
@@ -35,16 +35,16 @@
         <tbody>
         <tr>
             <td><label for="fname"><?= toHtml($pdata->get('fname')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[fname]" id="fname" value="<?= toHtml($pdata->get('fname')->getValue(), 'htmlAttr') ?>"></td>
+            <td><input type="text" name="personaldatafieldset[fname]" id="fname" value="<?= toHtml($pdata->get('fname')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
             <td><label for="lname"><?= toHtml($pdata->get('lname')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[lname]" id="lname" value="<?= toHtml($pdata->get('lname')->getValue(), 'htmlAttr') ?>"></td>
+            <td><input type="text" name="personaldatafieldset[lname]" id="lname" value="<?= toHtml($pdata->get('lname')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
             <td><label for="gender"><?= toHtml($pdata->get('gender')->getLabel()) ?></label></td>
             <td>
-                <select id="gender" name="personalData[gender]">
+                <select id="gender" name="personaldatafieldset[gender]">
                     <option value="M"<?= $pdata->get('gender')->getValue() == 'M' ? ' selected' : '' ?>><?= toHtml(tr('Male')) ?></option>
                     <option value="F"<?= $pdata->get('gender')->getValue() == 'F' ? ' selected' : '' ?>><?= toHtml(tr('Female')) ?></option>
                     <option value="U"<?= $pdata->get('gender')->getValue() == 'U' ? ' selected' : '' ?>><?= toHtml(tr('Unknown')) ?></option>
@@ -53,43 +53,43 @@
         </tr>
         <tr>
             <td><label for="firm"><?= toHtml($pdata->get('firm')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[firm]" id="firm" value="<?= toHtml($pdata->get('firm')->getValue(), 'htmlAttr') ?>"></td>
+            <td><input type="text" name="personaldatafieldset[firm]" id="firm" value="<?= toHtml($pdata->get('firm')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
             <td><label for="street1"><?= toHtml($pdata->get('street1')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[street1]" id="street1" value="<?= toHtml($pdata->get('street1')->getValue(), 'htmlAttr') ?>"></td>
+            <td><input type="text" name="personaldatafieldset[street1]" id="street1" value="<?= toHtml($pdata->get('street1')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
             <td><label for="street2"><?= toHtml($pdata->get('street2')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[street2]" id="street2" value="<?= toHtml($pdata->get('street2')->getValue(), 'htmlAttr') ?>"></td>
+            <td><input type="text" name="personaldatafieldset[street2]" id="street2" value="<?= toHtml($pdata->get('street2')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
             <td><label for="zip"><?= toHtml($pdata->get('zip')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[zip]" id="zip" value="<?= toHtml($pdata->get('zip')->getValue(), 'htmlAttr') ?>"></td>
+            <td><input type="text" name="personaldatafieldset[zip]" id="zip" value="<?= toHtml($pdata->get('zip')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
             <td><label for="city"><?= toHtml($pdata->get('city')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[city]" id="city" value="<?= toHtml($pdata->get('city')->getValue(), 'htmlAttr') ?>"></td>
+            <td><input type="text" name="personaldatafieldset[city]" id="city" value="<?= toHtml($pdata->get('city')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
             <td><label for="state"><?= toHtml($pdata->get('state')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[state]" id="state" value="<?= toHtml($pdata->get('state')->getValue(), 'htmlAttr') ?>"></td>
+            <td><input type="text" name="personaldatafieldset[state]" id="state" value="<?= toHtml($pdata->get('state')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
             <td><label for="country"><?= toHtml($pdata->get('country')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[country]" id="country" value="<?= toHtml($pdata->get('country')->getValue(), 'htmlAttr') ?>"></td>
+            <td><input type="text" name="personaldatafieldset[country]" id="country" value="<?= toHtml($pdata->get('country')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
             <td><label for="email"><?= toHtml($pdata->get('email')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[email]" id="email" value="<?= toHtml(decodeIdna($pdata->get('email')->getValue()), 'htmlAttr') ?>" required></td>
+            <td><input type="text" name="personaldatafieldset[email]" id="email" value="<?= toHtml(decodeIdna($pdata->get('email')->getValue()), 'htmlAttr') ?>" required></td>
         </tr>
         <tr>
             <td><label for="phone"><?= toHtml($pdata->get('phone')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[phone]" id="phone" value="<?= toHtml($pdata->get('phone')->getValue(), 'htmlAttr') ?>"></td>
+            <td><input type="text" name="personaldatafieldset[phone]" id="phone" value="<?= toHtml($pdata->get('phone')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
             <td><label for="fax"><?= toHtml($pdata->get('fax')->getLabel()) ?></label></td>
-            <td><input type="text" name="personalData[fax]" id="fax" value="<?= toHtml($pdata->get('fax')->getValue(), 'htmlAttr') ?>"></td>
+            <td><input type="text" name="personaldatafieldset[fax]" id="fax" value="<?= toHtml($pdata->get('fax')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         </tbody>
     </table>

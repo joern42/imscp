@@ -26,10 +26,9 @@ package iMSCP::Service;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Boolean;
-use iMSCP::Debug qw/ debug /;
 use File::Basename;
-use iMSCP::Debug qw/ error getMessageByType /;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Execute;
 use iMSCP::ProgramFinder;
 use Module::Load::Conditional qw/ can_load /;
@@ -73,7 +72,7 @@ sub enable
     my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->enable( $service ) };
-    !$@ or die( sprintf( "Couldn't enable the %s service: %s", $service, $@ ));
+    !$@ or croak( sprintf( "Couldn't enable the %s service: %s", $service, $@ ));
 }
 
 =item disable( $service )
@@ -87,7 +86,7 @@ sub disable
     my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->disable( $service ) };
-    !$@ or die( sprintf( "Couldn't disable the %s service: %s", $service, $@ ));
+    !$@ or croak( sprintf( "Couldn't disable the %s service: %s", $service, $@ ));
 }
 
 =item remove( $service )
@@ -142,7 +141,7 @@ sub remove
             }
         }
     };
-    !$@ or die( sprintf( "Couldn't remove the %s service: %s", basename( $service, '.service' ), $@ ));
+    !$@ or croak( sprintf( "Couldn't remove the %s service: %s", basename( $service, '.service' ), $@ ));
 }
 
 =item start( $service )
@@ -156,7 +155,7 @@ sub start
     my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->start( $service ) };
-    !$@ or die( sprintf( "Couldn't start the %s service: %s", $service, $@ ));
+    !$@ or croak( sprintf( "Couldn't start the %s service: %s", $service, $@ ));
 }
 
 =item stop( $service )
@@ -170,7 +169,7 @@ sub stop
     my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->stop( $service ) };
-    !$@ or die( sprintf( "Couldn't stop the %s service: %s", $service, $@ ));
+    !$@ or croak( sprintf( "Couldn't stop the %s service: %s", $service, $@ ));
 }
 
 =item restart( $service )
@@ -184,7 +183,7 @@ sub restart
     my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->restart( $service ); };
-    !$@ or die( sprintf( "Couldn't restart the %s service: %s", $service, $@ ));
+    !$@ or croak( sprintf( "Couldn't restart the %s service: %s", $service, $@ ));
 }
 
 =item reload( $service )
@@ -198,7 +197,7 @@ sub reload
     my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->reload( $service ); };
-    !$@ or die( sprintf( "Couldn't reload the %s service: %s", $service, $@ ));
+    !$@ or croak( sprintf( "Couldn't reload the %s service: %s", $service, $@ ));
 }
 
 =item isRunning( $service )
@@ -299,7 +298,7 @@ sub getProvider
     unless ( can_load( modules => { $provider => undef } ) ) {
         # Fallback to the base provider
         $provider = "iMSCP::Providers::Service::@{ [ $providerName // $self->{'init'} ] }";
-        can_load( modules => { $provider => undef } ) or die(
+        can_load( modules => { $provider => undef } ) or croak(
             sprintf( "Couldn't load the %s service provider: %s", $provider, $Module::Load::Conditional::ERROR )
         );
     }
@@ -396,6 +395,14 @@ sub _init
 
  Detect init system
 
+ Detection of initialization system on various distributions is kind of a black
+ art as there are too many factors implied. Here, we assume one of the Systemd,
+ Upstart or SysVinit initialization system. We don't provide init provider for
+ other initialization systems yet (eg, OpenRC, Nosh...). The current detection
+ heuristic is left as simple as it can and as such, is far from perfect. While
+ it works pretty well for Debian based distributions, it could fail on other
+ distributions.
+
  Return string init system in use
 
 =cut
@@ -418,7 +425,7 @@ sub _detectInit
 
 sub _getLastError
 {
-    getMessageByType( 'error', { amount => TRUE, remove => TRUE } ) || 'Unknown error';
+    getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error';
 }
 
 =item _executeDelayedActions( )

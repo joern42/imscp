@@ -78,7 +78,7 @@ sub hasItem
         }
     }
 
-    return FALSE;
+    FALSE;
 }
 
 =item addItem( $item [, $priority = 0 ] )
@@ -87,7 +87,7 @@ sub hasItem
 
  Param mixed $item Item to add
  Param number $priority OPTIONAL Item priority (Highest values have highest priority)
- Return iiMSCP::PriorityQueue, croak on failure
+ Return iMSCP::PriorityQueue, croak on failure
  
 =cut
 
@@ -142,7 +142,7 @@ sub removeItem
 
     # Reset internal hash iterator; see http://www.perlmonks.org/?node_id=294285
     keys %{ $self->{'queue'} };
-    return FALSE;
+    FALSE;
 }
 
 =item isEmpty( )

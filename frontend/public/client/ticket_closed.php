@@ -22,16 +22,16 @@ namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
-use iMSCP\Functions\HelpDesk;
+use iMSCP\Functions\SupportSystem;
 use iMSCP\Functions\View;
 
 require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('support') or View::showBadRequestErrorPage();
+Counting::userHasFeature('supportSystem') or View::showBadRequestErrorPage();
 
-!isset($_GET['ticket_id']) or HelpDesk::reopenTicket(intval($_GET['ticket_id']));
+!isset($_GET['ticket_id']) or SupportSystem::reopenTicket(intval($_GET['ticket_id']));
 
 if (isset($_GET['psi'])) {
     $start = $_GET['psi'];
@@ -71,7 +71,7 @@ $tpl->assign([
     'TR_NEXT'                       => tr('Next')
 ]);
 View::generateNavigation($tpl);
-HelpDesk::generateTicketList(
+SupportSystem::generateTicketList(
     $tpl,
     Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
     $start,

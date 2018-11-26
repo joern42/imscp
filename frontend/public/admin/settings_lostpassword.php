@@ -31,23 +31,23 @@ Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStar
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
     $errorMessage = '';
-    $activationEmailData['subject'] = isset($_POST['subject1']) ? cleanInput($_POST['subject1']) : '';
-    $activationEmailData['message'] = isset($_POST['subject1']) ? cleanInput($_POST['message1']) : '';
-    $passwordEmailData['subject'] = isset($_POST['subject1']) ? cleanInput($_POST['subject2']) : '';
-    $passwordEmailData['message'] = isset($_POST['subject1']) ? cleanInput($_POST['message2']) : '';
+    $activationEmailData['emailSubject'] = isset($_POST['subject1']) ? cleanInput($_POST['subject1']) : '';
+    $activationEmailData['emailBody'] = isset($_POST['subject1']) ? cleanInput($_POST['message1']) : '';
+    $passwordEmailData['emailSubject'] = isset($_POST['subject1']) ? cleanInput($_POST['subject2']) : '';
+    $passwordEmailData['emailBody'] = isset($_POST['subject1']) ? cleanInput($_POST['message2']) : '';
 
-    if ($activationEmailData['subject'] == '' || $passwordEmailData['subject'] == '') {
+    if (empty($activationEmailData['subject']) || empty($passwordEmailData['subject'])) {
         $errorMessage = tr('Please specify a message subject.');
     }
 
-    if ($activationEmailData['message'] == '' || $passwordEmailData['message'] == '') {
+    if (empty($activationEmailData['emailBody']) || empty($passwordEmailData['emailBody'])) {
         $errorMessage = tr('Please specify a message content.');
     }
 
     if (!empty($errorMessage)) {
         View::setPageMessage($errorMessage, 'error');
     } else {
-        Mail::setLostpasswordActivationEmail(0, $activationEmailData);
+        Mail::setLostpasswordActivationEmail(null, $activationEmailData);
         Mail::setLostpasswordEmail(0, $passwordEmailData);
         View::setPageMessage(tr('Lost password email templates were updated.'), 'success');
         redirectTo('settings_lostpassword.php');

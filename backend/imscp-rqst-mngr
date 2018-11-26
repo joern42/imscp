@@ -60,7 +60,7 @@ iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => TRUE
 } );
 
-iMSCP::DbTasksProcessor->getInstance()->processDbTasks();
+iMSCP::JobQueueManager->getInstance()->processJobs();
 
 =head1 AUTHOR
 

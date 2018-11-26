@@ -111,7 +111,7 @@
     # Possible values: yes, no
     #
     # Leave empty for default: yes
-    BACKUP_DOMAINS                      => '',
+    BACKUP_FEATURE                      => '',
 
     # SQL server implementation
     #

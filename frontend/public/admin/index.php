@@ -74,10 +74,10 @@ function admin_getAdminGeneralInfo(TemplateEngine $tpl)
         'ADMIN_USERS'     => toHtml(Counting::getAdministratorsCount()),
         'RESELLER_USERS'  => toHtml(Counting::getResellersCount()),
         'NORMAL_USERS'    => toHtml(Counting::getCustomersCount()),
-        'DOMAINS'         => toHtml(Counting::getDomainsCount()),
-        'SUBDOMAINS'      => toHtml(Counting::getSubdomainsCount()),
+        'DOMAINS'         => toHtml(Counting::getWebDomainsCount()),
+        'SUBDOMAINS'      => toHtml(Counting::getWebSubdomainsCount()),
         'DOMAINS_ALIASES' => toHtml(Counting::getDomainAliasesCount()),
-        'MAIL_ACCOUNTS'   => toHtml(Counting::getMailAccountsCount())
+        'MAIL_ACCOUNTS'   => toHtml(Counting::getMailMailboxesCount())
             . (!Application::getInstance()->getConfig()['COUNT_DEFAULT_EMAIL_ADDRESSES'] ? ' (' . toHtml('Excl. default mail accounts') . ')' : ''),
         'FTP_ACCOUNTS'    => toHtml(Counting::getFtpUsersCount()),
         'SQL_DATABASES'   => toHtml(Counting::getSqlDatabasesCount()),

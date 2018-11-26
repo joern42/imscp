@@ -39,7 +39,7 @@ use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
- This class provides an abstract implementation for the i-MSCP packages.
+ Abstract implementation for i-MSCP packages.
 
 =head1 CLASS METHODS
 
@@ -121,7 +121,7 @@ sub install
 
 =item postinstall( )
 
- Process package post-installation tasks
+ Process the package post-installation tasks
 
  This method is called by the i-MSCP installer and reconfiguration script.
  
@@ -421,10 +421,8 @@ sub buildConfFile
 
  Implements autoloading for undefined methods
 
- The default implementation will raise an error for any method that is not known
- to be called by the iMSCP::Modules::Abstract class.
-
- Return void, die on failure
+ The default implementation will raise an error for any method that is not
+ known to be called by the iMSCP::Modules::Abstract class.
 
 =cut
 

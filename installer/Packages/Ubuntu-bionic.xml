@@ -223,15 +223,15 @@
                 description="ifup/ifdown (historical)"
                 class="iMSCP::Providers::Networking::Debian::Ifupdown"
         >
+            <package>ifupdown</package>
             <package_conflict>nplan</package_conflict>
             <package_conflict>netplan.io</package_conflict>
-            <package>ifupdown</package>
         </ifupdown>
         <netplan
                 default="1"
                 description="netplan (with systemd-networkd)"
                 class="iMSCP::Providers::Networking::Debian::Netplan"
-                condition="'${SYSTEM_INIT}' eq 'Systemd'"
+                condition="'${SYSTEM_INIT}' eq 'Systemd' &amp;&amp; iMSCP::ProgramFinder::find('netplan')"
         >
             <package>netplan.io</package>
             <package_conflict>ifupdown</package_conflict>

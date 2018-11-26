@@ -48,7 +48,7 @@ $Text::Wrap::break = qr/[\s\n\|]/;
 
  Send an error message to system administrator
 
- Param string Error message to be sent
+ Param string $message Error message to be sent
  Return self, die on failure
  
 =cut
@@ -64,7 +64,7 @@ sub errmsg
     chomp( $message );
 
     $self->_sendMail( 'i-MSCP - An error has been raised', <<"EOF", 'error' );
-One or many unexpected errors were raised in i-MSCP backend:
+An unexpected error occurred in the backend:
 
 ==========================================================================
 $message
@@ -147,10 +147,10 @@ $message
 
 Please do not reply to this email.
 
-___________________________
-i-MSCP Backend Mailer
+_____________
+i-MSCP Mailer
 EOF
-        'X-Mailer' => 'i-MSCP Mailer (backend)'
+        'X-Mailer' => 'i-MSCP Mailer'
     );
 
     open my $fh, '|-', $sendmail, '-t', '-oi', '-f', "noreply\@$hostname" or die( sprintf( "Couldn't pipe to sendmail: %s", $! ));

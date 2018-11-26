@@ -183,7 +183,7 @@ sub askMasterAdminCredentials
 
             ( $rs, $username ) = $dialog->inputbox( <<"EOF", $username );
 $iMSCP::Dialog::InputValidation::lastValidationError
-Please enter a username for the master administrator (leave empty for default):
+Please enter an username for the master administrator (leave empty for default):
 \\Z \\Zn
 EOF
             if ( isValidUsername( $username ) ) {
@@ -396,7 +396,7 @@ EOF
             $msg = eval { $openSSL->validatePrivateKey(); } ? '' : <<"EOF";
 \\Z1Invalid private key or passphrase.\\Zn
 EOF
-            goto Q4 if length $msg;
+            goto Q3 if length $msg;
 
             Q5:
             $rs = $dialog->yesno( <<'EOF', FALSE, TRUE );
@@ -593,9 +593,9 @@ sub askAltUrlsFeature
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'panel', 'alt_urls', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
 
-Do you want to enable the alternative URLs feature for client domains?
+Do you want to enable the alternative URLs feature for clients?
 
-This feature make clients able to access their websites through alternative URLs such as http://dmn1.panel.domain.tld
+This feature make the clients able to access their websites through alternative URLs such as http://dmn1.panel.domain.tld
 \\Z \\Zn
 EOF
         return $rs unless $rs < 30;
@@ -1542,7 +1542,6 @@ sub _buildPhpConfig
             DISTRO_CA_BUNDLE                    => $::imscpConfig{'DISTRO_CA_BUNDLE'},
             HOME_DIR                            => $::imscpConfig{'FRONTEND_ROOT_DIR'},
             MTA_VIRTUAL_MAIL_DIR                => iMSCP::Servers::Mta->factory()->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'},
-            OTHER_ROOTKIT_LOG                   => length $::imscpConfig{'OTHER_ROOTKIT_LOG'} ? ":$::imscpConfig{'OTHER_ROOTKIT_LOG'}" : '',
             RKHUNTER_LOG                        => $::imscpConfig{'RKHUNTER_LOG'},
             TIMEZONE                            => ::setupGetQuestion( 'TIMEZONE' ),
             WEB_DIR                             => $::imscpConfig{'FRONTEND_ROOT_DIR'}

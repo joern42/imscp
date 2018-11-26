@@ -279,51 +279,47 @@ function generatePage(TemplateEngine $tpl)
             ? Application::getInstance()->getRegistry()->get('errFieldsStack') : [];
     });
 
-    if (!Counting::resellerHasFeature('subdomains')) {
+    if (!Counting::userHasFeature('webDomains')) {
         $tpl->assign('NB_SUBDOMAIN', '');
     }
-
-    if (!Counting::resellerHasFeature('domain_aliases')) {
-        $tpl->assign('NB_DOMAIN_ALIASES', '');
-    }
-
-    if (!Counting::resellerHasFeature('mail')) {
+    
+    if (!Counting::userHasFeature('mailMailboxes')) {
         $tpl->assign('NB_MAIL', '');
     }
 
-    if (!Counting::resellerHasFeature('ftp')) {
+    if (!Counting::userHasFeature('ftp')) {
         $tpl->assign('NB_FTP', '');
     }
 
-    if (!Counting::resellerHasFeature('sql_db')) {
+    if (!Counting::userHasFeature('sqlDatabases')) {
         $tpl->assign('NB_SQLD', '');
     }
 
-    if (!Counting::resellerHasFeature('sql_user')) {
+    if (!Counting::userHasFeature('sqlUsers')) {
         $tpl->assign('NB_SQLU', '');
     }
 
-    if (!Counting::resellerHasFeature('php')) {
+    if (!Counting::userHasFeature('webPHP')) {
         $tpl->assign('PHP_FEATURE', '');
     }
 
-    if (!Counting::resellerHasFeature('php_editor')) {
+    if (!Counting::userHasFeature('webPhpEditor')) {
         $tpl->assign('PHP_EDITOR_FEATURE', '');
     }
 
-    if (!Counting::resellerHasFeature('cgi')) {
+    if (!Counting::userHasFeature('webCGI')) {
         $tpl->assign('CGI_FEATURE', '');
     }
 
-    if (!Counting::resellerHasFeature('custom_dns_records')) {
+    if (!Counting::userHasFeature('custom_dns')) {
         $tpl->assign('CUSTOM_DNS_RECORDS_FEATURE', '');
     }
 
-    if (!Counting::resellerHasFeature('external_mail')) {
+    if (!Counting::userHasFeature('mailExternalServer')) {
         $tpl->assign('EXT_MAIL_FEATURE', '');
     }
 
-    if (!Counting::resellerHasFeature('backup')) {
+    if (!Counting::userHasFeature('backup')) {
         $tpl->assign('BACKUP_FEATURE', '');
     }
 
@@ -361,92 +357,90 @@ function checkInputData()
 
     $php = $php === '_yes_' ? '_yes_' : '_no_';
     $cgi = $cgi === '_yes_' ? '_yes_' : '_no_';
-    $dns = Counting::resellerHasFeature('custom_dns_records') && $dns === '_yes_' ? '_yes_' : '_no_';
-    $backup = Counting::resellerHasFeature('backup') ? array_intersect($backup, ['_dmn_', '_sql_', '_mail_']) : [];
+    $dns = Counting::userHasFeature('webDnsEditor') && $dns === '_yes_' ? '_yes_' : '_no_';
+    $backup = Counting::userHasFeature('backup') ? array_intersect($backup, ['_dmn_', '_sql_', '_mail_']) : [];
     $extMail = $extMail === '_yes_' ? '_yes_' : '_no_';
     $webFolderProtection = $webFolderProtection === '_yes_' ? '_yes_' : '_no_';
-    $errFieldsStack = [];
+    $hasErrors = false;
 
     if ($name === '') {
         View::setPageMessage(tr('Name cannot be empty.'), 'error');
-        $errFieldsStack[] = 'name';
+        $hasErrors = true;
     }
 
     if ($description === '') {
         View::setPageMessage(tr('Description cannot be empty.'), 'error');
-        $errFieldsStack[] = 'description';
+        $hasErrors = true;
     }
 
-    if (!Counting::resellerHasFeature('subdomains')) {
+    if (!Counting::userHasFeature('Websubdomains')) {
         $sub = '-1';
     } elseif (!validateLimit($sub, -1)) {
         View::setPageMessage(tr('Incorrect subdomain limit.'), 'error');
-        $errFieldsStack[] = 'sub';
+        $hasErrors = true;
     }
 
-    if (!Counting::resellerHasFeature('domain_aliases')) {
+    if (!Counting::userHasFeature('webDomainAliases')) {
         $als = '-1';
     } elseif (!validateLimit($als, -1)) {
         View::setPageMessage(tr('Incorrect domain aliases limit.'), 'error');
-        $errFieldsStack[] = 'als';
+        $hasErrors = true;
     }
 
-    if (!Counting::resellerHasFeature('mail')) {
+    if (!Counting::userHasFeature('webMailboxes')) {
         $mail = '-1';
     } elseif (!validateLimit($mail, -1)) {
         View::setPageMessage(tr('Incorrect mail account limit.'), 'error');
-        $errFieldsStack[] = 'mail';
+        $hasErrors = true;
     }
 
-    if (!Counting::resellerHasFeature('ftp')) {
+    if (!Counting::userHasFeature('ftp')) {
         $ftp = '-1';
     } elseif (!validateLimit($ftp, -1)) {
         View::setPageMessage(tr('Incorrect FTP accounts limit.'), 'error');
-        $errFieldsStack[] = 'ftp';
+        $hasErrors = true;
     }
 
-    if (!Counting::resellerHasFeature('sql_db')) {
+    if (!Counting::userHasFeature('sql')) {
         $sqld = '-1';
     } elseif (!validateLimit($sqld, -1)) {
         View::setPageMessage(tr('Incorrect SQL databases limit.'), 'error');
-        $errFieldsStack[] = 'sql_db';
+        $hasErrors = true;
     } elseif ($sqlu != -1 && $sqld == -1) {
         View::setPageMessage(tr('SQL user limit is <i>disabled</i>.'), 'error');
-        $errFieldsStack[] = 'sql_db';
-        $errFieldsStack[] = 'sql_user';
+        $hasErrors = true;
     }
 
-    if (!Counting::resellerHasFeature('sql_user')) {
+    if (!Counting::userHasFeature('sql')) {
         $sqlu = '-1';
     } elseif (!validateLimit($sqlu, -1)) {
         View::setPageMessage(tr('Incorrect SQL user limit.'), 'error');
-        $errFieldsStack[] = 'sql_user';
+        $hasErrors = true;
     } elseif ($sqlu == -1 && $sqld != -1) {
         View::setPageMessage(tr('SQL database limit is not <i>disabled</i>.'), 'error');
-        $errFieldsStack[] = 'sql_user';
-        $errFieldsStack[] = 'sql_db';
+        $hasErrors = true;
     }
 
     if (!validateLimit($traffic, NULL)) {
         View::setPageMessage(tr('Incorrect monthly traffic limit.'), 'error');
-        $errFieldsStack[] = 'traff';
+        $hasErrors = true;
     }
 
     if (!validateLimit($diskSpace, NULL)) {
         View::setPageMessage(tr('Incorrect disk space limit.'), 'error');
-        $errFieldsStack[] = 'disk';
+        $hasErrors = true;
     }
 
     if ($mail != '-1') {
         if (!validateLimit($mailQuota, NULL)) {
             View::setPageMessage(tr('Wrong syntax for the mail quota value.'), 'error');
-            $errFieldsStack[] = 'mail_quota';
+            $hasErrors = true;
         } elseif ($diskSpace != 0 && $mailQuota > $diskSpace) {
             View::setPageMessage(tr('Mail quota cannot be bigger than disk space limit.'), 'error');
-            $errFieldsStack[] = 'mail_quota';
+            $hasErrors = true;
         } elseif ($diskSpace != 0 && $mailQuota == 0) {
             View::setPageMessage(tr('Mail quota cannot be unlimited. Max value is %d MiB.', $diskSpace), 'error');
-            $errFieldsStack[] = 'mail_quota';
+            $hasErrors = true;
         }
     } else {
         $mailQuota = $diskSpace;
@@ -508,12 +502,7 @@ function checkInputData()
         $phpini->loadIniOptions(); // Reset INI options to their default values
     }
 
-    if (!empty($errFieldsStack)) {
-        Application::getInstance()->getRegistry()->set('errFieldsStack', $errFieldsStack);
-        return false;
-    }
-
-    return true;
+    return !$hasErrors;
 }
 
 /**
@@ -527,26 +516,43 @@ function updateHostingPlan()
            $webFolderProtection, $status;
 
     $phpini = PHPini::getInstance();
-    $props = "$php;$cgi;$sub;$als;$mail;$ftp;$sqld;$sqlu;$traffic;$diskSpace;" . implode('|', $backup) . ";$dns";
-    $props .= ';' . $phpini->getClientPermission('phpiniSystem');
-    $props .= ';' . $phpini->getClientPermission('phpiniConfigLevel');
-    $props .= ';' . $phpini->getClientPermission('phpiniAllowUrlFopen');
-    $props .= ';' . $phpini->getClientPermission('phpiniDisplayErrors');
-    $props .= ';' . $phpini->getClientPermission('phpiniDisableFunctions');
-    $props .= ';' . $phpini->getClientPermission('phpiniMailFunction');
-    $props .= ';' . $phpini->getIniOption('phpiniPostMaxSize');
-    $props .= ';' . $phpini->getIniOption('phpiniUploadMaxFileSize');
-    $props .= ';' . $phpini->getIniOption('phpiniMaxExecutionTime');
-    $props .= ';' . $phpini->getIniOption('phpiniMaxInputTime');
-    $props .= ';' . $phpini->getIniOption('phpiniMemoryLimit');
-    $props .= ';' . $extMail . ';' . $webFolderProtection . ';' . $mailQuota * 1048576;
+    $hpProps = [
+        'php_support'                  => $php,
+        'cgi_support'                  => $cgi,
+        'subdomains_limit'             => $sub,
+        'domain_aliases_limit'         => $als,
+        'mail_accounts_limit'          => $mail,
+        'ftp_accounts_limit'           => $ftp,
+        'sql_databases_limit'          => $sqld,
+        'sql_users_limit'              => $sqlu,
+        'monthly_traffic_limit'        => $traffic,
+        'diskspace_limit'              => $diskSpace,
+        'backup_support'               => $backup,
+        'dns_support'                  => $dns,
+        'php_ini_system'               => $phpini->getClientPermission('phpiniSystem'),
+        'phg_ini_config_level'         => $phpini->getClientPermission('phpiniConfigLevel'),
+        'php_ini_allow_url_fopen'      => $phpini->getClientPermission('phpiniAllowUrlFopen'),
+        'php_ini_display_error'        => $phpini->getClientPermission('phpiniDisplayErrors'),
+        'php_ini_disable_functions'    => $phpini->getClientPermission('phpiniDisableFunctions'),
+        'php_ini_mail_function'        => $phpini->getClientPermission('phpiniMailFunction'),
+        'php_ini_post_max_size'        => $phpini->getIniOption('phpiniPostMaxSize'),
+        'php_ini_upload_max_file_size' => $phpini->getIniOption('phpiniUploadMaxFileSize'),
+        'php_ini_max_execution_time'   => $phpini->getIniOption('phpiniMaxExecutionTime'),
+        'php_ini_max_input_time'       => $phpini->getIniOption('phpiniMaxInputTime'),
+        'php_ini_memory_limit'         => $phpini->getIniOption('phpiniMemoryLimit'),
+        'external_mail_server_support' => $extMail,
+        'web_folder_protection'        => $webFolderProtection,
+        'mail_quota_limit'             => $mailQuota * 1048576
+    ];
 
-    if (!validateHostingPlanLimits($props, Application::getInstance()->getAuthService()->getIdentity()->getUserId())) {
+    if (!validateHostingPlan($hpProps, Application::getInstance()->getAuthService()->getIdentity()->getUserId())) {
         View::setPageMessage(tr('Hosting plan limits exceed your limits.'), 'error');
         return false;
     }
 
-    execQuery('UPDATE hosting_plans SET name = ?, description = ?, props = ?, status = ? WHERE id = ?', [$name, $description, $props, $status, $id]);
+    execQuery('UPDATE hosting_plans SET name = ?, description = ?, props = ?, status = ? WHERE id = ?', [
+        $name, $description, json_encode($hpProps), $status, $id
+    ]);
     return true;
 }
 
@@ -554,10 +560,9 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
-isset($_GET['id']) or View::showBadRequestErrorPage();
 
 global $id;
-$id = intval($_GET['id']);
+($id = Application::getInstance()->getRequest()->getQuery('id') !== NULL) or View::showBadRequestErrorPage();
 
 loadHostingPlan() or View::showBadRequestErrorPage();
 
@@ -610,7 +615,6 @@ $tpl->assign([
     'TR_PHP'                        => toHtml(tr('PHP')),
     'TR_CGI'                        => toHtml(tr('CGI')),
     'TR_DNS'                        => toHtml(tr('Custom DNS records')),
-    'TR_SOFTWARE_SUPP'              => toHtml(tr('Software installer')),
     'TR_EXTMAIL'                    => toHtml(tr('External mail server')),
     'TR_WEB_FOLDER_PROTECTION'      => toHtml(tr('Web folder protection')),
     'TR_WEB_FOLDER_PROTECTION_HELP' => toHtml(tr('If set to `yes`, Web folders will be protected against deletion.')),

@@ -25,7 +25,7 @@ use iMSCP\Authentication\AuthEvent;
 use iMSCP\Authentication\AuthResult;
 use iMSCP\Crypt;
 use iMSCP\Functions\Daemon;
-use iMSCP\Model\UserIdentity;
+use iMSCP\Model\CpUserIdentity;
 use iMSCP\Model\UserIdentityInterface;
 use Zend\Db\Adapter\Driver\ResultInterface;
 use Zend\Db\ResultSet\HydratingResultSet;
@@ -52,8 +52,8 @@ class CheckCredentials implements AuthenticationListenerInterface
         }
 
         $request = Application::getInstance()->getRequest();
-        $username = encodeIdna(cleanInput($request->getPost('admin_name', '')));
-        $password = cleanInput($request->getPost('admin_pass', ''));
+        $username = encodeIdna(cleanInput($request->getPost('username', '')));
+        $password = cleanInput($request->getPost('password', ''));
 
         if ($username === '' || $password === '') {
             $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, [tr('Invalid credentials.')]));
@@ -61,12 +61,12 @@ class CheckCredentials implements AuthenticationListenerInterface
         }
 
         $stmt = Application::getInstance()->getDb()->createStatement(
-            'SELECT admin_id, admin_name, admin_pass, admin_type, email, created_by FROM admin WHERE admin_name = ?'
+            'SELECT userId, username, passwordHash, type, email, createdBy FROM imscp_user WHERE username = ?'
         );
         $result = $stmt->execute([$username]);
 
         if ($result instanceof ResultInterface && $result->isQueryResult()) {
-            $resultSet = new HydratingResultSet(new ReflectionHydrator, new UserIdentity());
+            $resultSet = new HydratingResultSet(new ReflectionHydrator, new CpUserIdentity());
             $resultSet->initialize($result);
 
             if (count($resultSet) < 1) {
@@ -93,9 +93,9 @@ class CheckCredentials implements AuthenticationListenerInterface
                         }
 
                         $identity = $authResult->getIdentity();
-                        $stmt = Application::getInstance()->getDb()->createStatement('UPDATE admin SET admin_pass = ?, admin_status = ? WHERE admin_id = ?');
-                        $stmt->execute([Crypt::bcrypt($password), $identity->getUserType() == 'user' ? 'tochangepwd' : 'ok', $identity->getUserId()]);
-                        writeLog(sprintf('Password hash for user %s has been updated using Bcrypt algorithm', $identity->getUsername()), E_USER_NOTICE);
+                        $stmt = Application::getInstance()->getDb()->createStatement('UPDATE imscp_user SET password = ? WHERE userID = ?');
+                        $stmt->execute([Crypt::bcrypt($password), $identity->getUserId()]);
+                        writeLog(sprintf('Password hash for user %s has been updated for use of Bcrypt algorithm', $identity->getUsername()), E_USER_NOTICE);
                         $identity->getUserType() != 'user' or Daemon::sendRequest();
                     },
                     -99

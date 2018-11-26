@@ -38,7 +38,7 @@ function _generateUserStatistics(TemplateEngine $tpl, $adminId)
         ) = Statistics::getClientTrafficAndDiskStats($adminId);
     list($subCount, $subLimit, $alsCount, $alsLimit, $mailCount, $mailLimit, $ftpCount, $ftpLimit, $sqlDbCount,
         $sqlDbLimit, $sqlUsersCount, $sqlUsersLlimit, $trafficLimit, $diskLimit
-        ) = Statistics::getClientItemsCountAndLimits($adminId);
+        ) = Statistics::getClientObjectsCountAndLimits($adminId);
     $trafficUsagePercent = Statistics::getPercentUsage($trafficUsage, $trafficLimit);
     $diskspaceUsagePercent = Statistics::getPercentUsage($diskUsage, $diskLimit);
     $tpl->assign([

@@ -37,7 +37,7 @@ function getDomainsList()
     static $domainsList = NULL;
 
     if (NULL === $domainsList) {
-        $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+        $mainDmnProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
         $domainsList = [[
             'name' => $mainDmnProps['domain_name'],
             'id'   => $mainDmnProps['domain_id'],
@@ -89,7 +89,7 @@ function addMailAccount()
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
 
-    $mainDmnProps = getCustomerProperties($identity->getUserId());
+    $mainDmnProps = getClientProperties($identity->getUserId());
     $password = $forwardList = '_no_';
     $mailType = $subId = '';
     $mailTypeNormal = in_array($_POST['account_type'], ['1', '3']);
@@ -294,7 +294,7 @@ function addMailAccount()
  */
 function generatePage($tpl)
 {
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+    $mainDmnProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $customerMailboxesQuotaSumBytes = execQuery('SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE domain_id = ?', [
         $mainDmnProps['domain_id']
     ])->fetchColumn();
@@ -366,14 +366,14 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('mail') or View::showBadRequestErrorPage();
+Counting::userHasFeature('mailMailboxes') or View::showBadRequestErrorPage();
 
-$dmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
-$emailAccountsLimit = $dmnProps['domain_mailacc_limit'];
+$dmnProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+$mailboxesLimit = $dmnProps['mailboxesLimit'];
 
-if ($emailAccountsLimit != '0') {
-    $nbEmailAccounts = Counting::getCustomerMailAccountsCount($dmnProps['domain_id']);
-    if ($nbEmailAccounts >= $emailAccountsLimit) {
+if ($mailboxesLimit != '0') {
+    $nbEmailAccounts = Counting::getClientMailboxesCount($dmnProps['domain_id']);
+    if ($nbEmailAccounts >= $mailboxesLimit) {
         View::setPageMessage(tr('You have reached the maximum number of mail accounts allowed by your subscription.'), 'warning');
         redirectTo('mail_accounts.php');
     }

@@ -53,7 +53,7 @@ sub prntError
     exit 1;
 }
 
-$> == 0 or prntError( 'The i-MSCP installer must be run with the privileges of super user.' );
+$> == 0 or prntError( 'The i-MSCP installer must be run with privileges of super user.' );
 
 chomp( our $ROOTDIR = `dirname @{ [ abs_path __FILE__ ] } 2>/dev/null` );
 chdir( $ROOTDIR ) or prntError( sprintf( "couldn't chdir: %s", $! || 'Unknown error' ));

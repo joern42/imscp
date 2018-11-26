@@ -39,16 +39,16 @@ $tpl->define([
 $userId = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'email_setup') {
-    $data['subject'] = (isset($_POST['auto_subject'])) ? cleanInput($_POST['auto_subject']) : '';
-    $data['message'] = (isset($_POST['auto_message'])) ? cleanInput($_POST['auto_message']) : '';
+    $data['emailSubject'] = isset($_POST['auto_subject']) ? cleanInput($_POST['auto_subject']) : '';
+    $data['emailBody'] = isset($_POST['auto_message']) ? cleanInput($_POST['auto_message']) : '';
     $error = false;
 
-    if ($data['subject'] == '') {
+    if (empty($data['emailSubject'])) {
         View::setPageMessage(tr('You must specify a subject.'), 'error');
         $error = true;
     }
 
-    if ($data['message'] == '') {
+    if (empty($data['emailBody'])) {
         View::setPageMessage(tr('You must specify a message.'), 'error');
         $error = true;
     }

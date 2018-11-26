@@ -26,9 +26,10 @@ package iMSCP::Providers::Service::Upstart;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Debug qw/ debug /;
 use File::Basename;
 use File::Spec;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::File;
 use version;
 use parent 'iMSCP::Providers::Service::Sysvinit';
@@ -160,8 +161,6 @@ sub remove
             iMSCP::File->new( filename => $jobFilePath )->remove();
         }
     }
-
-    1;
 }
 
 =item start( $job )
@@ -436,12 +435,12 @@ sub _isEnabledPre090
     # stanza is the last one in the file. The last one in the
     # file wins.
     open my $fh, '<', \$jobFileContent or croak( sprintf( "Couldn't open in-memory file handle: %s", $! ));
-    my $enabled = 0;
-    while ( <$fh> ) {
-        if ( /$START_ON/ ) {
-            $enabled = 1;
-        } elsif ( /$MANUAL/ ) {
-            $enabled = 0;
+    my $enabled = FALSE;
+    while ( my $line = <$fh> ) {
+        if ( $line =~ /$START_ON/ ) {
+            $enabled = TRUE;
+        } elsif ( $line =~ /$MANUAL/ ) {
+            $enabled = FALSE;
         }
     }
 
@@ -469,14 +468,14 @@ sub _isEnabledPost090
     # files. Thus, we check to see if an uncommented 'start on' or
     # 'manual' stanza is the last one in the conf file and any
     # override files. The last one in the file wins.
-    my $enabled = 0;
+    my $enabled = FALSE;
     for my $fcontent ( \$jobFileContent, \$jobOverrideFileContent ) {
         open my $fh, '<', $fcontent or croak( sprintf( "Couldn't open in-memory file handle: %s", $! ));
-        while ( <$fh> ) {
-            if ( /$START_ON/ ) {
-                $enabled = 1;
-            } elsif ( /$MANUAL/ ) {
-                $enabled = 0;
+        while ( my $line = <$fh> ) {
+            if ( $line =~ /$START_ON/ ) {
+                $enabled = TRUE;
+            } elsif ( $line =~ /$MANUAL/ ) {
+                $enabled = FALSE;
             }
         }
     }

@@ -482,7 +482,7 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
 
     if ($stmt->rowCount()) {
         $row = $stmt->fetch();
-        $dynTitle = Counting::customerHasFeature('ssl') && $row['status'] == 'ok' ? tr('Edit SSL certificate') : tr('Show SSL certificate');
+        $dynTitle = Counting::userHasFeature('webSSL') && $row['status'] == 'ok' ? tr('Edit SSL certificate') : tr('Show SSL certificate');
         $certId = $row['cert_id'];
         $privateKey = toHtml($row['private_key']);
         $certificate = toHtml($row['certificate']);
@@ -495,7 +495,7 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
         $tpl->assign('STATUS', in_array($status, ['toadd', 'tochange', 'todelete', 'ok'])
             ? humanizeItemStatus($status) : '<span style="color: red;font-weight: bold">' . $status . "</span>"
         );
-    } elseif (Counting::customerHasFeature('ssl')) {
+    } elseif (Counting::userHasFeature('webSSL')) {
         $dynTitle = tr('Add SSL certificate');
         $trAction = tr('Add');
         $certId = '0';
@@ -515,7 +515,7 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
         return;
     }
 
-    if (Counting::customerHasFeature('ssl') && isset($_POST['cert_id']) && isset($_POST['private_key']) && isset($_POST['certificate'])
+    if (Counting::userHasFeature('webSSL') && isset($_POST['cert_id']) && isset($_POST['private_key']) && isset($_POST['certificate'])
         && isset($_POST['ca_bundle'])
     ) {
         $certId = $_POST['cert_id'];
@@ -545,9 +545,9 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
         'TR_NO'                      => tr('No')
     ]);
 
-    if (!Counting::customerHasFeature('ssl') || (isset($status) && in_array($status, ['toadd', 'tochange', 'todelete']))) {
+    if (!Counting::userHasFeature('webSSL') || (isset($status) && in_array($status, ['toadd', 'tochange', 'todelete']))) {
         $tpl->assign('SSL_CERTIFICATE_ACTIONS', '');
-        if (!Counting::customerHasFeature('ssl')) {
+        if (!Counting::userHasFeature('webSSL')) {
             View::setPageMessage(tr('SSL feature is not available. You can only view your certificate.'), 'static_warning');
         }
     }
@@ -571,7 +571,7 @@ $tpl->define([
 $domainId = intval($_GET['id']);
 $domainType = cleanInput($_GET['type']);
 
-if (Application::getInstance()->getRequest()->isPost() && Counting::customerHasFeature('ssl')) {
+if (Application::getInstance()->getRequest()->isPost() && Counting::userHasFeature('ssl')) {
     if (isset($_POST['add_update'])) {
         client_addSslCert($domainId, $domainType);
     } elseif (isset($_POST['delete'])) {

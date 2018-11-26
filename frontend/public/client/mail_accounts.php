@@ -298,7 +298,7 @@ function generateMailAccountsList($tpl, $domainId)
  */
 function generatePage($tpl)
 {
-    if (!Counting::customerHasFeature('mail')) {
+    if (!Counting::userHasFeature('mail')) {
         $tpl->assign('MAIL_FEATURE', '');
         View::setPageMessage(tr('Mail feature is disabled.'), 'static_info');
         return;
@@ -312,7 +312,7 @@ function generatePage($tpl)
         }
     }
 
-    $dmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+    $dmnProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $mainDmnId = $dmnProps['domain_id'];
     $dmnMailAccLimit = $dmnProps['domain_mailacc_limit'];
     $mailAccountsCount = generateMailAccountsList($tpl, $mainDmnId);
@@ -342,7 +342,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasMailOrExtMailFeatures() or View::showBadRequestErrorPage();
+Counting::clientHasMailOrExtMailFeatures() or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([

@@ -129,7 +129,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('sql') && isset($_REQUEST['sqlu_id']) or View::showBadRequestErrorPage();
+Counting::userHasFeature('sql') && isset($_REQUEST['sqlu_id']) or View::showBadRequestErrorPage();
 
 $sqluId = intval($_REQUEST['sqlu_id']);
 

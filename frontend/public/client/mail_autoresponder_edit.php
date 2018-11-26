@@ -93,7 +93,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('mail') && isset($_REQUEST['id']) or View::showBadRequestErrorPage();
+Counting::userHasFeature('mailMailboxes') && isset($_REQUEST['id']) or View::showBadRequestErrorPage();
 $mailAccountId = intval($_REQUEST['id']);
 checkMailAccount($mailAccountId) or View::showBadRequestErrorPage();
 

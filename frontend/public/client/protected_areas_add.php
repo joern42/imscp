@@ -104,7 +104,7 @@ function handleProtectedArea()
         return;
     }
 
-    $mainDmnProps = getCustomerProperties($identity->getUserId());
+    $mainDmnProps = getClientProperties($identity->getUserId());
 
     if ($protectionType === 'user') {
         $stmt = execQuery(
@@ -176,7 +176,7 @@ function generatePage($tpl)
     global $mountpoints;
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    $mainDmnProps = getCustomerProperties($identity->getUserId());
+    $mainDmnProps = getClientProperties($identity->getUserId());
 
     # Set parameters for the FTP chooser
     Application::getInstance()->getSession()['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
@@ -270,9 +270,9 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
+Counting::userHasFeature('webProtectedAreas') or View::showBadRequestErrorPage();
 
-$mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+$mainDmnProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
 global $mountpoints;
 $mountpoints = getMountpoints($mainDmnProps['domain_id']);

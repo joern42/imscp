@@ -26,18 +26,19 @@ package iMSCP::EventManager;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::PriorityQueue;
 use iMSCP::Getopt;
-use Scalar::Util qw/ blessed refaddr /;
+use Scalar::Util qw/ blessed /;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
  The i-MSCP event manager is the central point of the event system.
 
- Event listeners are registered on the event manager and events are triggered through the event manager. Event
- listeners are references to subroutines or objects that listen to particular event(s).
+ Event listeners are registered on the event manager and events are triggered
+ through the event manager. Event listeners are references to subroutines or
+ objects that listen to particular event(s).
 
 =head1 PUBLIC METHODS
 
@@ -49,7 +50,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Param string $eventName Event name on which $listener listen on
  Param coderef $listener A CODE reference
- Return bool TRUE if the given event has the given listener, FALSE otherwise, die on failure
+ Return bool TRUE if the given event has the given listener, FALSE otherwise, croak on failure
 
 =cut
 
@@ -70,7 +71,7 @@ sub hasListener
  Param coderef|object $listener A CODE reference or an object implementing $eventNames method
  Param int $priority OPTIONAL Listener priority (Highest values have highest priority)
  Param bool $once OPTIONAL If TRUE, $listener will be executed at most once for the given events
- Return self, die on failure
+ Return self, croak on failure
 
 =cut
 
@@ -100,7 +101,7 @@ sub register
  Param string|arrayref $eventNames Event(s) that the listener listen to
  Param coderef|object $listener A CODE reference or object implementing $eventNames method
  Param int $priority OPTIONAL Listener priority (Highest values have highest priority)
- Return self, die on failure
+ Return self, croak on failure
 
 =cut
 
@@ -117,7 +118,7 @@ sub registerOne
 
  Param coderef $listener Listener
  Param string OPTIONAL $eventName Event name
- Return self, die on failure
+ Return self, croak on failure
 
 =cut
 
@@ -154,7 +155,7 @@ sub unregister
  Clear all listeners for the given event
 
  Param string $event Event name
- Return self, die on failure
+ Return self, croak on failure
 
 =cut
 
@@ -174,7 +175,7 @@ sub clearListeners
 
  Param string $eventName Event name
  Param mixed @params OPTIONAL parameters passed-in to the listeners
- Return self, die on failure
+ Return self, croak on failure
 
 =cut
 
@@ -224,7 +225,7 @@ sub trigger
 
  Initialize instance
 
- Return iMSCP::EventManager, die on failure
+ Return iMSCP::EventManager, croaka on failure
 
 =cut
 

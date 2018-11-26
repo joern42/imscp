@@ -459,10 +459,14 @@ sub _cleanup
 {
     my ( $self ) = @_;
 
+    return 0 unless version->parse( $::imscpConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    
     for my $dir ( iMSCP::Dir->new( dirname => $::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
         next unless -d "$::imscpConfig{'USER_WEB_DIR'}/$dir/statistics";
-        clearImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" );
-        iMSCP::Dir->new( dirname => "/var/www/virtual/$dir/statistics" )->remove();
+        my $isImmutable = isImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" );
+        clearImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" ) if $isImmutable;
+        iMSCP::Dir->new( dirname => "$::imscpConfig{'USER_WEB_DIR'}/$dir/statistics" )->remove();
+        setImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" ) if $isImmutable;
     }
 }
 

@@ -128,7 +128,7 @@ function generatePage(TemplateEngine $tpl)
     $domainsCount = Counting::getResellerDomainsCount($resellerId);
     $subdomainsCount = Counting::getResellerSubdomainsCount($resellerId);
     $domainAliasesCount = Counting::getResellerDomainAliasesCount($resellerId);
-    $mailAccountsCount = Counting::getResellerMailAccountsCount($resellerId);
+    $mailAccountsCount = Counting::getResellerMailboxesCount($resellerId);
     $ftpUsersCount = Counting::getResellerFtpUsersCount($resellerId);
     $sqlDatabasesCount = Counting::getResellerSqlDatabasesCount($resellerId);
     $sqlUsersCount = Counting::getResellerSqlUsersCount($resellerId);

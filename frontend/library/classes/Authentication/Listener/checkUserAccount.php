@@ -46,18 +46,13 @@ class checkUserAccount implements AuthenticationListenerInterface
         }
 
         $identity = $event->getAuthenticationResult()->getIdentity();
-        if ($identity->getUserType() !== 'user') {
+        if ($identity->getUserType() !== 'client') {
             // Return early if user type is other than 'user'
             return;
         }
 
         $stmt = Application::getInstance()->getDb()->createStatement(
-            '
-                SELECT t1.domain_expires, t1.domain_status, t2.admin_status
-                FROM domain AS t1
-                JOIN admin AS t2. ON(t2.admin_id = t2.domain_admin_id)
-                WHERE domain_admin_id = ?
-            '
+            'SELECT t1.isActive, t2.accountExpireDate FROM imscp_user AS t1 JOIN imscp_client_props AS t2 USING(userID) WHERE userID = ?'
         );
         $result = $stmt->execute([$identity->getUserId()])->getResource();
 
@@ -71,14 +66,14 @@ class checkUserAccount implements AuthenticationListenerInterface
 
         $row = $result->fetch();
 
-        if ($row['admin_status'] == 'disabled' || $row['domain_status'] == 'disabled') {
+        if (!$row['isActive']) {
             $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, $identity, [
                 tr('Your account has been suspended. Please contact your reseller.')
             ]));
             return;
         }
 
-        if ($row['domain_expires'] > 0 && $row['domain_expires'] < time()) {
+        if (!is_null($row['accountExpireDate']) && $row['domain_expires'] < time()) {
             $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, $identity, [
                 tr('Your account is expired. Please contact your reseller.')
             ]));

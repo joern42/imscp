@@ -52,13 +52,13 @@ my $IFUP_STATE_DIR = '/run/network';
 
 =over 4
 
-=item addIpAddr( \%data )
+=item addIpAddress( \%data )
 
- See iMSCP::Providers::Networking::Interface
+ See iMSCP::Providers::Networking::Interface::addIpAddress
 
 =cut
 
-sub addIpAddr
+sub addIpAddress
 {
     my ( $self, $data ) = @_;
 
@@ -112,11 +112,11 @@ sub addIpAddr
 
 =item removeIpAddr( \%data )
 
- See iMSCP::Providers::Networking::Interface
+ See iMSCP::Providers::Networking::Interface::removeIpAddress
 
 =cut
 
-sub removeIpAddr
+sub removeIpAddress
 {
     my ( $self, $data ) = @_;
 

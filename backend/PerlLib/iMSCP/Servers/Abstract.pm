@@ -144,7 +144,7 @@ sub registerSetupListeners
  This method is called by the i-MSCP installer and reconfiguration script.
 
  Any server requiring pre-installation tasks *SHOULD* implement this method,
- not forgetting to call it, unless stopping the linked service(s) is not
+ not forgetting to call parent, unless stopping the linked service(s) is not
  desired.
 
  Return void, die on failure
@@ -574,7 +574,7 @@ sub AUTOLOAD
     $method =~ /^
         (?:pre|post)?
         (?:add|disable|restore|delete)
-        (?:Domain|CustomDNS|FtpUser|Htaccess|Htgroup|Htpasswd|IpAddr|Mail|SSLcertificate|Subdomain|User)
+        (?:Domain|CustomDNS|FtpUser|Htaccess|Htgroup|Htpasswd|IpAddress|Mail|SSLcertificate|Subdomain|User)
         $/x or die( sprintf( 'Unknown %s method', $AUTOLOAD ));
 
     # Define the subroutine to prevent further evaluation

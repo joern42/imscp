@@ -28,7 +28,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('sql') && isset($_GET['sqld_id']) or View::showBadRequestErrorPage();
+Counting::userHasFeature('sql') && isset($_GET['sqld_id']) or View::showBadRequestErrorPage();
 
 $sqldId = intval($_GET['sqld_id']);
 $identity = Application::getInstance()->getAuthService()->getIdentity();

@@ -197,7 +197,7 @@ function generatePage($tpl)
         'TR_CANCEL'     => toHtml(tr('Cancel'))
     ]);
 
-    $domainProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+    $domainProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $domainId = $domainProps['domain_id'];
     $domainName = $domainProps['domain_name'];
     generateItemList($tpl, $domainId, $domainName);
@@ -207,7 +207,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('external_mail') or View::showBadRequestErrorPage();
+Counting::userHasFeature('mailExternalServer') or View::showBadRequestErrorPage();
 
 if (isset($_GET['action']) && isset($_GET['domain_id']) && isset($_GET['domain_type'])) {
     $action = cleanInput($_GET['action']);

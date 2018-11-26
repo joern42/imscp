@@ -22,28 +22,28 @@ namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
-use iMSCP\Functions\HelpDesk;
+use iMSCP\Functions\SupportSystem;
 use iMSCP\Functions\View;
 
 require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
-Counting::resellerHasFeature('support') && isset($_GET['ticket_id']) or View::showBadRequestErrorPage();
+Counting::userHasFeature('supportSystem') && isset($_GET['ticket_id']) or View::showBadRequestErrorPage();
 
 $ticketId = intval($_GET['ticket_id']);
-$status = HelpDesk::getTicketStatus($ticketId);
-$ticketLevel = HelpDesk::getUserLevel($ticketId);
+$status = SupportSystem::getTicketStatus($ticketId);
+$ticketLevel = SupportSystem::getUserLevel($ticketId);
 
 if (($ticketLevel == 1 && ($status == 1 || $status == 4)) || ($ticketLevel == 2 && $status == 2)) {
-    HelpDesk::changeTicketStatus($ticketId, 3);
+    SupportSystem::changeTicketStatus($ticketId, 3);
 }
 
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'close') {
-        HelpDesk::closeTicket($ticketId);
+        SupportSystem::closeTicket($ticketId);
         redirectTo('ticket_system.php');
     }
 
@@ -51,7 +51,7 @@ if (isset($_POST['uaction'])) {
         if (empty($_POST['user_message'])) {
             View::setPageMessage(tr('Please type your message.'), 'error');
         } else {
-            HelpDesk::updateTicket($ticketId, $identity->getUserId(), $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2, 3);
+            SupportSystem::updateTicket($ticketId, $identity->getUserId(), $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2, 3);
             redirectTo("ticket_view.php?ticket_id=$ticketId");
         }
     }
@@ -77,7 +77,7 @@ $tpl->assign([
     'TR_TICKET_REPLY'     => tr('Send reply')
 ]);
 View::generateNavigation($tpl);
-HelpDesk::showTicketContent($tpl, $ticketId, $identity->getUserId());
+SupportSystem::showTicketContent($tpl, $ticketId, $identity->getUserId());
 View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);

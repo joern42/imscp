@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Server::Local::Abstract - i-MSCP Local server implementation
+ iMSCP::Servers::Server::Remote::Abstract - i-MSCP local server implementation
 
 =cut
 
@@ -26,7 +26,7 @@ package iMSCP::Servers::Server::Local::Abstract;
 use strict;
 use warnings;
 use autouse 'iMSCP::Debug' => qw/ debug error /;
-use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList isValidIpAddr isValidHostname isValidTimezone /;
+use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringNotInList isValidIpAddr isValidHostname isValidTimezone /;
 use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
 use Carp qw/ croak /;
@@ -37,7 +37,7 @@ use parent 'iMSCP::Servers::Server';
 
 =head1 DESCRIPTION
 
- i-MSCP Local server abstract implementation.
+ i-MSCP local server abstract implementation.
 
 =head1 PUBLIC METHODS
 
@@ -56,7 +56,10 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
-            push @{ $_[0] }, sub { $self->hostnameDialog( @_ ); }, sub { $self->askIPv6Support( @_ ) }, sub { $self->primaryIpDialog( @_ ); },
+            push @{ $_[0] },
+                sub { $self->hostnameDialog( @_ ); },
+                sub { $self->askIPv6Support( @_ ) },
+                sub { $self->primaryIpDialog( @_ ); },
                 sub { $self->timezoneDialog( @_ ); };
         },
         # We want show these dialog before the sqld server dialogs (sqld priority + 10)
@@ -131,7 +134,7 @@ sub askIPv6Support
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'ipv6', 'servers', 'all', 'forced' ] )
-        || !isStringInList( $value, keys %choices )
+        || isStringNotInList( $value, keys %choices )
     ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
 
@@ -187,19 +190,19 @@ sub primaryIpDialog
     );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'primary_ip', 'servers', 'all', 'forced' ] )
-        || !grep ( $_ eq $lanIP, @ipList )
+        || isStringNotInList( $lanIP, @ipList )
     ) {
         my $rs = 0;
 
         do {
             my %choices;
             @choices{@ipList} = @ipList;
-            ( $rs, $lanIP ) = $dialog->radiolist( <<"EOF", \%choices, grep ( $_ eq $lanIP, @ipList ) ? $lanIP : $ipList[0] );
+            ( $rs, $lanIP ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $lanIP eq $_, @ipList ) )[0] || $ipList[0] );
 
 Please select your server primary IP address:
 
 The \\Zb'None'\\ZB option means that i-MSCP will configure the services to listen on all interfaces.
-This option is more suitable for Cloud computing services such as Scaleway and Amazon EC2, or when using a Vagrant box where the IP that is set through DHCP can changes over the time.
+This option is more suitable for Cloud computing services such as Scaleway and Amazon EC2, or in the case of a dynamic IP address obtained through DHCP.
 \\Z \\Zn
 EOF
             $lanIP = '0.0.0.0' if $lanIP eq 'None';
@@ -237,11 +240,11 @@ EOF
     }
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'primary_ip', 'all', 'forced' ] ) ) {
-        if ( ( my $rs = $dialog->yesno( <<"EOF", TRUE, TRUE ) ) == 0 ) {
+        if ( my $rs = $dialog->yesno( <<"EOF", TRUE, TRUE ) == 0 ) {
 
 Do you want to replace all IP addresses currently set with the new primary IP address?
 
-Be aware that this will reset IP addresses of all resellers and customers.
+Be aware that this will reset resellers and clients IP addresses.
 EOF
             return $rs unless $rs < 30;
 
@@ -377,44 +380,44 @@ sub getServerVersion
     $self->{'config'}->{'DISTRO_RELEASE'};
 }
 
-=item addIpAddr( \%moduleData )
+=item addIpIpAddress( \%moduleData )
 
- See iMSCP::Servers::Server::addIpAddr()
+ See iMSCP::Servers::Server::addIpAddress()
 
 =cut
 
-sub addIpAddr
+sub addIpAddress
 {
     my ( $self, $moduleData ) = @_;
 
-    $self->{'eventManager'}->trigger( 'beforeLocalServerAddIpAddr', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeLocalServerAddIpAddress', $moduleData );
 
     if ( $moduleData->{'ip_card'} ne 'any' && $moduleData->{'ip_address'} ne '0.0.0.0' ) {
-        iMSCP::Networking->getInstance()->addIpAddr( $moduleData );
+        iMSCP::Networking->getInstance()->addIpAddress( $moduleData );
         iMSCP::Net->getInstance()->resetInstance();
     }
 
-    $self->{'eventManager'}->trigger( 'afterLocalServerAddIpAddr', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterLocalServerAddIpAddress', $moduleData );
 }
 
-=item deleteIpAddr( \%moduleData )
+=item deleteIpAddress( \%moduleData )
 
- See iMSCP::Servers::Server::deleteIpAddr()
+ See iMSCP::Servers::Server::deleteIpAddress()
 
 =cut
 
-sub deleteIpAddr
+sub deleteIpAddress
 {
     my ( $self, $moduleData ) = @_;
 
-    $self->{'eventManager'}->trigger( 'beforeLocalServerDeleteIpAddr', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeLocalServerDeleteIpAddress', $moduleData );
 
     if ( $moduleData->{'ip_card'} ne 'any' && $moduleData->{'ip_address'} ne '0.0.0.0' ) {
-        iMSCP::Networking->getInstance()->removeIpAddr( $moduleData );
+        iMSCP::Networking->getInstance()->removeIpAddress( $moduleData );
         iMSCP::Net->getInstance()->resetInstance();
     }
 
-    $self->{'eventManager'}->trigger( 'afterLocalServerDeleteIpAddr', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterLocalServerDeleteIpAddress', $moduleData );
 }
 
 =item addUser( \%moduleData )
@@ -657,10 +660,8 @@ sub _setupPrimaryIP
                     $self->{'dbh'}->do( 'UPDATE reseller_props SET reseller_ips = ? WHERE reseller_id = ?', undef, join( ',', @ipIDS ));
                 }
 
-                $self->{'dbh'}->do( 'UPDATE domain SET domain_client_ips = ?, domain_ips = ?', undef, $primaryIpID, $primaryIpID );
-                $self->{'dbh'}->do( 'UPDATE subdomain SET subdomain_ips = ?', undef, $primaryIpID );
-                $self->{'dbh'}->do( 'UPDATE domain_aliases SET alias_ips = ?', undef, $primaryIpID );
-                $self->{'dbh'}->do( 'UPDATE subdomain_alias SET subdomain_alias_ips = ?', undef, $primaryIpID );
+                $self->{'dbh'}->do( 'UPDATE client_props SET client_ips = ?, domain_ips = ?', undef, $primaryIpID, $primaryIpID );
+                $self->{'dbh'}->do( 'UPDATE domain SET  domain_ips = ?', undef, $primaryIpID, $primaryIpID );
             };
             if($@) {
                 $self->{'dbh'}->rollback();

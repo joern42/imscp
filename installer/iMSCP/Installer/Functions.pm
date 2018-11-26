@@ -907,23 +907,23 @@ sub _processFolderNode
  these files. Removing them without further care could cause unexpected issues
  with the init system
 
- OPTIONAL node attributes:
-  copy_if       : Copy the file or directory only if the condition is met, remove it otherwise, unless the keep_if_exists attribute is TRUE
-  keep_if_exist : Don't delete the file or directory if it exists and if the keep_if_exist evaluate to TRUE
-  copy_cwd      : Copy the $CWD directory (excluding the install.xml), instead of a directory in $CWD (current configuration directory)
-  copy_as       : Destination file or directory name
-  subdir        : Sub-directory in which file must be searched, relative to $CWD (current configuration directory)
-  umask         : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & ~0027 = 0640 (in octal)
-  mode          : Destination file or directory mode
-  dirmode       : Destination directory mode (can be set only if the mode attribute is not set)
-  filemode      : Destination directory mode (can be set only if the mode attribute is not set)
-  user          : Destination file or directory owner
-  group         : Destination file or directory group
-  recursive     : Whether or not ownership and permissions must be fixed recursively
-  srv_provider  : Whether or not the give node must be processed by the service provider on removal (case of SysVinit, Upstart and Systemd conffiles)
-                  That attribute must be set with the service name for which the system provider must act. This attribute is evaluated only when
-                  the node provide the copy_if attribute and only if the expression (value) of that attribute evaluate to FALSE.
  Param hashref \%node Node
+  OPTIONAL node attributes:
+   copy_if       : Copy the file or directory only if the condition is met, remove it otherwise, unless the keep_if_exists attribute is TRUE
+   keep_if_exist : Don't delete the file or directory if it exists and if the keep_if_exist evaluate to TRUE
+   copy_cwd      : Copy the $CWD directory (excluding the install.xml), instead of a directory in $CWD (current configuration directory)
+   copy_as       : Destination file or directory name
+   subdir        : Sub-directory in which file must be searched, relative to $CWD (current configuration directory)
+   umask         : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & ~0027 = 0640 (in octal)
+   mode          : Destination file or directory mode
+   dirmode       : Destination directory mode (can be set only if the mode attribute is not set)
+   filemode      : Destination directory mode (can be set only if the mode attribute is not set)
+   user          : Destination file or directory owner
+   group         : Destination file or directory group
+   recursive     : Whether or not ownership and permissions must be fixed recursively
+   srv_provider  : Whether or not the give node must be processed by the service provider on removal (case of SysVinit, Upstart and Systemd conffiles)
+                   That attribute must be set with the service name for which the system provider must act. This attribute is evaluated only when
+                   the node provide the copy_if attribute and only if the expression (value) of that attribute evaluate to FALSE.
  Return void, die on failure
 
 =cut

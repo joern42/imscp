@@ -88,7 +88,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
-Counting::resellerHasCustomers() or View::showBadRequestErrorPage();
+Counting::resellerHasClients() or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([

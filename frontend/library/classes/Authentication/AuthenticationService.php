@@ -26,9 +26,9 @@ use iMSCP\Authentication\Listener\checkUserAccount;
 use iMSCP\Authentication\Listener\CheckMaintenanceMode;
 use iMSCP\Authentication\Listener\PasswordRecovery;
 use iMSCP\Functions\View;
-use iMSCP\Model\SuIdentity;
-use iMSCP\Model\SuIdentityInterface;
-use iMSCP\Model\UserIdentity;
+use iMSCP\Model\CpSuIdentity;
+use iMSCP\Model\CpSuIdentityInterface;
+use iMSCP\Model\CpUserIdentity;
 use iMSCP\Model\UserIdentityInterface;
 use iMSCP\Plugin\Bruteforce;
 use Zend\Db\Adapter\Driver\ResultInterface;
@@ -149,8 +149,8 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
 
         // When the panel is in maintenance mode, only administrators can access the interface
         if (Application::getInstance()->getConfig()['MAINTENANCEMODE'] && $identity->getUserType() != self::ADMIN_IDENTITY_TYPE
-            && ((!($identity instanceof SuIdentityInterface)
-                || ($identity->getSuUserType() != self::ADMIN_IDENTITY_TYPE && !($identity->getSuIdentity() instanceof SuIdentityInterface))))
+            && ((!($identity instanceof CpSuIdentityInterface)
+                || ($identity->getSuUserType() != self::ADMIN_IDENTITY_TYPE && !($identity->getSuIdentity() instanceof CpSuIdentityInterface))))
         ) {
             $this->clearIdentity();
             View::setPageMessage(tr('You have been automatically signed out due to maintenance tasks.'), 'info');
@@ -193,9 +193,9 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
 
         $newIdentity = NULL;
         // Administrator or reseller signed in as another user identity
-        if ($identity instanceof SuIdentityInterface) {
+        if ($identity instanceof CpSuIdentityInterface) {
             // Administrator signed in as 'reseller' identity then signed in as 'user' identity
-            if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
+            if ($identity->getSuIdentity() instanceof CpSuIdentityInterface) {
                 if (NULL !== $userId) {
                     // Unsupported use case: An administrator signed in as 'reseller' identity, then signed in as 'user' identity can only become back
                     // to himself
@@ -207,7 +207,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
                 if ($identity->getSuUserType() == 'admin') {
                     if ($identity->getUserType() == 'reseller') { // Administrator signed in as 'reseller' identity
                         if (NULL !== $userId) { // and that want become a 'user' identity of that 'reseller' identity
-                            $newIdentity = new SuIdentity($identity, $this->getIdentityFromDb($userId));
+                            $newIdentity = new CpSuIdentity($identity, $this->getIdentityFromDb($userId));
                         } else { // and that wants become back to himself
                             $newIdentity = $identity->getSuIdentity();
                         }
@@ -238,7 +238,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
             // Unsupported use case: A non SU identity cannot become back to himself and an 'user' identity cannot become another user identity
             View::showBadRequestErrorPage();
         } else { // Administrator or reseller that wants become another user identity
-            $newIdentity = new SuIdentity($identity, $this->getIdentityFromDb($userId));
+            $newIdentity = new CpSuIdentity($identity, $this->getIdentityFromDb($userId));
             if ($identity->getUserType() == 'reseller' && $newIdentity->getUserCreatedBy() != $identity->getUserId()) {
                 // A reseller cannot become an user identity that have not been created by himself
                 View::showBadRequestErrorPage();
@@ -259,7 +259,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
      *
      * Note: Only for IDE type hinting
      *
-     * @return UserIdentityInterface|SuIdentityInterface|null
+     * @return UserIdentityInterface|CpSuIdentityInterface|null
      */
     public function getIdentity()
     {
@@ -314,7 +314,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
         $result = $stmt->execute([$identityId]);
 
         if ($result instanceof ResultInterface && $result->isQueryResult()) {
-            $resultSet = new HydratingResultSet(new ReflectionHydrator, new UserIdentity());
+            $resultSet = new HydratingResultSet(new ReflectionHydrator, new CpUserIdentity());
             $resultSet->initialize($result);
 
             if (count($resultSet) < 1) {

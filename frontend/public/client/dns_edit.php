@@ -496,7 +496,7 @@ function client_decodeDnsRecordData($data)
 function client_saveDnsRecord($dnsRecordId)
 {
     $error = false;
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+    $mainDmnProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $mainDmnId = $mainDmnProps['domain_id'];
     $errorString = '';
     $dnsRecordClass = client_getPost('class');
@@ -896,7 +896,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('custom_dns_records') or View::showBadRequestErrorPage();
+Counting::userHasFeature('dnsEditor') or View::showBadRequestErrorPage();
 
 $dnsRecordId = isset($_GET['id']) ? intval($_GET['id']) : 0;
 

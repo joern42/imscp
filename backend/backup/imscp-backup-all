@@ -186,24 +186,7 @@ sub backupMaildirs
     my ( $dmnId, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group ) = @_;
 
     my $rows = iMSCP::Database->getInstance()->selectall_hashref(
-        "
-            SELECT domain_name FROM domain WHERE domain_id = ? AND domain_status <> 'todelete'
-            UNION ALL
-            SELECT CONCAT(subdomain_name, '.', domain_name)
-            FROM subdomain
-            JOIN domain USING(domain_id)
-            WHERE domain_id = ?
-            AND subdomain_status <> 'todelete'
-            UNION ALL
-            SELECT alias_name FROM domain_aliases WHERE domain_id = ? AND alias_status <> 'todelete'
-            UNION ALL
-            SELECT CONCAT(subdomain_alias_name, '.', alias_name)
-            FROM subdomain_alias
-            JOIN domain_aliases USING(alias_id)
-            WHERE domain_id = ?
-            AND subdomain_alias_status <> 'todelete'
-        ",
-        'domain_name', undef, $dmnId, $dmnId, $dmnId, $dmnId
+        "SELECT domain_name FROM domain WHERE domain_id = ? AND domain_status <> 'todelete'", 'domain_name', undef, $dmnId
     );
 
     my $virtualMailDir = iMSCP::Servers::Mta->factory()->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'};
@@ -250,17 +233,18 @@ sub backupAll
 
     my $rows = iMSCP::Database->getInstance()->selectall_hashref(
         "
-            SELECT domain_id, domain_name, domain_admin_id, allowbackup, admin_sys_name, admin_sys_gname
-            FROM domain
-            JOIN admin ON (admin_id = domain_admin_id)
-            WHERE domain_status NOT IN ('disabled', 'todelete')
-            AND allowbackup <> ''
+            SELECT domain_id, domain_name, domain_admin_id, backup, admin_sys_name, admin_sys_gname
+            FROM domain AS t1
+            JOIN admin AS t2 ON (admin_id = domain_admin_id)
+            JOIN client_props AS t3 ON (client_id = admin_id)
+            WHERE t1.domain_status NOT IN ('disabled', 'todelete')
+            AND t3.backup <> ''
         ",
         'domain_id'
     );
 
     while ( my ( $dmnId, $dmnData ) = each( %{ $rows } ) ) {
-        next unless $dmnData->{'allowbackup'} && $dmnData->{'allowbackup'} =~ /\b(?:dmn|sql|mail)\b/;
+        next unless $dmnData->{'backup'} && $dmnData->{'backup'} =~ /\b(?:dmn|sql|mail)\b/;
 
         my $homeDir = "$::imscpConfig{'USER_WEB_DIR'}/$dmnData->{'domain_name'}";
         next unless -d $homeDir;

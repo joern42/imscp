@@ -26,46 +26,40 @@ use iMSCP\Functions\View;
 /**
  * Deletes an admin or reseller user
  *
- * @param int $userId User unique identifier
+ * @param int $userID User unique identifier
+ * @return void
  */
-function admin_deleteUser($userId)
+function admin_deleteUser($userID)
 {
-    $userId = intval($userId);
     $cfg = Application::getInstance()->getConfig();
     $db = Application::getInstance()->getDb();
-    $stmt = execQuery(
-        '
-            SELECT t1.admin_type, t2.logo
-            FROM admin AS t1
-            LEFT JOIN user_gui_props AS t2 ON (t2.user_id = t1.admin_id)
-            WHERE t1.admin_id = ?
-        ',
-        [$userId]
-    );
+    $stmt = execQuery('SELECT t1.type, t2.layoutLogo FROM imscp_user AS t1 LEFT JOIN imscp_ui_props AS t2 USING(userID) WHERE t1.userID = ?', [
+        $userID
+    ]);
     $row = $stmt->fetch();
-    $userType = $row['admin_type'];
+    $userType = $row['type'];
 
-    if (empty($userType) || $userType == 'user') {
+    if (empty($userType) || $userType == 'client') {
         View::showBadRequestErrorPage();
     }
 
     // Users (admins/resellers) common items to delete
     $itemsToDelete = [
-        'admin'          => 'admin_id = ?',
-        'email_tpls'     => 'owner_id = ?',
-        'tickets'        => 'ticket_from = ? OR ticket_to = ?',
-        'user_gui_props' => 'user_id = ?'
+        'imscp_user'           => 'userID = ?',
+        'imscp_email_template' => 'userID = ?',
+        'imscp_ticket'         => 'ticketFrom = ? OR ticketTo = ?',
+        'imscp_ui_props'       => 'userID = ?'
     ];
 
     if ($userType == 'reseller') {
         // Getting custom reseller isp logo if set
-        $resellerLogo = $row['logo'];
+        $resellerLogo = $row['layoutLogo'];
 
         // Add specific reseller items to remove
         $itemsToDelete = array_merge(
             [
-                'hosting_plans'  => 'reseller_id = ?',
-                'reseller_props' => 'reseller_id = ?',
+                'imscp_hosting_plan'  => 'userID = ?',
+                'imscp_reseller_props' => 'userID = ?',
             ],
             $itemsToDelete
         );
@@ -75,22 +69,20 @@ function admin_deleteUser($userId)
     // the database. If one query fail, the whole process is reverted.
 
     try {
-        // Cleanup database
         $db->getDriver()->getConnection()->beginTransaction();
 
-        Application::getInstance()->getEventManager()->trigger(Events::onBeforeDeleteUser, NULL, ['userId' => $userId]);
+        Application::getInstance()->getEventManager()->trigger(Events::onBeforeDeleteUser, NULL, ['userId' => $userID]);
 
         foreach ($itemsToDelete as $table => $where) {
             $query = "DELETE FROM " . quoteIdentifier($table) . ($where ? " WHERE $where" : '');
-            execQuery($query, array_fill(0, substr_count($where, '?'), $userId));
+            execQuery($query, array_fill(0, substr_count($where, '?'), $userID));
         }
 
-        Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteUser, NULL, ['userId' => $userId]);
+        Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteUser, NULL, ['userId' => $userID]);
 
         $db->getDriver()->getConnection()->commit();
 
         // Cleanup files system
-
         // We are safe here. We don't stop the process even if files cannot be removed. That can result in garbages but
         // the sysadmin can easily delete them through ssh.
 
@@ -102,9 +94,8 @@ function admin_deleteUser($userId)
             }
         }
 
-        $userTr = $userType == 'reseller' ? tr('Reseller') : tr('Admin');
-        View::setPageMessage(tr('%s account successfully deleted.', $userTr), 'success');
-        writeLog(Application::getInstance()->getAuthService()->getIdentity()->getUsername() . ": deletes user " . $userId, E_USER_NOTICE);
+        View::setPageMessage(tr('%s account successfully deleted.', $userType == 'reseller' ? tr('Reseller') : tr('Administrator')), 'success');
+        writeLog(Application::getInstance()->getAuthService()->getIdentity()->getUsername() . ": deletes user " . $userID, E_USER_NOTICE);
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         throw $e;
@@ -116,17 +107,16 @@ function admin_deleteUser($userId)
 /**
  * Validates admin or reseller deletion
  *
- * @param int $userId User unique identifier
+ * @param int $userID User unique identifier
  * @return bool TRUE if deletion can be done, FALSE otherwise
  */
-function admin_validateUserDeletion($userId)
+function admin_validateUserDeletion($userID)
 {
-    $stmt = execQuery('SELECT admin_type, created_by FROM admin WHERE admin_id = ?', [$userId]);
-    // No user found; assume a bad request
+    $stmt = execQuery('SELECT type, createdBy FROM imscp_user WHERE userID = ?', [$userID]);
     $stmt->rowCount() or View::showBadRequestErrorPage(); 
     $row = $stmt->fetch();
 
-    if ($row['created_by'] == 0) {
+    if ($row['createdBy'] == 0) {
         View::setPageMessage(tr('You cannot delete the master administrator.'), 'error');
     }
 
@@ -135,14 +125,14 @@ function admin_validateUserDeletion($userId)
         View::showBadRequestErrorPage();
     }
 
-    $stmt = execQuery('SELECT COUNT(admin_id) AS user_count FROM admin WHERE created_by = ?', [$userId]);
+    $stmt = execQuery('SELECT COUNT(userID) AS usersCount FROM imscp_user WHERE createdBy = ?', [$userID]);
     $row2 = $stmt->fetch();
 
-    if ($row2['user_count'] > 0) {
-        if ($row['admin_type'] == 'admin') {
-            View::setPageMessage(tr('Before deleting this administrator, please move all his resellers.'), 'error');
+    if ($row2['usersCount'] > 0) {
+        if ($row['type'] == 'admin') {
+            View::setPageMessage(tr('Before deleting this administrator, please move all his resellers to another administrator.'), 'error');
         } else {
-            View::setPageMessage(tr('You cannot delete a reseller that has customer accounts.'), 'error');
+            View::setPageMessage(tr('Before deleting this reseller, please move all his client to another reseller.'), 'error');
         }
 
         return false;
@@ -166,11 +156,11 @@ if (isset($_GET['delete_id'])) {
 
     try {
         deleteCustomer($userId) or View::showBadRequestErrorPage();
-        View::setPageMessage(tr('Customer account successfully scheduled for deletion.'), 'success');
-        writeLog(sprintf('%s scheduled deletion of the customer account with ID %d', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $userId), E_USER_NOTICE);
+        View::setPageMessage(tr('Client successfully scheduled for deletion.'), 'success');
+        writeLog(sprintf('%s scheduled deletion of the client with ID %d', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $userId), E_USER_NOTICE);
     } catch (\Exception $e) {
-        View::setPageMessage(tr('Unable to schedule deletion of the customer account.'), 'error');
-        writeLog(sprintf("System was unable to schedule deletion of customer account with ID %s: %s.", $userId, $e->getMessage()), E_USER_ERROR);
+        View::setPageMessage(tr('Unable to schedule deletion of the client.'), 'error');
+        writeLog(sprintf("System was unable to schedule deletion of client with ID %s: %s.", $userId, $e->getMessage()), E_USER_ERROR);
     }
 
     redirectTo('users.php');

@@ -86,7 +86,7 @@ function generateDomainsList($tpl)
                     'DOMAIN_EDIT_LINK' => toHtml("domain_edit.php?id={$row['domain_id']}", 'htmlAttr'),
                     'DOMAIN_EDIT'      => toHtml(tr('Edit')),
                     'CERT_SCRIPT'      => toHtml("cert_view.php?id={$row['domain_id']}&type=dmn", 'htmlAttr'),
-                    'VIEW_CERT'        => toHtml(Counting::customerHasFeature('ssl') ? tr('Manage SSL certificate') : tr('View SSL certificate'))
+                    'VIEW_CERT'        => toHtml(Counting::userHasFeature('webSSL') ? tr('Manage SSL certificate') : tr('View SSL certificate'))
                 ]);
                 $tpl->assign('DMN_STATUS_DISABLED', '');
                 $tpl->parse('DMN_STATUS_OK', 'dmn_status_ok');
@@ -122,7 +122,7 @@ function generateDomainsList($tpl)
  */
 function generateDomainAliasesList($tpl)
 {
-    if (!Counting::customerHasFeature('domain_aliases')) {
+    if (!Counting::userHasFeature('domain_aliases')) {
         $tpl->assign('ALS_BLOCK', '');
         return;
     }
@@ -202,7 +202,7 @@ function generateDomainAliasesList($tpl)
                     'ALS_EDIT_LINK'     => toHtml("alias_edit.php?id={$row['alias_id']}", 'htmlAttr'),
                     'ALS_EDIT'          => toHtml(tr('Edit')),
                     'CERT_SCRIPT'       => toHtml("cert_view.php?id={$row['alias_id']}&type=als", 'htmlAttr'),
-                    'VIEW_CERT'         => toHtml(Counting::customerHasFeature('ssl') ? tr('Manage SSL certificate') : tr('View SSL certificate')),
+                    'VIEW_CERT'         => toHtml(Counting::userHasFeature('webSSL') ? tr('Manage SSL certificate') : tr('View SSL certificate')),
                     'ALS_ACTION'        => toHtml($row['alias_status'] == 'ordered' ? tr('Delete order') : tr('Delete')),
                     'ALS_ACTION_SCRIPT' => toHtml($row['alias_status'] == 'ordered' ? "alias_order_delete.php?id={$row['alias_id']}" : "alias_delete.php?id={$row['alias_id']}", 'htmlAttr')
                 ]);
@@ -240,7 +240,7 @@ function generateDomainAliasesList($tpl)
  */
 function generateSubdomainsList($tpl)
 {
-    if (!Counting::customerHasFeature('subdomains')) {
+    if (!Counting::userHasFeature('webSubdomains')) {
         $tpl->assign('SUB_BLOCK', '');
         return;
     }
@@ -326,7 +326,7 @@ function generateSubdomainsList($tpl)
                     'SUB_EDIT_LINK'     => toHtml("subdomain_edit.php?id={$row['subdomain_id']}&type={$row['sub_type']}", 'htmlAttr'),
                     'SUB_EDIT'          => toHtml(tr('Edit')),
                     'CERT_SCRIPT'       => toHtml($certScript, 'htmlAttr'),
-                    'VIEW_CERT'         => toHtml(Counting::customerHasFeature('ssl') ? tr('Manage SSL certificate') : tr('View SSL certificate')),
+                    'VIEW_CERT'         => toHtml(Counting::userHasFeature('webSSL') ? tr('Manage SSL certificate') : tr('View SSL certificate')),
                     'SUB_ACTION'        => toHtml(tr('Delete')),
                     'SUB_ACTION_SCRIPT' => toHtml($actionScript, 'htmlAttr')
                 ]);
@@ -392,7 +392,7 @@ function generateCustomDnsRecordAction($action, $id, $status, $ownedBy = 'custom
  */
 function generateCustomDnsRecordsList($tpl)
 {
-    if (!Counting::customerHasFeature('custom_dns_records')) {
+    if (!Counting::userHasFeature('dnsEditor')) {
         $filterCond = "AND owned_by <> 'custom_dns_feature'";
     } else {
         $filterCond = '';
@@ -412,7 +412,7 @@ function generateCustomDnsRecordsList($tpl)
     );
 
     if (!$stmt->rowCount()) {
-        if (Counting::customerHasFeature('custom_dns_records')) {
+        if (Counting::userHasFeature('dnsEditor')) {
             $tpl->assign([
                 'DNS_MSG'   => tr('You do not have custom DNS resource records.'),
                 'DNS_ITEMS' => ''
@@ -548,7 +548,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 });
 
 global $baseServerVhostUtf8;
-if (Application::getInstance()->getConfig()->get('CLIENT_DOMAIN_ALT_URLS') == 'yes') {
+if (Application::getInstance()->getConfig()['CLIENT_DOMAIN_ALT_URLS'] == 'yes') {
     $baseServerVhostUtf8 = decodeIdna(Application::getInstance()->getConfig()->get('BASE_SERVER_VHOST'));
 }
 

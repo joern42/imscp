@@ -22,7 +22,7 @@ namespace iMSCP\Model\Store\Setting;
 
 /**
  * Interface setting
- * @package iMSCP\Model\Store
+ * @package iMSCP\Model\Store\Setting
  */
 interface SettingInterface
 {

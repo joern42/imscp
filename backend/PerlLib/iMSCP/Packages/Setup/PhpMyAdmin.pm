@@ -131,7 +131,7 @@ sub showDialog
 
             ( $rs, $dbUser ) = $dialog->inputbox( <<"EOF", $dbUser );
 $iMSCP::Dialog::InputValidation::lastValidationError
-Please enter a username for the PhpMyAdmin SQL user (leave empty for default):
+Please enter an username for the PhpMyAdmin SQL user (leave empty for default):
 \\Z \\Zn
 EOF
         } while $rs < 30 && ( !isValidUsername( $dbUser )

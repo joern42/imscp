@@ -48,7 +48,7 @@ class LostPassword
         if (!($image = imagecreate($config['LOSTPASSWORD_CAPTCHA_WIDTH'], $config['LOSTPASSWORD_CAPTCHA_HEIGHT']))) {
             throw new \RuntimeException('Cannot initialize new GD image stream.');
         }
-        
+
         imagecolorallocate($image, $rgBgColor[0], $rgBgColor[1], $rgBgColor[2]);
         $textColor = imagecolorallocate($image, $rgTextColor[0], $rgTextColor[1], $rgTextColor[2]);
         $nbLetters = 6;
@@ -95,7 +95,9 @@ class LostPassword
      */
     public static function removeOldKeys(int $ttl): void
     {
-        execQuery('UPDATE admin SET uniqkey = NULL, uniqkey_time = NULL WHERE uniqkey_time < ?', [date('Y-m-d H:i:s', time() - $ttl * 60)]);
+        execQuery('UPDATE imscp_user SET lastLostPasswordRequestTime = NULL, lostPasswordKey = NULL WHERE uniqkey_time < ?', [
+            date('Y-m-d H:i:s', time() - $ttl * 60)
+        ]);
     }
 
     /**
@@ -107,30 +109,25 @@ class LostPassword
      */
     public static function setUniqKey(string $adminName, string $uniqueKey): void
     {
-        execQuery('UPDATE admin SET uniqkey = ?, uniqkey_time = ? WHERE admin_name = ?', [$uniqueKey, date('Y-m-d H:i:s', time()), $adminName]);
+        execQuery('UPDATE imscp_user SET lastLostPasswordRequestTime = ?, lostPasswordKey = ? WHERE username = ?', [
+            $uniqueKey, date('Y-m-d H:i:s', time()), $adminName
+        ]);
     }
 
     /**
      * Set password
      *
-     * @param string $userType User type (admin|reseller|user)
      * @param string $uniqueKey
      * @param string $userPassword
      * @return void
      */
-    public static function setPassword(string $userType, string $uniqueKey, string $userPassword): void
+    public static function setPassword(string $uniqueKey, string $userPassword): void
     {
         $passwordHash = Crypt::bcrypt($userPassword);
 
-        if ($userType == 'user') {
-            execQuery('UPDATE admin SET admin_pass = ?, uniqkey = NULL, uniqkey_time = NULL, admin_status = ? WHERE uniqkey = ?', [
-                $passwordHash, 'tochangepwd', $uniqueKey
-            ]);
-            Daemon::sendRequest();
-            return;
-        }
-
-        execQuery('UPDATE admin SET admin_pass = ?, uniqkey = NULL, uniqkey_time = NULL WHERE uniqkey = ?', [$passwordHash, $uniqueKey]);
+        execQuery('UPDATE imscp_user SET passwordHash = ?, lastLostPasswordRequestTime = NULL, lostPasswordKey = NULL WHERE uniqkey = ?', [
+            $passwordHash, $uniqueKey
+        ]);
     }
 
     /**
@@ -141,7 +138,7 @@ class LostPassword
      */
     public static function uniqueKeyExists(string $uniqueKey): bool
     {
-        return execQuery('SELECT 1 FROM admin WHERE uniqkey = ?', [$uniqueKey])->fetchColumn() !== false;
+        return execQuery('SELECT 1 FROM imscp_user WHERE lostPasswordKey = ?', [$uniqueKey])->fetchColumn() !== false;
     }
 
     /**
@@ -166,7 +163,7 @@ class LostPassword
      */
     public static function sendPasswordRequestValidation(string $adminName): bool
     {
-        $stmt = execQuery('SELECT admin_id, created_by, fname, lname, email FROM admin WHERE admin_name = ?', [$adminName]);
+        $stmt = execQuery('SELECT userID, createdBy, firstName, lastName, email FROM imscp_user WHERE username = ?', [$adminName]);
 
         if (!$stmt->rowCount()) {
             View::setPageMessage(tr('Wrong username.'), 'error');
@@ -174,10 +171,10 @@ class LostPassword
         }
 
         $row = $stmt->fetch();
-        $createdBy = $row['created_by'];
+        $createdBy = $row['createdBy'];
 
         if ($createdBy == 0) {
-            $createdBy = $row['admin_id']; // Force usage of default template for any admin request
+            $createdBy = $row['userID']; // Force usage of default template for any admin request
         }
 
         $data = Mail::getLostpasswordActivationEmail($createdBy);
@@ -187,13 +184,13 @@ class LostPassword
         static::setUniqKey($adminName, $uniqueKey);
 
         $ret = Mail::sendMail([
-            'mail_id'      => 'lostpw-msg-1',
-            'fname'        => $row['fname'],
-            'lname'        => $row['lname'],
+            'mailID'      => 'lostpw-msg-1',
+            'firstName'    => $row['firstName'],
+            'lastName'     => $row['lastName'],
             'username'     => $adminName,
             'email'        => $row['email'],
-            'subject'      => $data['subject'],
-            'message'      => $data['message'],
+            'emailSubject' => $data['emailSubject'],
+            'emailBody'    => $data['emailBody'],
             'placeholders' => [
                 '{LINK}' => getRequestBaseUrl() . '/lostpassword.php?key=' . $uniqueKey
             ]
@@ -217,7 +214,7 @@ class LostPassword
     public static function sendPassword(string $uniqueKey): bool
     {
         $stmt = execQuery(
-            'SELECT admin_id, admin_name, admin_type, created_by, fname, lname, email, uniqkey, admin_status FROM admin WHERE uniqkey = ?',
+            'SELECT userID, username, type, createdBy, firstName, lastName, email, lostPasswordKey FROM imscp_user WHERE uniqkey = ?',
             [$uniqueKey]
         );
 
@@ -227,39 +224,42 @@ class LostPassword
         }
 
         $row = $stmt->fetch();
+
+        /*        
         if ($row['admin_status'] != 'ok') {
             View::setPageMessage(tr('Your request for password renewal cannot be honored. Please retry in few minutes.'), 'error');
             return false;
         }
+        */
 
         $cfg = Application::getInstance()->getConfig();
         $userPassword = Crypt::randomStr(
             isset($cfg['PASSWD_CHARS']) ? $cfg['PASSWD_CHARS'] : 6, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
         );
-        static::setPassword($row['admin_type'], $uniqueKey, $userPassword);
-        writeLog(sprintf('Lostpassword: A New password has been set for the %s user', $row['admin_name']), E_USER_NOTICE);
+        static::setPassword($uniqueKey, $userPassword);
+        writeLog(sprintf('Lostpassword: A New password has been set for the %s user', $row['userrname']), E_USER_NOTICE);
 
-        $createdBy = $row['created_by'];
+        $createdBy = $row['createdBy'];
         if ($createdBy == 0) {
-            $createdBy = $row['admin_id'];
+            $createdBy = $row['userId'];
         }
 
         $data = Mail::getLostpasswordEmail($createdBy);
         $ret = Mail::sendMail([
-            'mail_id'      => 'lostpw-msg-2',
-            'fname'        => $row['fname'],
-            'lname'        => $row['lname'],
-            'username'     => $row['admin_name'],
+            'mailID'       => 'lostpw-msg-2',
+            'firstName'    => $row['firstName'],
+            'lastName'     => $row['lastName'],
+            'username'     => $row['username'],
             'email'        => $row['email'],
-            'subject'      => $data['subject'],
-            'message'      => $data['message'],
+            'emailSubject' => $data['emailSubject'],
+            'emailBody'    => $data['emailBody'],
             'placeholders' => [
                 '{PASSWORD}' => $userPassword
             ]
         ]);
 
         if (!$ret) {
-            writeLog(sprintf("Couldn't send new passsword to %s", $row['admin_name']), E_USER_ERROR);
+            writeLog(sprintf("Couldn't send new passsword to %s", $row['username']), E_USER_ERROR);
             View::setPageMessage(tr('An unexpected error occurred. Please contact your administrator.'));
             return false;
         }

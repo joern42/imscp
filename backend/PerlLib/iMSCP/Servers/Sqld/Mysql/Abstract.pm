@@ -172,14 +172,15 @@ sub sqlUserHostDialog
     my $hostname = ::setupGetQuestion( 'DATABASE_USER_HOST', ::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' ));
 
     if ( grep ($hostname eq $_, ( 'localhost', '127.0.0.1', '::1' )) ) {
+        # Handle switch case (default value). Host cannot be one of above value
+        # when using remote SQL server 
         $hostname = ::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
     }
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'sqld', 'servers', 'all', 'forced' ] )
-        || ( $hostname ne '%' && !isValidHostname( $hostname ) && !isValidIpAddr( $hostname, ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes'
-        || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ) ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ ) )
+        || ( $hostname ne '%' && !isValidHostname( $hostname ) && !isValidIpAddr( $hostname) )
     ) {
         my $rs = 0;
 
@@ -189,11 +190,7 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter the host from which SQL users created by i-MSCP must be allowed to connect:
 \\Z \\Zn
 EOF
-        } while $rs < 30 && ( $hostname ne '%' && !isValidHostname( $hostname )
-            && !isValidIpAddr( $hostname,
-            ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
-                ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ )
-        );
+        } while $rs < 30 && ( $hostname ne '%' && !isValidHostname( $hostname ) && !isValidIpAddr( $hostname ) );
 
         return unless $rs < 30;
     }
@@ -498,6 +495,8 @@ sub _askSqlRootUser
     );
 
     if ( index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 && grep { $hostname eq $_ } ( 'localhost', '127.0.0.1', '::1' ) ) {
+        # Handle switch case (default value). Host cannot be one of above value
+        # when using remote SQL server
         $hostname = '';
     }
 
@@ -745,16 +744,16 @@ sub _setupDatabase
         my $dbSchemaFile = File::Temp->new();
         $self->buildConfFile( "$::imscpConfig{'CONF_DIR'}/database/database.sql", $dbSchemaFile, undef, { DATABASE_NAME => $dbName } );
 
-        my $defaultsExtraFile = File::Temp->new();
-        print $defaultsExtraFile <<'EOF';
+        my $mysqlDefaultsFile = File::Temp->new();
+        print $mysqlDefaultsFile <<'EOF';
 [mysql]
 host = {HOST}
 port = {PORT}
 user = "{USER}"
 password = "{PASSWORD}"
 EOF
-        $defaultsExtraFile->close();
-        $self->buildConfFile( $defaultsExtraFile, undef, undef,
+        $mysqlDefaultsFile->close();
+        $self->buildConfFile( $mysqlDefaultsFile, undef, undef,
             {
                 HOST     => ::setupGetQuestion( 'DATABASE_HOST' ),
                 PORT     => ::setupGetQuestion( 'DATABASE_PORT' ),
@@ -762,11 +761,11 @@ EOF
                 PASSWORD => decryptRijndaelCBC( $::imscpKEY, $::imscpIV, ::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
             },
             {
-                srcname => 'defaults-extra-file'
+                srcname => 'mysql-defaults-file'
             }
         );
 
-        my $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \my $stdout, \my $stderr );
+        my $rs = execute( "mysql --defaults-file=$mysqlDefaultsFile < $dbSchemaFile", \my $stdout, \my $stderr );
         debug( $stdout ) if length $stdout;
         $rs == 0 or die( $stderr || 'Unknown error' );
     }
@@ -850,7 +849,7 @@ sub _tryDbConnect
 
 =cut
 
-sub _restoreDatabase
+sub  _restoreDatabase
 {
     my ( $self, $dbName, $dbDumpFilePath ) = @_;
 
@@ -890,8 +889,8 @@ sub _restoreDatabase
         # has been used while objects creation.
         $self->{'dbh'}->do( "GRANT SUPER ON *.* TO ?\@?", undef, $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'} );
 
-        my $defaultsExtraFile = File::Temp->new();
-        print $defaultsExtraFile <<"EOF";
+        my $mysqlDefaultsFile = File::Temp->new();
+        print $mysqlDefaultsFile <<"EOF";
 [mysql]
 host = $::imscpConfig{'DATABASE_HOST'}
 port = $::imscpConfig{'DATABASE_PORT'}
@@ -899,9 +898,9 @@ user = @{ [ $tmpUser =~ s/"/\\"/gr ] }
 password = @{ [ $tmpPassword =~ s/"/\\"/gr ] }
 max_allowed_packet = 500M
 EOF
-        $defaultsExtraFile->close();
+        $mysqlDefaultsFile->close();
 
-        my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', "mysql --defaults-extra-file=$defaultsExtraFile", escapeShell( $dbName ) );
+        my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', "mysql --defaults-file=$mysqlDefaultsFile", escapeShell( $dbName ) );
         my $rs = execute( "@cmd", \my $stdout, \my $stderr );
         debug( $stdout ) if length $stdout;
         $rs == 0 or die( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' ));

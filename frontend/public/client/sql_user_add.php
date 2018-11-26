@@ -36,7 +36,7 @@ function checkSqlUserPermissions(TemplateEngine $tpl, $sqldId)
     global $canAddNewSQLUser;
 
     $canAddNewSQLUser = true;
-    $domainProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+    $domainProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
     if ($domainProps['domain_sqlu_limit'] != 0 && Counting::getCustomerSqlUsersCount($domainProps['domain_id']) >= $domainProps['domain_sqlu_limit']) {
         View::setPageMessage(tr("SQL users limit is reached. You cannot add new SQL users."), 'static_info');
@@ -314,7 +314,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('sql') && isset($_REQUEST['sqld_id']) or View::showBadRequestErrorPage();
+Counting::userHasFeature('sql') && isset($_REQUEST['sqld_id']) or View::showBadRequestErrorPage();
 
 $sqldId = intval($_REQUEST['sqld_id']);
 

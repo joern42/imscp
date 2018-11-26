@@ -60,31 +60,31 @@ return [
     'LOSTPASSWORD_TIMEOUT'                => 30,
 
     // Enable/disable countermeasures for bruteforce and dictionary attacks
-    'BRUTEFORCE'                          => 1,
+    //'BRUTEFORCE'                          => 1,
     // Enable/disable waiting time between login/captcha attempts
-    'BRUTEFORCE_BETWEEN'                  => 1,
+    //'BRUTEFORCE_BETWEEN'                  => 1,
     // Max login/captcha attempts before waiting time
-    'BRUTEFORCE_MAX_ATTEMPTS_BEFORE_WAIT' => 2,
+    //'BRUTEFORCE_MAX_ATTEMPTS_BEFORE_WAIT' => 2,
     // Waiting time between login/captcha attempts
-    'BRUTEFORCE_BETWEEN_TIME'             => 30,
+    //'BRUTEFORCE_BETWEEN_TIME'             => 30,
     // Blocking time in minutes
-    'BRUTEFORCE_BLOCK_TIME'               => 15,
+    //'BRUTEFORCE_BLOCK_TIME'               => 15,
     // Max login attempts before blocking time
-    'BRUTEFORCE_MAX_LOGIN'                => 5,
+    //'BRUTEFORCE_MAX_LOGIN'                => 5,
     // Max captcha attempts before blocking time
-    'BRUTEFORCE_MAX_CAPTCHA'              => 5,
+    //'BRUTEFORCE_MAX_CAPTCHA'              => 5,
 
     // Enable or disable maintenance mode
     // 1: Maintenance mode enabled
     // 0: Maintenance mode disabled
-    'MAINTENANCEMODE'                     => 0,
+    //'MAINTENANCEMODE'                     => 0,
 
     // Minimum password chars
-    'PASSWD_CHARS'                        => 6,
+    //'PASSWD_CHARS'                        => 6,
     // Enable or disable strong passwords
     // 1: Strong password enabled
     // 0: Strong password disabled
-    'PASSWD_STRONG'                       => 1,
+    //'PASSWD_STRONG'                       => 1,
 
     // Logging Mailer default level (messages sent to DEFAULT_ADMIN_ADDRESS)
     //
@@ -95,7 +95,7 @@ return [
     //
     // Note: PHP's E_USER_* constants are used for simplicity.
     //
-    'LOG_LEVEL'                           => E_USER_ERROR,
+    //'LOG_LEVEL'                           => E_USER_ERROR,
 
     // Count default abuse, hostmaster, postmaster and webmaster mail accounts
     // in user mail accounts limit
@@ -115,15 +115,15 @@ return [
     //
     // 1: prevent external login, check for referer, more secure
     // 0: allow external login, do not check for referer, less security (risky)
-    'PREVENT_EXTERNAL_LOGIN_ADMIN'        => 1,
-    'PREVENT_EXTERNAL_LOGIN_RESELLER'     => 1,
-    'PREVENT_EXTERNAL_LOGIN_CLIENT'       => 1,
+    //'PREVENT_EXTERNAL_LOGIN_ADMIN'        => 1,
+    //'PREVENT_EXTERNAL_LOGIN_RESELLER'     => 1,
+    //'PREVENT_EXTERNAL_LOGIN_CLIENT'       => 1,
 
     // Automatic search for new version
     'CHECK_FOR_UPDATES'                   => 0,
     'ENABLE_SSL'                          => 1,
 
     // Server traffic settings
-    'SERVER_TRAFFIC_LIMIT'                => 0,
-    'SERVER_TRAFFIC_WARN'                 => 0
+    //'SERVER_TRAFFIC_LIMIT'                => 0,
+    //'SERVER_TRAFFIC_WARN'                 => 0
 ];

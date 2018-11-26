@@ -21,9 +21,12 @@
 namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Form\LoginDataFieldset;
+use iMSCP\Form\PersonalDataFieldset;
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
+use Zend\Form\Element;
 use Zend\Form\Form;
 
 /**
@@ -40,17 +43,16 @@ function updateUserData(Form $form, $userId)
     $data = execQuery('SELECT admin_name FROM admin WHERE admin_id = ? AND created_by = ?', [$userId, $identity->getUserId()])->fetch();
     $data or View::showBadRequestErrorPage();
 
-    if (!$form->isValid($_POST)) {
-        foreach ($form->getMessages() as $msgsStack) {
-            foreach ($msgsStack as $msg) {
-                View::setPageMessage(toHtml($msg), 'error');
-            }
-        }
-
+    if (!$form->isValid()) {
+        View::setPageMessage(View::formatPageMessages($form->getMessages()), 'error');
         return;
     }
 
-    $passwordUpdated = $form->getValue('admin_pass') !== '';
+    /** @var \Zend\Form\Fieldset $loginData */
+    $loginData = $form->get('loginData');
+    /** @var \Zend\Form\Fieldset $personalData */
+    $personalData = $form->get('personalData');
+    $newPassword = $loginData->get('admin_pass')->getValue() !== '';
 
     $db = Application::getInstance()->getDb();
 
@@ -59,7 +61,7 @@ function updateUserData(Form $form, $userId)
 
         Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, NULL, [
             'userId'   => $userId,
-            'userData' => $form->getValues()
+            'userData' => $form->getData()
         ]);
         execQuery(
             "
@@ -69,17 +71,29 @@ function updateUserData(Form $form, $userId)
                 WHERE admin_id = ?
             ",
             [
-                $passwordUpdated ? Crypt::bcrypt($form->getValue('admin_pass')) : NULL, $form->getValue('fname'), $form->getValue('lname'),
-                $form->getValue('firm'), $form->getValue('zip'), $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
-                encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'), $form->getValue('street1'),
-                $form->getValue('street2'), $form->getValue('gender'), $passwordUpdated ? 1 : 0, $userId
+                $newPassword != '' ? Crypt::bcrypt($newPassword) : NULL,
+                $personalData->get('fname')->getValue(),
+                $personalData->get('lname')->getValue(),
+                $personalData->get('firm')->getValue(),
+                $personalData->get('zip')->getValue(),
+                $personalData->get('city')->getValue(),
+                $personalData->get('state')->getValue(),
+                $personalData->get('country')->getValue(),
+                encodeIdna($form->get('email')->getValue()),
+                $personalData->get('phone')->getValue(),
+                $personalData->get('fax')->getValue(),
+                $personalData->get('street1')->getValue(),
+                $personalData->get('street2')->getValue(),
+                $personalData->get('gender')->getValue(),
+                $newPassword != '' ? 1 : 0,
+                $userId
             ]
         );
         // Force user to login again (needed due to possible password or email change)
         execQuery('DELETE FROM login WHERE user_name = ?', [$data['admin_name']]);
         Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, NULL, [
             'userId'   => $userId,
-            'userData' => $form->getValues()
+            'userData' => $form->getData()
         ]);
         $db->getDriver()->getConnection()->commit();
     } catch (\Exception $e) {
@@ -88,10 +102,15 @@ function updateUserData(Form $form, $userId)
     }
 
     $ret = false;
-    if ($passwordUpdated) {
+    if ($newPassword != '') {
         $ret = Mail::sendWelcomeMail(
-            $userId, $data['admin_name'], $form->getValue('admin_pass'), $form->getValue('email'),
-            $form->getValue('fname'), $form->getValue('lname'), tr('Customer')
+            $userId,
+            $data['admin_name'],
+            $newPassword,
+            $personalData->get('email')->getValue(),
+            $personalData->get('fname')->getValue(),
+            $personalData->get('lname')->getValue(),
+            tr('Customer')
         );
     }
 
@@ -117,11 +136,13 @@ function updateUserData(Form $form, $userId)
  */
 function generatePage(TemplateEngine $tpl, Form $form, $userId)
 {
+    /** @noinspection PhpUndefinedFieldInspection */
     $tpl->form = $form;
+    /** @noinspection PhpUndefinedFieldInspection */
     $tpl->editId = $userId;
 
     if (Application::getInstance()->getRequest()->isPost()) {
-        $form->setDefault('admin_name', getUsername($userId));
+        $form->get('loginData')->get('admin_name')->setValue(getUsername($userId));
         return;
     }
 
@@ -136,7 +157,8 @@ function generatePage(TemplateEngine $tpl, Form $form, $userId)
     );
 
     $data = $stmt->fetch() or View::showBadRequestErrorPage();
-    $form->setDefaults($data);
+    $form->get('loginData')->populateValues($data);
+    $form->get('personalData')->populateValues($data);
 }
 
 require_once 'application.php';
@@ -151,9 +173,38 @@ if ($userId == Application::getInstance()->getAuthService()->getIdentity()->getU
     redirectTo('personal_change.php');
 }
 
-$form = getUserLoginDataForm(false, false)->addElements(getUserPersonalDataForm()->getElements());
+($form = new Form('UserEditForm'))
+    ->add([
+        'type' => LoginDataFieldset::class,
+        'name' => 'loginData'
+    ])
+    ->add([
+        'type' => PersonalDataFieldset::class,
+        'name' => 'personalData'
+    ])
+    ->add([
+        'type'    => Element\Csrf::class,
+        'name'    => 'csrf',
+        'options' => [
+            'csrf_options' => [
+                'timeout' => 300,
+                'message' => tr('Validation token (CSRF) was expired. Please try again.')
+            ]
+        ]
+    ])
+    ->add([
+        'type'    => Element\Submit::class,
+        'name'    => 'submit',
+        'options' => [
+            'label' => tr('Add')
+        ]
+    ])
+    ->get('personalData')->get('gender')->setValue('U');
 
-if(Application::getInstance()->getRequest()->isPost()) {
+
+//$form = getUserLoginDataForm(false, false)->addElements(getUserPersonalDataForm()->getElements());
+
+if (Application::getInstance()->getRequest()->isPost()) {
     updateUserData($form, $userId);
 }
 

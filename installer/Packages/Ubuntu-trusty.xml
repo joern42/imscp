@@ -133,8 +133,8 @@
             <post_install_task>update-alternatives --set phar /usr/bin/phar7.1</post_install_task>
             <post_install_task>update-alternatives --set phar.phar /usr/bin/phar.phar7.1</post_install_task>
             <post_install_task>
-                phpenmod ctype fileinfo ftp gettext iconv pdo phar posix sockets curl gd gmp imap intl json mbstring mcrypt mysqlnd mysqli pdo_mysql
-                opcache pspell dom xml xmlreader xmlwriter zip
+                phpenmod apcu apcu_bc ctype fileinfo ftp gettext iconv pdo phar posix sockets curl gd gmp imap intl json mbstring mcrypt mysqlnd
+                mysqli pdo_mysql opcache pspell dom xml xmlreader xmlwriter zip
             </post_install_task>
         </php>
     </php>
@@ -229,7 +229,6 @@
                 pinning_package="libmysqlclient18 mysql-common mysql-client-5.5 mysql-server-5.5"
                 pinning_pin="release o=Ubuntu,n=trusty"
                 pinning_pin_priority="1001"
-                allow_switch="mysql_5.6,mysql_5.7,remote_server"
         >
             <package>libmysqlclient18</package>
             <package>mysql-client-5.5</package>
@@ -242,7 +241,6 @@
                 pinning_package="libmysqlclient18 mysql-common mysql-client-5.6 mysql-server-5.6"
                 pinning_pin="release o=Ubuntu,n=trusty"
                 pinning_pin_priority="1001"
-                allow_switch="mysql_5.7,remote_server"
         >
             <package>libmysqlclient18</package>
             <package>mysql-client-5.6</package>

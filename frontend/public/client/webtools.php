@@ -32,12 +32,12 @@ use iMSCP\Functions\View;
  */
 function client_hideDisabledFeatures($tpl)
 {
-    if (!Counting::customerHasFeature('backup')) {
+    if (!Counting::userHasFeature('backup')) {
         $tpl->assign('BACKUP_FEATURE', '');
     }
 
     $webmails = Mail::getWebmailList();
-    if (!Counting::customerHasFeature('mail') || empty($webmails)) {
+    if (!Counting::userHasFeature('mail') || empty($webmails)) {
         $tpl->assign('MAIL_FEATURE', '');
     } else {
         if (in_array('Roundcube', $webmails)) {
@@ -47,11 +47,11 @@ function client_hideDisabledFeatures($tpl)
         }
     }
 
-    if (!Counting::customerHasFeature('ftp') || Application::getInstance()->getConfig()['FILEMANAGERS'] == 'no') {
+    if (!Counting::userHasFeature('ftp') || Application::getInstance()->getConfig()['FILEMANAGERS'] == 'no') {
         $tpl->assign('FTP_FEATURE', '');
     }
 
-    if (!Counting::customerHasFeature('webstats')) {
+    if (!Counting::userHasFeature('webstats')) {
         $tpl->assign('WEBSTATS_FEATURE', '');
     }
 }

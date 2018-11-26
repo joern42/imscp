@@ -21,7 +21,6 @@
 namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
-use iMSCP\Config\DbConfig;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -38,8 +37,7 @@ use Zend\EventManager\Event;
  */
 function validatesService($name, $ip, $port, $protocol, $show, $index = '')
 {
-    $dbConfig = Application::getInstance()->getDbConfig();
-
+    global $services;
     if (Application::getInstance()->getRegistry()->has('errorFieldsIds')) {
         $errorFieldsIds = Application::getInstance()->getRegistry()->get('errorFieldsIds');
     } else {
@@ -216,6 +214,8 @@ function addOrUpdateServices($mode = 'add')
  */
 function generatePage($tpl)
 {
+    global $services;
+
     if (Application::getInstance()->getRegistry()->has('error_on_updt')) {
         $values = new \ArrayObject(Application::getInstance()->getRegistry()->get('error_on_updt'));
         $services = array_keys($values->getArrayCopy());
@@ -278,6 +278,8 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+
+$services = new Services;
 
 if (isset($_POST['uaction']) && $_POST['uaction'] != 'reset') {
     addOrUpdateServices((cleanInput($_POST['uaction'])));

@@ -20,19 +20,26 @@
 
 namespace iMSCP\Model\Store;
 
-use Doctrine\KeyValueStore\Mapping\Annotations as KeyValue;
+use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Class StoreAbstract
  * @package iMSCP\Model\Store
- * @KeyValue\Entity(storageName="imscp_storage")
+ * @ORM\MappedSuperclass
  */
 abstract class StoreAbstract
 {
     /**
-     * @KeyValue\Id
+     * @ORM\Id()
+     * @ORM\column(name="storageID", type="string")
      */
-    protected $storageID;
+    private $storageID;
+
+    /**
+     * @var mixed
+     * @ORM\Column(name="storageData", type="object")
+     */
+    protected $storageData;
 
     /**
      * StoreAbstract constructor.

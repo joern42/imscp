@@ -145,7 +145,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
+Counting::userHasFeature('protected_areas') or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([

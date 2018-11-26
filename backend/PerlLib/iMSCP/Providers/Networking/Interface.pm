@@ -35,7 +35,7 @@ use Carp qw/ croak /;
 
 =over 4
 
-=item addIpAddr( \%data )
+=item addIpAddress( \%data )
 
  Add an IP address
 
@@ -49,11 +49,11 @@ use Carp qw/ croak /;
 
 =cut
 
-sub addIpAddr
+sub addIpAddress
 {
     my ( $self ) = @_;
 
-    die( sprintf( 'The %s class must implement the addIpAddr() method', ref $self ));
+    die( sprintf( 'The %s class must implement the addIpAddress() method', ref $self ));
 }
 
 =item removeIpAddr( \%data )
@@ -70,11 +70,11 @@ sub addIpAddr
 
 =cut
 
-sub removeIpAddr
+sub removeIpAddress
 {
     my ( $self ) = @_;
 
-    die( sprintf( 'The %s class must implement the removeIpAddr() method', ref $self ));
+    die( sprintf( 'The %s class must implement the removeIpAddress() method', ref $self ));
 }
 
 =back

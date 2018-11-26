@@ -420,7 +420,7 @@ sub getTraffic
     # range operator in Perl-Style loop: for( @logs[$idx .. $lastLogIdx] ) ...
     for ( my $i = $idx; $i <= $lastLogIdx; $i++ ) {
         next unless $logs[$i] =~ /$regexp/ && exists $trafficDb->{$+{'domain'}};
-        $trafficDb->{$+{'domain'}} += ( $+{'in'}+$+{'out'} );
+        $trafficDb->{$+{'domain'}} += ( $+{'rcvd'}+$+{'sent'} );
     }
 
     return if substr( $logFile, -2 ) eq '.1';

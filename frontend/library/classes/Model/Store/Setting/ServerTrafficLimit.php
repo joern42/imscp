@@ -49,7 +49,7 @@ class ServerTrafficLimit implements SettingInterface
      * @param int $trafficLimit
      * @param int $trafficWarn
      */
-    public function __construct(string $hostname, int $trafficLimit, int $trafficWarn)
+    public function __construct(string $hostname, int $trafficLimit = 0, int $trafficWarn = 0)
     {
         // TODO validation
         $this->hostname = $hostname;

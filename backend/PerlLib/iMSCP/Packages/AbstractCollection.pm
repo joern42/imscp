@@ -74,11 +74,11 @@ sub showDialog
         ',', ::setupGetQuestion( $ucPackageName, iMSCP::Getopt->preseed ? join( ',', @{ $self->{'AVAILABLE_PACKAGES'} } ) : '' )
     );
 
-    my %choices;
-    @choices{@{ $self->{'AVAILABLE_PACKAGES'} }} = @{ $self->{'AVAILABLE_PACKAGES'} };
+    my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ lc $packageName, 'all', 'forced' ] )
-        || !@{ $self->{'SELECTED_PACKAGES'} } || grep { !exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} }
+        || !@{ $self->{'SELECTED_PACKAGES'} }
+        || grep { !exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} }
     ) {
         ( my $rs, $self->{'SELECTED_PACKAGES'} ) = $dialog->checkbox(
             <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} } ] );

@@ -77,7 +77,7 @@ exit if $dbh->selectrow_array(
         SELECT COUNT(autoreplyTime)
         FROM imscp_autoreply_log
         WHERE autoreplyFrom = ?
-        AND autoreplTo = ?
+        AND autoreplyTo = ?
         AND ADDTIME(autoreplyTime, '24:00:00') > NOW()
         LIMIT 1
     ",
@@ -121,7 +121,7 @@ $mimeEntity->print( $fh );
 close $fh;
 
 # Log autoreply to avoid further processing within the next 24 hours
-$dbh->do( 'INSERT INTO imscp_autoreply_log (autoreplyTime, autoreplyFrom, autoreplTo) VALUES (NOW(),?,?)', undef, $from, $to );
+$dbh->do( 'INSERT INTO imscp_autoreply_log (autoreplyTime, autoreplyFrom, autoreplyTo) VALUES (NOW(),?,?)', undef, $from, $to );
 
 1;
 __END__

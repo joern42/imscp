@@ -21,6 +21,13 @@
 namespace iMSCP\Functions;
 
 use iMSCP\Application;
+use iMSCP\Model\FtpUser;
+use iMSCP\Model\MailMailbox;
+use iMSCP\Model\SqlDatabase;
+use iMSCP\Model\SqlUser;
+use iMSCP\Model\User;
+use iMSCP\Model\UserProperties;
+use iMSCP\Model\WebDomain;
 
 /**
  * Class Counting
@@ -41,7 +48,7 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $count = self::getObjectsCount('imscp_user', 'userID', "type = 'admin'");
+            $count = self::getObjectsCount(User::class, 'userID', "type = ?", ['admin']);
         }
 
         return $count;
@@ -57,7 +64,7 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $count = self::getObjectsCount('imscp_user', 'userID', "type = 'reseller'");
+            $count = self::getObjectsCount(User::class, 'userID', "type = ?", ['reseller']);
         }
 
         return $count;
@@ -73,7 +80,7 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $count = self::getObjectsCount('imscp_user', 'userID', "type = 'client'");
+            $count = self::getObjectsCount(User::class, 'userID', "type = ?", ['client']);
         }
 
         return $count;
@@ -84,12 +91,12 @@ class Counting
      *
      * @return int Count of domains
      */
-    public static function getDomainsCount(): int
+    public static function getWebDomainsCount(): int
     {
         static $count = NULL;
 
         if (NULL === $count) {
-            $count = self::getObjectsCount('imscp_web_domain', 'webDomainID', 'webDomainPID IS NULL');
+            $count = self::getObjectsCount(WebDomain::class, 'webDomainID', 'webDomainPID IS NULL');
         }
 
         return $count;
@@ -101,12 +108,12 @@ class Counting
      *
      * @return int Count of subdomains
      */
-    public static function getSubdomainsCount(): int
+    public static function getWebSubdomainsCount(): int
     {
         $count = NULL;
 
         if (NULL === $count) {
-            $count = self::getObjectsCount('imscp_web_domain', 'webDomainID', 'webDomainPID IS NOT NULL');
+            $count = self::getObjectsCount(WebDomain::class, 'webDomainID', 'webDomainPID IS NOT NULL');
         }
 
         return $count;
@@ -119,13 +126,13 @@ class Counting
      *
      * @return int Count of mail accounts
      */
-    public static function getMailboxesCount(): int
+    public static function getMailMailboxesCount(): int
     {
         static $count = NULL;
 
         if (NULL === $count) {
             $count = self::getObjectsCount(
-                'imscp_mailbox',
+                MailMailbox::class,
                 'mailboxID',
                 !Application::getInstance()->getConfig()['COUNT_DEFAULT_EMAIL_ADDRESSES'] ? "isDefault = 0" : NULL
             );
@@ -144,7 +151,7 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $count = self::getObjectsCount('imscp_ftp_user', 'ftpUserID');
+            $count = self::getObjectsCount(FtpUser::class, 'ftpUserID');
         }
 
         return $count;
@@ -160,7 +167,7 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $count = self::getObjectsCount('imscp_sql_database', 'sqlDatabaseID');
+            $count = self::getObjectsCount(SqlDatabase::class, 'sqlDatabaseID');
         }
 
         return $count;
@@ -176,7 +183,7 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $count = self::getObjectsCount('imscp_sql_user', 'sqlUserID');
+            $count = self::getObjectsCount(SqlUser::class, 'sqlUserID');
         }
 
         return $count;
@@ -193,11 +200,9 @@ class Counting
      */
     public static function getObjectsCount(string $table, string $objectIDfield, string $where = NULL, ?$params = []): int
     {
-        $qb = Application::getInstance()
-            ->getEntityManager()
-            ->getConnection()
-            ->createQueryBuilder()
-            ->select("COUNT($objectIDfield)")
+        $qb = Application::getInstance()->getEntityManager()->createQueryBuilder();
+        $qb
+            ->select($qb->expr()->count($objectIDfield))
             ->from($table);
 
         if ($where !== NULL) {
@@ -207,7 +212,7 @@ class Counting
             }
         }
 
-        return $qb->execute()->fetchColumn();
+        return $qb->getQuery()->getSingleScalarResult();
     }
 
     /**
@@ -222,9 +227,10 @@ class Counting
             self::getAdministratorsCount(),
             self::getResellersCount(),
             self::getClientsCount(),
-            self::getDomainsCount(),
-            self::getSubdomainsCount(),
-            self::getMailboxesCount(),
+            self::getWebDomainsCount(),
+            self::getWebSubdomainsCount(),
+            self::getMailMailboxesCount(),
+            self::getMailCatchallCount(),
             self::getFtpUsersCount(),
             self::getSqlDatabasesCount(),
             self::getSqlUsersCount()
@@ -632,16 +638,7 @@ class Counting
      */
     public static function systemHasAntiRootkits(): bool
     {
-        $config = $db = Application::getInstance()->getConfig();
-        if ((isset($config['ANTIROOTKITS']) && $config['ANTIROOTKITS'] != 'no' && $config['ANTIROOTKITS'] != ''
-                && ((isset($config['CHKROOTKIT_LOG']) && $config['CHKROOTKIT_LOG'] != '')
-                    || (isset($config['RKHUNTER_LOG']) && $config['RKHUNTER_LOG'] != '')))
-            || isset($config['OTHER_ROOTKIT_LOG']) && $config['OTHER_ROOTKIT_LOG'] != ''
-        ) {
-            return true;
-        }
-
-        return false;
+        return Application::getInstance()->getConfig()['ANTIROOTKITS'];
     }
 
     /**
@@ -669,81 +666,63 @@ class Counting
     }
 
     /**
-     * Tells whether or not the logged-in reseller has the given feature
-     *
-     * @param string $featureName Feature name
-     * @param bool $forceReload If true force data to be reloaded
-     * @return bool TRUE if $featureName is available for the reseller, FALSE otherwise
-     */
-    public static function resellerHasFeature(string $featureName, bool $forceReload = false): bool
-    {
-        static $availableFeatures = NULL;
-
-        if (NULL == $availableFeatures || $forceReload) {
-            $config = Application::getInstance()->getConfig();
-            $resellerProps = getResellerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
-            $availableFeatures = [
-                'domains'             => $resellerProps['domainsLimit'] != -1,
-                'subdomains'          => $resellerProps['subdomainsLimit'] != -1,
-                'mail'                => $resellerProps['mailboxesLimit'] != -1,
-                'ftp'                 => $resellerProps['ftpUsersLimit'] != -1,
-                'sql'                 => $resellerProps['sqlDatabasesLimit'] != -1 && $resellerProps['sqlUsersLimit'] != -1,
-                'php'                 => $resellerProps['php'] == 1,
-                'phpEditor'           => $resellerProps['phpEditor'] == 1,
-                'cgi'                 => $resellerProps['cgi'] == 1,
-                'dns'                 => $resellerProps['dns'] == 1,
-                'dnsEditor'           => $resellerProps['dnsEditor'] == 1 && $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
-                'supportSystem'       => $resellerProps['supportSystem'] == 1 && $config['IMSCP_SUPPORT_SYSTEM'],
-                'externalMailServer'  => $resellerProps['externalMailServer'] == 1,
-                'backup'              => $resellerProps['backup'] == 1 && $config['BACKUP_DOMAINS'] != 'no',
-                'protectedArea'       => $resellerProps['protectedArea'] == 1,
-                'customErrorPages'    => $resellerProps['customErrorPages'] == 1,
-                'webFolderProtection' => $resellerProps['webFolderProtection'] == 1,
-                'webstats'            => $resellerProps['webstats'] == 1
-            ];
-        }
-
-        $featureName = strtolower($featureName);
-        if (!array_key_exists($featureName, $availableFeatures)) {
-            throw new \InvalidArgumentException(sprintf('Unknown feature: %s', $featureName));
-        }
-
-        return $availableFeatures[$featureName];
-    }
-
-    /**
-     * Tells whether or not the logged-in client has the given feature
+     * Tells whether or not the logged-in reseller or client has the given feature
      *
      * @param string $featureName Feature name
      * @param bool $forceReload If true force data to be reloaded
      * @return bool TRUE if $featureName is available for the client, FALSE otherwise
      */
-    public static function clientHasFeature(string $featureName, bool $forceReload = false): bool
+    public static function userHasFeature(string $featureName, bool $forceReload = false): bool
     {
         static $availableFeatures = NULL;
 
         if (NULL === $availableFeatures || $forceReload) {
-            $config = Application::getInstance()->getConfig();
-            $clientProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+            $app = Application::getInstance();
+            $config = $app->getConfig();
+            /** @var UserProperties $cp */
+            $cp = $app->getEntityManager()->find(
+                UserProperties::class, Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+            );
             $availableFeatures = [
-                'domains'             => $clientProps['domainsLimit'] != -1,
-                'subdomains'          => $clientProps['subdomainsLimit'] != -1,
-                'mail'                => $clientProps['mailboxesLimit'] != -1,
-                'ftp'                 => $clientProps['ftpUsersLimit'] != -1,
-                'sql'                 => $clientProps['sqlDatabasesLimit'] != -1 && $clientProps['sqlUsersLimit'] != -1,
-                'php'                 => $clientProps['php'] == 1,
-                'phpEditor'           => $clientProps['phpEditor'] == 1,
-                'cgi'                 => $clientProps['cgi'] == 1,
-                'dns'                 => $clientProps['dns'] == 1,
-                'dnsEditor'           => $clientProps['dnsEditor'] == 1 && $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
-                'supportSystem'       => $clientProps['supportSystem'] == 1 && $config['IMSCP_SUPPORT_SYSTEM'],
-                'externalMailServer'  => $clientProps['externalMailServer'] == 1,
-                'backup'              => $clientProps['backup'] == 1 && $config['BACKUP_DOMAINS'] != 'no',
-                'protectedArea'       => $clientProps['protectedArea'] == 1,
-                'customErrorPages'    => $clientProps['customErrorPages'] == 1,
-                'webFolderProtection' => $clientProps['webFolderProtection'] == 1,
-                'webstats'            => $clientProps['webstats'] == 1,
-                'ssl'                 => $config['ENABLE_SSL'] == 1
+                // User module
+                'user'                => $cp->getUsersLimit() != -1,
+
+                // Web module
+                'web'                 => $cp->getDomainsLimit() != -1 || $cp->getSubdomainsLimit() != -1,
+                'webBackup'           => in_array('web', $cp->getBackupTypes()),
+                'webCGI'              => $cp->hasCGI(),
+                'webCustomErrorPages' => $cp->hasCustomErrorPages(),
+                'webDomains'          => $cp->getDomainsLimit() != -1,
+                'webSubdomains'       => $cp->getSubdomainsLimit() != -1,
+                'webFolderProtection' => $cp->hasWebFolderProtection(),
+                'webPHP'              => $cp->hasPHP(),
+                'webPhpEditor'        => $cp->hasPhpEditor(),
+                'webProtectedAreas'    => $cp->hasProtectedArea(),
+                'webSSL'              => $cp->hasSSL(),
+                'webWebstats'         => $cp->hasWebstats(),
+
+                // FTP module
+                'ftp'                 => $cp->getFtpUsersLimit() != -1,
+
+                // Mail module
+                'mail'                => $cp->getMailboxesLimit() != -1,
+                'mailBackup'          => in_array('mail', $cp->getBackupTypes()),
+                'mailCatchall'        => $cp->getMailboxesLimit() != 1 && $cp->hasMailCatchall(),
+                'mailExternalServer'  => $cp->hasMailExternalServer(),
+                'mailMailboxes'       => $cp->getMailboxesLimit() != -1,
+
+                // SQL module
+                'sql'                 => $cp->getSqlDatabasesLimit() != -1 || $cp->getSqlUsersLimit() != -1,
+                'sqlBackup'           => in_array('sql', $cp->getBackupTypes()),
+                'sqlDatabases'        => $cp->getSqlDatabasesLimit(),
+                'sqlUsers'            => $cp->getSqlUsersLimit() != -1,
+
+                // DNS module
+                'dns'                 => $cp->hasDNS() && $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
+                'dnsEditor'           => $cp->hasDNS() && $cp->hasDnsEditor() && $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
+
+                // CP Support system module
+                'supportSystem'       => $cp->hasSupportSystem() && $config['IMSCP_SUPPORT_SYSTEM'],
             ];
         }
 
@@ -762,7 +741,7 @@ class Counting
      */
     public static function clientHasMailOrExtMailFeatures(): bool
     {
-        return self::clientHasFeature('mail') || self::clientHasFeature('externalMailServer');
+        return self::userHasFeature('mail') || self::userHasFeature('mailExternalServer');
     }
 
     /**
@@ -775,7 +754,7 @@ class Counting
     public static function clientOwnDomain(int $clientID, string $domainName): bool
     {
 
-        $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+        $qb = Application::getInstance()->getEntityManager()->createQueryBuilder();
         return (bool)$qb->select('COUNT(userID)')
             ->from('imscp_web_domain')
             ->where('userID = ?')

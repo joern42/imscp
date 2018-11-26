@@ -88,31 +88,8 @@ sub _loadEntityData
 
     $self->{'_data'} = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ssl_certs WHERE cert_id = ?', undef, $entityId );
     $self->{'_data'} or die( sprintf( 'Data not found for SSL certificate (ID %d)', $entityId ));
-
-    my $row;
-    if ( $self->{'_data'}->{'domain_type'} eq 'dmn' ) {
-        $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT domain_name FROM domain WHERE domain_id = ?', undef, $self->{'_data'}->{'domain_id'} );
-    } elsif ( $self->{'_data'}->{'domain_type'} eq 'als' ) {
-        $row = $self->{'_dbh'}->selectrow_hashref(
-            'SELECT alias_name AS domain_name FROM domain_aliases WHERE alias_id = ?', undef, $self->{'_data'}->{'domain_id'}
-        );
-    } elsif ( $self->{'_data'}->{'domain_type'} eq 'sub' ) {
-        $row = $self->{'_dbh'}->selectrow_hashref(
-            "SELECT CONCAT(subdomain_name, '.', domain_name) AS domain_name FROM subdomain JOIN domain USING(domain_id) WHERE subdomain_id = ?",
-            undef, $self->{'_data'}->{'domain_id'}
-        );
-    } else {
-        $row = $self->{'_dbh'}->selectrow_hashref(
-            "
-                SELECT CONCAT(subdomain_alias_name, '.', alias_name) AS domain_name
-                FROM subdomain_alias
-                JOIN domain_aliases USING(alias_id)
-                WHERE subdomain_alias_id = ?
-            ",
-            undef, $self->{'_data'}->{'domain_id'}
-        );
-    }
-
+    
+    my $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT domain_name FROM domain WHERE domain_id = ?', undef, $self->{'_data'}->{'domain_id'} );
     unless ( $row ) {
         # Delete orphaned SSL certificate
         $self->{'_dbh'}->do( 'DELETE FROM ssl_certs WHERE cert_id = ?', undef, $entityId );

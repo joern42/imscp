@@ -43,8 +43,8 @@ function addAdminUser(Form $form)
     }
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    $ldata = $form->getData()['loginData'];
-    $pdata = $form->getData()['personalData'];
+    $ldata = $form->getData()['logindatafieldset'];
+    $pdata = $form->getData()['personaldatafieldset'];
     $dbConnect = Application::getInstance()->getDb()->getDriver()->getConnection();
 
     try {
@@ -106,7 +106,7 @@ Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStar
         'name'    => 'submit',
         'options' => ['label' => tr('Add')]
     ])
-    ->get('personalData')->get('gender')->setValue('U');
+    ->get('personaldatafieldset')->get('gender')->setValue('U');
 
 if (Application::getInstance()->getRequest()->isPost()) {
     addAdminUser($form);

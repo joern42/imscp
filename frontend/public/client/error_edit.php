@@ -73,7 +73,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('custom_error_pages') && isset($_REQUEST['eid']) or View::showBadRequestErrorPage();
+Counting::userHasFeature('webCustomErrorPages') && isset($_REQUEST['eid']) or View::showBadRequestErrorPage();
 
 $eid = intval($_REQUEST['eid']);
 

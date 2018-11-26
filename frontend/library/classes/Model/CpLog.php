@@ -20,26 +20,49 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class CpLog
+ * @ORM\Entity
+ * @ORM\Table(
+ *     name="imscp_cp_log", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"},
+ *     indexes={@ORM\Index(columns={"logTime"})}
+ * )
+ * @ORM\HasLifecycleCallbacks()
  * @package iMSCP\Model
  */
-class CpLog extends BaseModel
+class CpLog
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $cpLogID;
 
     /**
+     * @ORM\Column(type="datetime_immutable")
      * @var \DateTimeImmutable
      */
     private $logTime;
 
     /**
+     * @ORM\Column(type="text")
      * @var string
      */
     private $log;
+
+    /**
+     * CpLog constructor.
+     * @param string $log
+     */
+    public function __construct(string $log)
+    {
+        $this->setLog($log);
+    }
 
     /**
      * @return int
@@ -47,16 +70,6 @@ class CpLog extends BaseModel
     public function getCpLogID(): int
     {
         return $this->cpLogID;
-    }
-
-    /**
-     * @param int $cpLogID
-     * @return CpLog
-     */
-    public function setCpLogID(int $cpLogID): CpLog
-    {
-        $this->cpLogID = $cpLogID;
-        return $this;
     }
 
     /**
@@ -68,12 +81,12 @@ class CpLog extends BaseModel
     }
 
     /**
-     * @param \DateTimeImmutable $logTime
+     * @ORM\PrePersist()
      * @return CpLog
      */
-    public function setLogTime(\DateTimeImmutable $logTime): CpLog
+    public function setLogTime(): CpLog
     {
-        $this->logTime = $logTime;
+        $this->logTime = new \DateTimeImmutable();
         return $this;
     }
 
@@ -89,7 +102,7 @@ class CpLog extends BaseModel
      * @param string $log
      * @return CpLog
      */
-    public function setLog(string $log): CpLog
+    private function setLog(string $log): CpLog
     {
         $this->log = $log;
         return $this;

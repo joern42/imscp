@@ -20,37 +20,56 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class WebHtgroup
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_web_htgroup", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class WebHtgroup extends BaseModel
+class WebHtgroup 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $webHtgroupID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\JoinColumn(name="userID", referencedColumnName="userID", onDelete="CASCADE")
+     * @var User
      */
-    private $userID;
+    private $user;
 
     /**
-     * @var int
-     */
-    private $serverID;
-
-    /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $groupName;
 
     /**
+     * @ORM\Column(type="simple_array")
      * @var string|null
      */
     private $members;
 
+    /**
+     * WebHtpasswd constructor
+     *
+     * @param User $user
+     * @param string $groupName
+     */
+    public function __construct(User $user, string $groupName)
+    {
+        $this->setUser($user);
+        $this->setGroupName($groupName);
+    }
+    
     /**
      * @return int
      */
@@ -60,48 +79,20 @@ class WebHtgroup extends BaseModel
     }
 
     /**
-     * @param int $webHtgroupID
+     * @return User
+     */
+    public function getUser(): User
+    {
+        return $this->user;
+    }
+
+    /**
+     * @param User $user
      * @return WebHtgroup
      */
-    public function setWebHtgroupID(int $webHtgroupID): WebHtgroup
+    public function setUser(User $user): WebHtgroup
     {
-        $this->webHtgroupID = $webHtgroupID;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getUserID(): int
-    {
-        return $this->userID;
-    }
-
-    /**
-     * @param int $userID
-     * @return WebHtgroup
-     */
-    public function setUserID(int $userID): WebHtgroup
-    {
-        $this->userID = $userID;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getServerID(): int
-    {
-        return $this->serverID;
-    }
-
-    /**
-     * @param int $serverID
-     * @return WebHtgroup
-     */
-    public function setServerID(int $serverID): WebHtgroup
-    {
-        $this->serverID = $serverID;
+        $this->user = $user;
         return $this;
     }
 

@@ -30,6 +30,8 @@ use iMSCP::Database;
 use iMSCP::Debug qw/ debug newDebug endDebug /;
 use iMSCP::EventManager;
 use iMSCP::Modules;
+#use IPC::Shareable ();
+use use Parallel::ForkManager;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -44,7 +46,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process all enqueued jobs
 
- Return void die on failure
+ Return void, die on failure
 
 =cut
 
@@ -54,25 +56,57 @@ sub processJobs
 
     iMSCP::EventManager->getInstance( 'beforeProcessJobs' );
 
-    my $sth = $self->{'_dbh'}->prepare( "SELECT * FROM imscp_job WHERE state = 'scheduled' ORDER BY jobID, userID, moduleName, moduleGroup" );
-    $sth->execute();
+    # For master server, select all job groups
+    # For a node, select only the relevant job groups
+    my $sth = $self->{'dbh'}->prepare(
+        "
+            SELECT userID, serverID, moduleGroup
+            FROM imscp_job WHERE " . ( $imscpConfig{'SERVER_TYPE'} eq 'master' ? "serverID = ? AND state = 'scheduled'" : "state = 'scheduled'" ) . "
+            GROUP BY userID, serverID, moduleGroup
+            ORDER BY jobID ASC
+        "
+    );
+    $sth->execute( $imscpConfig{'SERVER_TYPE'} eq 'master' ? $self->{'serverID'} : ());
 
-    # FIXME: Should we fork or sth like this to allow multiprocessing on a per job group basis?
+    # We process several job groups concurrently to speed up processing.
+    # A job group is a set of jobs that are run sequentially in FIFO order.
+    my $pm = Parallel::ForkManager->new( $::imscpConfig{'JOB_QUEUE_MANAGER_MAX_WORKERS'} );
 
-    while ( my $job = $sth->fetchrow_hashref() ) {
-        # Ignore job if it is part of a job group with failure state
-        next if $self->{'_failureByServerJobGroup'}->{$job->{'serverID'}}->{$job->{'userID'}};
+    JOB_GROUP:
+    while ( my $jobGroup = $sth->fetchrow_hashref() ) {
+        next JOB_GROUP if $pm->start();
 
-        if ( $job->{'serverID'} == $self->{'_serverID'} ) {
-            $this->processJob( $job );
-            next;
+        debug( sprintf( "Processing %s job group (%d/%d/$$)", $jobGroup->{'moduleGroup'}, $jobGroup->{'userID'}, $jobGroup->{'serverID'} ));
+        newDebug( $jobGroup->{'moduleGroup'} . "$jobGroup->{'userID'}-$jobGroup->{'serverID'}-{$$}.log" );
+
+        if ( $jobGroup->{'serverID'} != $self->{'serverID'} ) {
+            # The job group doesn't belong to the master server. We need notify the
+            # remote node, unless this has been already done.
+            unless ( $self->{'notifiedRemoteNodes'}->{$jobGroup->{'serverID'}} ) {
+                $self->{'notifiedRemoteNodes'}->{$jobGroup->{'serverID'}} = $self->_notifyRemoteNode( $jobGroup->{'serverID'} );
+            }
+        } else {
+            # Process all job inside the job group
+            # We need select all jobs inside the job group, including those
+            # that could possibly be in 'pending' state due to a previous
+            # failure. Jobs need to be run sequantially. Failures are tracked
+            # on a per run basis
+            $sth = $self->{'_dbh'}->prepare(
+                "SELECT * FROM imscp_job WHERE state <> 'processed' AND userID = ? AND serverID = ? AND moduleGroup = ? ORDER BY jobID ASC"
+            );
+            $sth->execute( $jobGroup->{'userID'}, $jobGroup->{'serverID'}, $jobGroup->{'moduleGROUP'} );
+            while ( my $job = $sth->fetchrow_hashref() ) {
+                # Skips the remaining jobs if a failure occurred for that group during that run
+                last if $self->{'failuresByJobGroup'}->{$jobGroup->{'userID'}}->{$jobGroup->{'serverID'}}->{$jobGroup->{'moduleGroup'}};
+                $this->processJob( $job );
+            }
         }
 
-        unless ( $self->{'_notifiedRemoteServers'}->{$job->{'serverID'}} ) {
-            $self->{'_notifiedRemoteServers'}->{$job->{'serverID'}} = $self->_notifyRemoteNode( $job->{'serverID'} );
-        }
-
+        endDebug();
+        $pm->finish;
     }
+
+    $pm->wait_all_children;
 
     iMSCP::EventManager->getInstance( 'afterProcessJobs' );
 }
@@ -98,10 +132,11 @@ sub _init
     # Load all modules
     iMSCP::Modules->getInstance();
 
-    $self->{'_serverID'} = $::imscpConfig{'SERVER_ID'};
-    $self->{'_dbh'} = iMSCP::Database->getInstance();
-    $self->{'_notifiedRemoteServers'} = {};
-    $self->{'_failureByServerJobGroup'} = {};
+    $self->{'serverID'} = $::imscpConfig{'SERVER_ID'};
+    $self->{'dbh'} = iMSCP::Database->getInstance();
+    #tie $self->{'notifiedRemoteNodes'}, 'IPC::Shareable';
+    $self->{'notifiedRemoteNodes'} = {};
+    $self->{'failuresByJobGroup'} = {};
     $self;
 }
 
@@ -119,22 +154,29 @@ sub _processJob
     my ( $self, $job ) = @_;
 
     debug( sprintf( 'Processing %s job (ID %s) ', $job->{'moduleName'}, $job->{'jobID'} ));
-    newDebug( $job->{'moduleName'} . ( $perJobLogFile ? "_$job->{'jobID'}" : '' ) . '.log' );
 
+    my $stateUpdateFailure = TRUE;
     eval {
         iMSCP::EventManager->getInstance( 'beforeProcessJob', $job );
         "iMSCP::Modules::$job->{'moduleName'}"->new()->processEntity( $job->{'objectID'}, $job->{'moduleData'} );
         iMSCP::EventManager->getInstance( 'afterProcessJob', $job );
+        $stateUpdateFailure = FALSE;
         $self->{'_dbh'}->do( "UPDATE imscp_job SET state = 'processed', error = NULL WHERE jobID = ?", undef, $job->{'jobID'} );
     };
     if ( $@ ) {
+        die if $stateUpdateFailure;
         eval {
-            $self->{'_failureByServerJobGroup'}->{$job->{'serverID'}}->{$job->{'userID'}} = TRUE;
+            $self->{'failuresByJobGroup'}->{$jobGroup->{'userID'}}->{$jobGroup->{'serverID'}}->{$jobGroup->{'moduleGroup'}} = TRUE;
             $self->{'_dbh'}->begin_work();
             $self->{'_dbh'}->do( "UPDATE imscp_job SET state = 'pending', error = ?", undef, $@ || 'Unknown error' );
             # Also update state of all other jobs inside that job group
             $self->{'_dbh'}->do(
-                "UPDATE imscp_job SET state = 'pending', error('Pending due to previous job failure') WHERE jobID <> ? AND userID = ? AND moduleGroup = ?",
+                "
+                    UPDATE imscp_job SET state = 'pending', error('Pending due to previous job failure')
+                    WHERE jobID <> ?
+                    AND userID = ?
+                    AND moduleGroup = ?
+                ",
                 undef,
                 $job->{'jobID'},
                 $job->{'userID'},
@@ -147,19 +189,17 @@ sub _processJob
             die;
         }
     }
-
-    endDebug();
 }
 
 =item _notifyRemoteServer
 
- Notify a remote server (node) for a new job to process
+ Notify a remote node for a new job group to process
 
  Return boolean TRUE if the remote server has been notified, FALSE otherwise
 
 =cut
 
-sub _notifyRemoteServer
+sub _notifyRemoteNode
 {
     my ( $self ) = @_;
 

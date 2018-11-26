@@ -20,28 +20,41 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class SqlDatabase
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_sql_database", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class SqlDatabase extends BaseModel
+class SqlDatabase 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $sqlDatabaseID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\JoinColumn(name="userID", referencedColumnName="userID", onDelete="CASCADE")
+     * @var User
      */
-    private $userID;
+    private $user;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="Server")
+     * @ORM\JoinColumn(name="serverID", referencedColumnName="serverID", onDelete="CASCADE")
+     * @var Server
      */
-    private $serverID;
+    private $server;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $databaseName;
@@ -65,38 +78,38 @@ class SqlDatabase extends BaseModel
     }
 
     /**
-     * @return int
+     * @return User
      */
-    public function getUserID(): int
+    public function getUser(): User
     {
-        return $this->userID;
+        return $this->user;
     }
 
     /**
-     * @param int $userID
+     * @param User $user
      * @return SqlDatabase
      */
-    public function setUserID(int $userID): SqlDatabase
+    public function setUser(User $user): SqlDatabase
     {
-        $this->userID = $userID;
+        $this->user = $user;
         return $this;
     }
 
     /**
-     * @return int
+     * @return Server
      */
-    public function getServerID(): int
+    public function getServer(): Server
     {
-        return $this->serverID;
+        return $this->server;
     }
 
     /**
-     * @param int $serverID
+     * @param Server $server
      * @return SqlDatabase
      */
-    public function setServerID(int $serverID): SqlDatabase
+    public function setServer(Server $server): SqlDatabase
     {
-        $this->serverID = $serverID;
+        $this->server = $server;
         return $this;
     }
 

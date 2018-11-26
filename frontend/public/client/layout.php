@@ -22,7 +22,7 @@ namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
-use iMSCP\Model\SuIdentityInterface;
+use iMSCP\Model\CpSuIdentityInterface;
 
 /**
  * Generate layout color form
@@ -72,7 +72,7 @@ $identity = Application::getInstance()->getAuthService()->getIdentity();
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'changeLayoutColor' && isset($_POST['layoutColor'])) {
         if (setLayoutColor($identity->getUserId(), $_POST['layoutColor'])) {
-            if (!($identity instanceof SuIdentityInterface)) {
+            if (!($identity instanceof CpSuIdentityInterface)) {
                 Application::getInstance()->getSession()['user_theme_color'] = $_POST['layoutColor'];
                 View::setPageMessage(tr('Layout color successfully updated.'), 'success');
             } else {

@@ -20,41 +20,56 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class MailDomain
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_mail_domain", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class MailDomain extends BaseModel
+class MailDomain 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $mailDomainID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\JoinColumn(name="userID", referencedColumnName="userID", onDelete="CASCADE")
+     * @var User
      */
-    private $userID;
+    private $user;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="Server")
+     * @ORM\JoinColumn(name="serverID", referencedColumnName="serverID", onDelete="CASCADE")
+     * @var Server
      */
-    private $serverID;
+    private $server;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $domainName;
 
     /**
+     * @ORM\Column(type="boolean")
      * @var int
      */
-    private $automaticDNS = 1;
+    private $hasAutomaticDNS = true;
 
     /**
+     * @ORM\Column(type="boolean")
      * @var int
      */
-    private $isActive = 1;
+    private $isActive = true;
 
     /**
      * @return int
@@ -65,48 +80,38 @@ class MailDomain extends BaseModel
     }
 
     /**
-     * @param int $mailDomainID
+     * @return User
+     */
+    public function getUser(): User
+    {
+        return $this->user;
+    }
+
+    /**
+     * @param User $user
      * @return MailDomain
      */
-    public function setMailDomainID(int $mailDomainID): MailDomain
+    public function setUser(User $user): MailDomain
     {
-        $this->mailDomainID = $mailDomainID;
+        $this->user = $user;
         return $this;
     }
 
     /**
-     * @return int
+     * @return Server
      */
-    public function getUserID(): int
+    public function getServer(): Server
     {
-        return $this->userID;
+        return $this->server;
     }
 
     /**
-     * @param int $userID
+     * @param Server $server
      * @return MailDomain
      */
-    public function setUserID(int $userID): MailDomain
+    public function setServer(Server $server): MailDomain
     {
-        $this->userID = $userID;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getServerID(): int
-    {
-        return $this->serverID;
-    }
-
-    /**
-     * @param int $serverID
-     * @return MailDomain
-     */
-    public function setServerID(int $serverID): MailDomain
-    {
-        $this->serverID = $serverID;
+        $this->server = $server;
         return $this;
     }
 
@@ -131,34 +136,34 @@ class MailDomain extends BaseModel
     /**
      * @return int
      */
-    public function getAutomaticDNS(): int
+    public function getHasAutomaticDNS(): int
     {
-        return $this->automaticDNS;
+        return $this->hasAutomaticDNS;
     }
 
     /**
-     * @param string $automaticDNS
+     * @param string $hasAutomaticDNS
      * @return MailDomain
      */
-    public function setAutomaticDNS(string $automaticDNS): MailDomain
+    public function setHasAutomaticDNS(string $hasAutomaticDNS): MailDomain
     {
-        $this->automaticDNS = $automaticDNS;
+        $this->hasAutomaticDNS = $hasAutomaticDNS;
         return $this;
     }
 
     /**
-     * @return int
+     * @return bool
      */
-    public function getIsActive(): int
+    public function getIsActive(): bool
     {
         return $this->isActive;
     }
 
     /**
-     * @param int $isActive
+     * @param bool $isActive
      * @return MailDomain
      */
-    public function setIsActive(int $isActive): MailDomain
+    public function setIsActive(bool $isActive): MailDomain
     {
         $this->isActive = $isActive;
         return $this;

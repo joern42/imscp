@@ -20,36 +20,57 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class WebHtpasswd
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_web_htpasswd", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class WebHtpasswd extends BaseModel
+class WebHtpasswd 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $webHtpasswdID;
 
     /**
+     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\JoinColumn(name="userID", referencedColumnName="userID", onDelete="CASCADE")
      * @var int
      */
-    private $userID;
-
+    private $user;
+    
     /**
-     * @var int
-     */
-    private $serverID;
-
-    /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $username;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $passwordHash;
+
+    /**
+     * WebHtpasswd constructor
+     *
+     * @param User $user
+     * @param string $username
+     * @param $passwordHash
+     */
+    public function __construct(User $user, string $username, $passwordHash)
+    {
+        $this->setUser($user);
+        $this->setUsername($username);
+        $this->setPasswordHash($passwordHash);
+    }
 
     /**
      * @return int
@@ -60,48 +81,20 @@ class WebHtpasswd extends BaseModel
     }
 
     /**
-     * @param int $webHtpasswdID
-     * @return WebHtpasswd
-     */
-    public function setWebHtpasswdID(int $webHtpasswdID): WebHtpasswd
-    {
-        $this->webHtpasswdID = $webHtpasswdID;
-        return $this;
-    }
-
-    /**
      * @return int
      */
-    public function getUserID(): int
+    public function getUser(): int
     {
-        return $this->userID;
+        return $this->user;
     }
 
     /**
-     * @param int $userID
+     * @param int $user
      * @return WebHtpasswd
      */
-    public function setUserID(int $userID): WebHtpasswd
+    public function setUser(int $user): WebHtpasswd
     {
-        $this->userID = $userID;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getServerID(): int
-    {
-        return $this->serverID;
-    }
-
-    /**
-     * @param int $serverID
-     * @return WebHtpasswd
-     */
-    public function setServerID(int $serverID): WebHtpasswd
-    {
-        $this->serverID = $serverID;
+        $this->user = $user;
         return $this;
     }
 

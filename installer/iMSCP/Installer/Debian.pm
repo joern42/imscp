@@ -76,8 +76,8 @@ sub preBuild
         [ sub { $self->_processPackagesFile() }, 'Processing distribution packages file' ],
         [ sub { $self->_installAPTsourcesList(); }, 'Installing new APT sources.list(5) file' ],
         [ sub { $self->_addAPTrepositories() }, 'Adding APT repositories' ],
-        [ sub { $self->_processAptPreferences() }, 'Setting APT preferences' ],
-        [ sub { $self->_prefillDebconfDatabase() }, 'Setting Debconf database' ]
+        [ sub { $self->_addAPTpreferences() }, 'Adding APT preferences' ],
+        [ sub { $self->_prefillDebconfDatabase() }, 'Prefilling of the Debconf database' ]
     );
 }
 
@@ -122,8 +122,6 @@ EOF
     local $ENV{'POLICYRCD'} = $policyrcd->filename();
 
     iMSCP::DistPackageManager->getInstance()->uninstallPackages( @{ $self->{'packagesToPreUninstall'} } );
-
-    $self->{'eventManager'}->trigger( 'beforeInstallPackages', $self->{'packagesToInstall'}, $self->{'packagesToInstallDelayed'} );
 
     {
         startDetail();
@@ -196,13 +194,9 @@ EOF
         undef @packagesToKeep;
 
         if ( @{ $self->{'packagesToUninstall'} } ) {
-            $self->{'eventManager'}->trigger( 'beforeUninstallPackages', $self->{'packagesToUninstall'} );
             iMSCP::DistPackageManager->getInstance()->uninstallPackages( @{ $self->{'packagesToUninstall'} } );
-            $self->{'eventManager'}->trigger( 'afterUninstallPackages', $self->{'packagesToUninstall'} );
         }
     }
-
-    $self->{'eventManager'}->trigger( 'afterInstallPackages' );
 }
 
 =back
@@ -238,7 +232,7 @@ sub _init
     delete $ENV{'DEBCONF_FORCE_DIALOG'};
     $ENV{'DEBIAN_FRONTEND'} = iMSCP::Getopt->noprompt ? 'noninteractive' : 'dialog';
     $ENV{'DEBFULLNAME'} = 'i-MSCP Installer';
-    $ENV{'DEBEMAIL'} = 'team@i-mscp.net';
+    $ENV{'DEBEMAIL'} = 'l.declercq@nuxwin.com';
 
     $self->_setupGetAddrinfoPrecedence();
     $self;
@@ -320,7 +314,7 @@ sub _parsePackageNode
         };
     }
 
-    # APT preferences
+    # APT preferences (pinning)
     if ( defined $node->{'pinning_package'} ) {
         push @{ $self->{'aptPreferences'} }, {
             pinning_package      => $node->{'pinning_package'},
@@ -354,7 +348,7 @@ sub _processPackagesFile
     my $dialog = iMSCP::Dialog->getInstance();
 
     # Make sure that all mandatory sections are defined in the packages file
-    for my $section ( qw/ cron server httpd php po mta ftpd sqld networking / ) {
+    for my $section ( qw/ cron server httpd php po mta ftpd sqld named networking perl other / ) {
         defined $pkgData->{$section} or die( sprintf( 'Missing %s section in the distribution packages file.', $section ));
     }
 
@@ -390,7 +384,7 @@ sub _processPackagesFile
             };
         }
 
-        # APT preferences
+        # APT preferences (pinning)
         if ( defined $data->{'pinning_package'} ) {
             push @{ $self->{'aptPreferences'} }, {
                 pinning_package      => $data->{'pinning_package'},
@@ -411,8 +405,12 @@ sub _processPackagesFile
 
         # Delete items that were already processed
         delete @{ $data }{
-            qw/ package package_delayed package_conflict pinning_package repository repository_key_uri repository_key_id
-                repository_key_srv post_install_task post_install_task /
+            qw/ package package_delayed package_conflict
+                pinning_package pinning_pin pinning_pin_priority
+                repository repository_key_uri repository_key_id repository_key_srv
+                pre_install_task
+                post_install_task
+            /
         };
 
         # Jump in next section, unless the section defines alternatives
@@ -421,27 +419,27 @@ sub _processPackagesFile
         # Dialog flag indicating whether or not user must be asked for alternative
         my $showDialog = FALSE;
 
+        # Alternative description
         my $altDesc = delete $data->{'description'} || $section;
-        my $sectionClass = delete $data->{'class'} or die(
-            sprintf( "Undefined class for the %s section in the %s distribution package file", $section, $pkgFile )
-        );
+        my $sectionClass = delete $data->{'class'} or die( sprintf( "Couldn't find class for the %s alternatives section", $section, $pkgFile ));
 
         # Retrieve current alternative
         my $sAlt = $::questions{ $sectionClass } || $::imscpConfig{ $sectionClass };
 
         # Retrieve alternative type (server|provider), default to server
         my $altType = delete( $data->{'type'} ) || 'server';
-
-        # Builds list of supported alternatives for dialogs
-        # Discard hidden alternatives that are hidden or for which  evaluation
-        # of the 'condition' attribute expression (if any) is not TRUE
+        
+        # Builds list of selectable alternatives through dialog:
+        # - Disacard alternative for which evaluation
+        #   of the 'condition' attribute expression (if any) is not TRUE
+        # - Discard those set with the hidden flag
         my @supportedAlts = grep {
-            !$data->{$_}->{'hidden'} && ( !defined $data->{$_}->{'condition'} || eval expandVars( $data->{$_}->{'condition'} ) )
+            !$data->{$_}->{'hidden'} && !defined $data->{$_}->{'condition'} || eval expandVars( $data->{$_}->{'condition'} )
         } keys %{ $data };
 
         if ( $section eq 'sqld' ) {
             # The sqld section need a specific treatment
-            processSqldSection( $data, \$sAlt, \@supportedAlts, $dialog, \$showDialog );
+            _processSqldSection( $data, \$sAlt, \@supportedAlts, $dialog, \$showDialog );
         } else {
             if ( length $sAlt && !grep ($data->{$_}->{'class'} eq $sAlt, @supportedAlts) ) {
                 # The selected alternative isn't longer available (or simply invalid). In such case, we reset it.
@@ -453,18 +451,15 @@ sub _processPackagesFile
             unless ( length $sAlt ) {
                 # There is no alternative selected
                 if ( @supportedAlts > 1 ) {
-                    # There are many alternatives available, we select the default as defined in the packages file and we set the dialog flag to make
-                    # user able to change it, unless we are in preseed mode, in which case the default alternative will be enforced.
-                    $showDialog = TRUE unless iMSCP::Getopt->preseed;
-
-                    for my $supportedAlt ( @supportedAlts ) {
-                        next unless $data->{$supportedAlt}->{'default'};
-                        $sAlt = $supportedAlt;
-                        last;
-                    }
-
-                    # There are no default alternative defined in the packages file. We set it to the first entry.
+                    # There are many alternatives available. We select the
+                    # default as defined in the packages file or the first
+                    # entry if there are no default, and we set the dialog
+                    # flag to make user able to change it, unless we are in
+                    # preseed mode, in which case the default alternative will
+                    # be enforced.
+                    ($sAlt) = grep { $data->{$_}->{'default'} } @supportedAlts;
                     $sAlt = $supportedAlts[0] unless length $sAlt;
+                    $showDialog = TRUE unless iMSCP::Getopt->preseed;
                 } else {
                     # There is only one alternative available. We set it wihtout setting the dialog flag
                     $sAlt = $supportedAlts[0] unless length $sAlt;
@@ -474,7 +469,6 @@ sub _processPackagesFile
                 ( $sAlt ) = grep ($data->{$_}->{'class'} eq $sAlt, @supportedAlts)
             }
         }
-
 
         # Set the dialog flag in any case if there are many alternatives available and if user asked for alternative reconfiguration
         $showDialog ||= @supportedAlts > 1 && (
@@ -622,15 +616,15 @@ sub _addAPTrepositories
     iMSCP::DistPackageManager->getInstance()->addRepositories( @{ $self->{'aptRepositoriesToAdd'} } );
 }
 
-=item _processAptPreferences( )
+=item _addAPTpreferences( )
 
- Process apt preferences
+ ADD APT preferences
 
  Return void, die on failure
 
 =cut
 
-sub _processAptPreferences
+sub _addAPTpreferences
 {
     my ( $self ) = @_;
 
@@ -728,7 +722,7 @@ EOF
     }
 
     if ( my ( $sqldVendor, $sqldVersion ) = $::questions{'_sqld'} =~ /^(mysql|mariadb|percona)_(\d+\.\d+)/ ) {
-        my ( $package );
+        my $package;
         if ( $sqldVendor eq 'mysql' ) {
             $package = grep ($_ eq 'mysql-community-server', @{ $self->{'packagesToInstall'} }) ? 'mysql-community-server' : "mysql-server-$sqldVersion";
         } else {
@@ -784,8 +778,8 @@ EOF
         }
 
         # Pre-fill debconf database for the SQL server (mariadb, mysql or percona)
-        while ( <$fh> ) {
-            if ( my ( $qOwner, $qNamePrefix, $qName ) = m%(.*?)\s+(.*?)/([^\s]+)% ) {
+        while ( my $line = <$fh> ) {
+            if ( my ( $qOwner, $qNamePrefix, $qName ) = $line =~ m%(.*?)\s+(.*?)/([^\s]+)% ) {
                 if ( grep ($qName eq $_, 'remove-data-dir', 'postrm_remove_databases') ) {
                     # We do not want ask user for databases removal (we want avoid mistakes as much as possible)
                     $fileContent .= "$qOwner $qNamePrefix/$qName boolean false\n";
@@ -819,7 +813,7 @@ EOF
 
     my $rs = execute( [ 'debconf-set-selections', $debconfSelectionsFile ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    $rs == 0 or die( $stderr || "Couldn't pre-fill Debconf database" );
+    $rs == 0 or die( sprintf( "Couldn't pre-fill Debconf database", $stderr || 'Unknown error' ));
 }
 
 =item _rebuildAndInstallPackage( $pkg, $pkgSrc, $patchesDir [, $patchesToDiscard = [] [,  $patchFormat = 'quilt' ]] )
@@ -1005,7 +999,7 @@ sub _getSqldInfo
             sprintf( "Couldn't guess SQL server info: %s", $stderr || 'Unknown error' )
         );
 
-        # mysqld  Ver 10.1.26-MariaDB-0+deb9u1 for debian-linux-gnu on x86_64 (Debian 9.1)
+        # mysqld Ver 10.1.26-MariaDB-0+deb9u1 for debian-linux-gnu on x86_64 (Debian 9.1)
         if ( my ( $version, $vendor ) = $stdout =~ /Ver\s+(\d+.\d+).*?(mariadb|percona|mysql)/i ) {
             return( lc $vendor, $version );
         }
@@ -1014,7 +1008,7 @@ sub _getSqldInfo
     ( 'none', 'none' );
 }
 
-=item processSqldSection( \%data, \$sAlt, \@supportedAlts, \%dialog, \$showDialog )
+=item _processSqldSection( \%data, \$sAlt, \@supportedAlts, \%dialog, \$showDialog )
 
  Process sqld section from the distribution packages file
 
@@ -1027,7 +1021,7 @@ sub _getSqldInfo
 
 =cut
 
-sub processSqldSection
+sub _processSqldSection
 {
     my ( $data, $sAlt, $supportedAlts, $dialog, $showDialog ) = @_;
 
@@ -1054,7 +1048,7 @@ sub processSqldSection
 \\Zb\\Z1WARNING \\Z0CURRENT SQL SERVER VENDOR IS NOT SUPPORTED \\Z1WARNING\\Zn
 
 The installer detected that your current SQL server ($sqldVendor $sqldVersion) is not supported and that there is no alternative version for that vendor.
-If you continue, you'll be asked for another SQL server vendor but bear in mind that the upgrade could fail. You should really considere backuping all your SQL databases before continue.
+If you continue, you'll be asked for another SQL server vendor but bear in mind that the upgrade could fail. You should really considere backuping all your SQL data before continue.
                 
 Are you sure you want to continue?
 EOF

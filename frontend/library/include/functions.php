@@ -23,7 +23,7 @@ use iMSCP\Crypt;
 use iMSCP\Events;
 use iMSCP\Functions\View;
 use iMSCP\i18n\GettextParser;
-use iMSCP\Model\SuIdentityInterface;
+use iMSCP\Model\CpSuIdentityInterface;
 use iMSCP\Model\UserIdentityInterface;
 use iMSCP\TemplateEngine;
 use iMSCP\Utility\OpcodeCache;
@@ -275,7 +275,7 @@ function changeDefaultLanguage(): bool
 
     // Ensures language change on next load for current user in case he has not yet his frontend properties explicitly
     // set (eg. for the first admin user when i-MSCP was just installed
-    $stmt = execQuery('SELECT lang FROM user_gui_props WHERE user_id = ?', [Application::getInstance()->getAuthService()->getIdentity()->getUserId()]);
+    $stmt = execQuery('SELECT lang FROM imscp_ui_props WHERE userID = ?', [Application::getInstance()->getAuthService()->getIdentity()->getUserId()]);
     if ($stmt->fetchColumn() == NULL) {
         unset(Application::getInstance()->getSession()['user_def_lang']);
     }
@@ -576,6 +576,10 @@ function ValidateEmail($email, $options)
  */
 function validateDomainName($domainName)
 {
+    
+    $validator = new \Zend\Validator\Hostname();
+    
+    
     global $dmnNameValidationErrMsg;
 
     if (strpos($domainName, '.') === 0 || substr($domainName, -1) == '.') {
@@ -687,13 +691,15 @@ function validateMimeType($pathFile, array $mimeTypes)
  * @param bool $usernameRequired Flag indicating whether username is required
  * @param bool $passwordRequired Flag indicating whether password is required
  * @return Form
+ * @deprecated
  */
+/*
 function getUserLoginDataForm($usernameRequired = true, $passwordRequired = true)
 {
     $form = new Form('user-login-data-form');
-    $form->add(['type' => \iMSCP\Form\UserLoginDataFieldset::class]);
+    $form->add(['type' => \iMSCP\Form\LoginDataFieldset::class]);
 
-    /*
+   
     if (!$usernameRequired) {
         $form->get('user-login-data-fieldset')->get('admin_name');
         $form->getElement('admin_name')->removeValidator('NoEmpty')->setRequired(false);
@@ -702,10 +708,10 @@ function getUserLoginDataForm($usernameRequired = true, $passwordRequired = true
     if (!$passwordRequired) {
         $form->getElement('admin_pass')->removeValidator('NoEmpty')->setRequired(false);
     }
-    */
 
     return $form;
 }
+*/
 
 /**
  * Retrieve GUI properties of the given user
@@ -752,19 +758,32 @@ function getMenuVariables($menuLink)
     }
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    $row = execQuery('SELECT fname, lname, firm, zip, city, state, country, email, phone, fax, street1, street2 FROM admin WHERE admin_id = ?', [
-        $identity->getUserId()
+    $row = execQuery(
+        'SELECT firstName, lastName, firm, zip, city, state, country, email, phone, fax, street1, street2 FROM imscp_user WHERE userID = ?',
+        [$identity->getUserId()
     ])->fetch();
 
     $search = [
         '{uid}', '{uname}', '{fname}', '{lname}', '{company}', '{zip}', '{city}', '{state}', '{country}', '{email}', '{phone}', '{fax}', '{street1}',
-        '{street2}', '{domain_name}'
+        '{street2}',
+        //'{domain_name}'
     ];
     $replace = [
-        $identity->getUserId(), toHtml($identity->getUsername()), toHtml($row['fname']), toHtml($row['lname']), toHtml($row['firm']),
-        toHtml($row['zip']), toHtml($row['city']), toHtml($row['state']), toHtml($row['country']), toHtml($row['email']), toHtml($row['phone']),
-        toHtml($row['fax']), toHtml($row['street1']), toHtml($row['street2']),
-        execQuery('SELECT domain_name FROM domain WHERE domain_admin_id = ?', [$identity->getUserId()])->fetchColumn()
+        $identity->getUserId(),
+        toHtml($identity->getUsername()),
+        toHtml($row['fname']),
+        toHtml($row['lname']),
+        toHtml($row['firm']),
+        toHtml($row['zip']),
+        toHtml($row['city']),
+        toHtml($row['state']),
+        toHtml($row['country']),
+        toHtml($row['email']),
+        toHtml($row['phone']),
+        toHtml($row['fax']),
+        toHtml($row['street1']),
+        toHtml($row['street2']),
+        //execQuery('SELECT domain_name FROM domain WHERE domain_admin_id = ?', [$identity->getUserId()])->fetchColumn()
     ];
 
     return str_replace($search, $replace, $menuLink);
@@ -801,10 +820,10 @@ function getLayoutColorsSet()
 /**
  * Returns layout color for given user
  *
- * @param int $userId user unique identifier
+ * @param int $userID User unique identifier
  * @return string User layout color
  */
-function getLayoutColor($userId)
+function getLayoutColor($userID)
 {
     static $layoutColor = NULL;
 
@@ -820,7 +839,7 @@ function getLayoutColor($userId)
     }
 
     $allowedColors = getLayoutColorsSet();
-    $layoutColor = execQuery('SELECT layout_color FROM user_gui_props WHERE user_id = ?', [$userId])->fetchColumn();
+    $layoutColor = execQuery('SELECT layoutColor FROM imscp_ui_props WHERE userID = ?', [$userID])->fetchColumn();
 
     if (!$layoutColor || !in_array($layoutColor, $allowedColors)) {
         $layoutColor = array_shift($allowedColors);
@@ -840,14 +859,14 @@ function initLayout(Event $event)
 {
     $cfg = Application::getInstance()->getConfig();
     $themesAssetsVersion = $cfg['DEBUG'] ? time() : $cfg['THEME_ASSETS_VERSION'];
-    /** @var \iMSCP\Model\SuIdentityInterface $identity */
+    /** @var \iMSCP\Model\CpSuIdentityInterface $identity */
     $identity = Application::getInstance()->getAuthService()->getIdentity();
     $session = Application::getInstance()->getSession();
 
     if (isset($session['user_theme_color'])) {
         $color = $session['user_theme_color'];
     } elseif ($identity) {
-        $userId = $identity instanceof \iMSCP\Model\SuIdentityInterface ? $identity->getSuUserId() : $identity->getUserId();
+        $userId = $identity instanceof \iMSCP\Model\CpSuIdentityInterface ? $identity->getSuUserId() : $identity->getUserId();
         $color = getLayoutColor($userId);
         $session['user_theme_color'] = $color;
     } else {
@@ -925,7 +944,7 @@ function getUserLogo($searchForCreator = true, $returnDefault = true)
     $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     // On switched level, we want show logo from logged user
-    if ($identity instanceof \iMSCP\Model\SuIdentityInterface && $searchForCreator) {
+    if ($identity instanceof \iMSCP\Model\CpSuIdentityInterface && $searchForCreator) {
         $userId = $identity->getSuUserId();
         // Customers inherit the logo of their reseller
     } elseif ($identity->getUserType() == 'user') {
@@ -1156,7 +1175,7 @@ function setMainMenuLabelsVisibility(int $userId, int $visibility)
     execQuery('UPDATE user_gui_props SET show_main_menu_labels = ? WHERE user_id = ?', [$visibility, $userId]);
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    if (!($identity instanceof \iMSCP\Model\SuIdentityInterface)) {
+    if (!($identity instanceof \iMSCP\Model\CpSuIdentityInterface)) {
         Application::getInstance()->getSession()['show_main_menu_labels'] = $visibility;
     }
 }
@@ -1172,7 +1191,7 @@ function setMainMenuLabelsVisibilityEvt()
     $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     if (!isset($session['show_main_menu_labels']) && $identity) {
-        $userId = $identity instanceof \iMSCP\Model\SuIdentityInterface ? $identity->getSuUserId() : $identity->getUserId();
+        $userId = $identity instanceof \iMSCP\Model\CpSuIdentityInterface ? $identity->getSuUserId() : $identity->getUserId();
         $session['show_main_menu_labels'] = isMainMenuLabelsVisible($userId);
     }
 }
@@ -1188,115 +1207,78 @@ function getUsername($userId)
     static $stmt = NULL;
 
     if (NULL === $stmt) {
-        $stmt = Application::getInstance()->getDb()->createStatement('SELECT admin_name FROM admin WHERE admin_id = ?');
-        $stmt->prepare();
+        /** @var \Doctrine\DBAL\Driver\PDOStatement $stmt */
+        $stmt = Application::getInstance()
+            ->getEntityManager()
+            ->getConnection()
+            ->prepare('SELECT admin_name FROM admin WHERE admin_id = ?');
     }
 
-    return $stmt->execute([$userId])->getResource()->fetchColumn();
+    /** @var \Doctrine\DBAL\Driver\PDOStatement $stmt */
+    $stmt = $stmt->execute([$userId]);
+    return $stmt->fetchColumn();
 }
 
 /**
- * Is the given domain a known domain name?
+ * Is the given web domain known?
  *
- * Rules:
- *
- * A domain is known if:
- *
- * - It is found either in the domain table or in the domain_aliases table
- * - It is a subzone of another domain which doesn't belong to the given reseller
- * - It already exist as subdomain, whatever the subdomain type (sub,alssub)
+ * A web domain is known if:
+ * - It is found in the imscp_web_domain table, whatever its type (domain, subdomain)
+ * - It is a subdomain of a domain owned by a customer that doesn't belong to the given reseller
  *
  * @param string $domainName Domain name to match
  * @param int $resellerId Reseller unique identifier
  * @return bool TRUE if the domain already exist, FALSE otherwise
  */
-function isKnownDomain($domainName, $resellerId)
+function isWebDomainKnown($domainName, $resellerId)
 {
     // Be sure to work with ASCII domain name
     $domainName = encodeIdna($domainName);
 
-    // $domainName already exist in the domain table?
-    $stmt = execQuery('SELECT COUNT(domain_id) FROM domain WHERE domain_name = ?', [$domainName]);
-
+    // The domain (whatever its type: domain, subdomain) already exists in the imscp_web_domain table?
+    $stmt = execQuery('SELECT COUNT(webDomainID) FROM imscp_web_domain WHERE domainName = ?', [$domainName]);
     if ($stmt->fetchColumn() > 0) {
         return true;
     }
 
-    // $domainName already exists in the domain_aliases table?
-    $stmt = execQuery('SELECT COUNT(alias_id) FROM domain_aliases WHERE alias_name = ?', [$domainName]);
-    if ($stmt->fetchColumn() > 0) {
-        return true;
-    }
-
-    # $domainName is a subzone of another domain which doesn't belong to the given reseller?
-    $queryDomain = 'SELECT COUNT(domain_id) FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE domain_name = ? AND created_by <> ?';
-    $queryAliases = '
-        SELECT COUNT(alias_id)
-        FROM domain_aliases
-        JOIN domain USING(domain_id)
-        JOIN admin ON(admin_id = domain_admin_id)
-        WHERE alias_name = ?
-        AND created_by <> ?
-    ';
-
+    // The domain is subdomain of a domain owned by a customer that doesn't belong to the given reseller?
+    // FIXME use the https://publicsuffix.org/ to avoid useless queries
+    $query = 'SELECT COUNT(webDomainID) FROM imscp_web_domain JOIN imscp_user USING(userID) WHERE domainName = ? AND createdBy <> ?';
     $domainLabels = explode('.', trim($domainName));
     $domainPartCnt = 0;
-
     for ($i = 0, $countDomainLabels = count($domainLabels) - 1; $i < $countDomainLabels; $i++) {
         $domainPartCnt = $domainPartCnt + strlen($domainLabels[$i]) + 1;
         $parentDomain = substr($domainName, $domainPartCnt);
-
-        // Execute query the redefined queries for domains/accounts and aliases tables
-        if (execQuery($queryDomain, [$parentDomain, $resellerId])->fetchColumn() > 0) {
-            return true;
-        }
-
-        if (execQuery($queryAliases, [$parentDomain, $resellerId])->fetchColumn() > 0) {
+        if (execQuery($query, [$parentDomain, $resellerId])->fetchColumn() > 0) {
             return true;
         }
     }
 
-    // $domainName already exists as subdomain?
-    $stmt = execQuery("SELECT COUNT(subdomain_id) FROM subdomain JOIN domain USING(domain_id) WHERE CONCAT(subdomain_name, '.', domain_name) = ?", [
-        $domainName
-    ]);
-    if ($stmt->fetchColumn() > 0) {
-        return true;
-    }
-
-    return (bool)execQuery(
-        "
-            SELECT COUNT(subdomain_alias_id)
-            FROM subdomain_alias
-            JOIN domain_aliases USING(alias_id)
-            WHERE CONCAT(subdomain_alias_name, '.', alias_name) = ?
-        ",
-        [$domainName]
-    )->fetchColumn();
+    return false;
 }
 
 /**
- * Returns properties of the given customer
+ * Returns properties of the given client
  *
  * Note: For performance reasons, the data are retrieved once per request.
  *
- * @param int $domainAdminId Customer unique identifier
+ * @param int $clientID Client unique identifier
  * @param int|null $createdBy OPTIONAL reseller unique identifier
- * @return array Returns an associative array where each key is a domain propertie name.
+ * @return array Returns an associative array where each key is a client propertie name.
  */
-function getCustomerProperties($domainAdminId, $createdBy = NULL)
+function getClientProperties($clientID, $createdBy = NULL)
 {
-    static $domainProperties = NULL;
+    static $clientProperties = NULL;
 
-    if (NULL !== $domainProperties) {
-        return $domainProperties;
+    if (NULL !== $clientProperties) {
+        return $clientProperties;
     }
 
     if (is_null($createdBy)) {
-        $stmt = execQuery('SELECT * FROM domain WHERE domain_admin_id = ?', [$domainAdminId]);
+        $stmt = execQuery('SELECT * FROM imscp_client_props WHERE userID = ?', [$clientID]);
     } else {
-        $stmt = execQuery('SELECT * FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE domain_admin_id = ? AND created_by = ?', [
-            $domainAdminId, $createdBy
+        $stmt = execQuery('SELECT * FROM imscp_client_props AS t1 JOIN user AS t2 USING(userID) WHERE userID = ? AND createdBy = ?', [
+            $clientID, $createdBy
         ]);
     }
 
@@ -1304,8 +1286,7 @@ function getCustomerProperties($domainAdminId, $createdBy = NULL)
         \iMSCP\Functions\View::showBadRequestErrorPage();
     }
 
-    $domainProperties = $stmt->fetch();
-    return $domainProperties;
+    return $clientProperties = $stmt->fetch();
 }
 
 /**
@@ -1315,6 +1296,7 @@ function getCustomerProperties($domainAdminId, $createdBy = NULL)
  * @param bool $forceReload Flag indicating whether or not data must be fetched again from database
  * @return int Customer primary domain unique identifier
  */
+/*
 function getCustomerMainDomainId($customeId, $forceReload = false)
 {
     static $domainId = NULL;
@@ -1337,6 +1319,7 @@ function getCustomerMainDomainId($customeId, $forceReload = false)
 
     return $domainId;
 }
+*/
 
 /**
  * Returns translated item status
@@ -1345,6 +1328,7 @@ function getCustomerMainDomainId($customeId, $forceReload = false)
  * @param bool $showError Whether or not show true error string
  * @param bool $colored Flag indicating whether or not translated status must be colored
  * @return string Translated status
+ * @deprecated
  */
 function humanizeItemStatus($status, $showError = false, $colored = false)
 {
@@ -1407,25 +1391,30 @@ function recalculateResellerAssignments(int $resellerId)
 {
     execQuery(
         "
-            UPDATE reseller_props AS t1
-            JOIN (
-                SELECT COUNT(domain_id) AS dmn_count,
-                    IFNULL(SUM(IF(domain_subd_limit >= 0, domain_subd_limit, 0)), 0) AS sub_limit,
-                    IFNULL(SUM(IF(domain_alias_limit >= 0, domain_alias_limit, 0)), 0) AS als_limit,
-                    IFNULL(SUM(IF(domain_mailacc_limit >= 0, domain_mailacc_limit, 0)), 0) AS mail_limit,
-                    IFNULL(SUM(IF(domain_ftpacc_limit >= 0, domain_ftpacc_limit, 0)), 0) AS ftp_limit,
-                    IFNULL(SUM(IF(domain_sqld_limit >= 0, domain_sqld_limit, 0)), 0) AS sqld_limit,
-                    IFNULL(SUM(IF(domain_sqlu_limit >= 0, domain_sqlu_limit, 0)), 0) AS sqlu_limit,
-                    IFNULL(SUM(domain_disk_limit), 0) AS disk_limit,
-                    IFNULL(SUM(domain_traffic_limit), 0) AS traffic_limit
-                FROM admin
-                JOIN domain ON(domain_admin_id = admin_id)
-                WHERE created_by = ?
-                AND domain_status <> 'todelete'
-            ) AS t2
-            SET t1.current_dmn_cnt = t2.dmn_count, t1.current_sub_cnt = t2.sub_limit, t1.current_als_cnt = t2.als_limit,
-                t1.current_mail_cnt = t2.mail_limit, t1.current_ftp_cnt = t2.ftp_limit, t1.current_sql_db_cnt = t2.sqld_limit,
-                t1.current_sql_user_cnt = t2.sqlu_limit, t1.current_disk_amnt = t2.disk_limit, t1.current_traff_amnt = t2.traffic_limit
+          UPDATE imscp_reseller_props AS t1
+          JOIN (
+            SELECT
+              SUM(IF(t2.domainsLimit > 0, t2.domainsLimit, 0)) AS domainsLimit,
+              SUM(IF(t2.subdomainsLimit > 0, t2.subdomainsLimit, 0)) AS subdomainsLimit,
+              SUM(IF(t2.mailboxesLimit > 0, t2.mailboxesLimit, 0)) AS mailboxesLimit,
+              SUM(IF(t2.ftpUsersLimit > 0, t2.ftpUsersLimit, 0)) AS ftpUsersLimit,
+              SUM(IF(t2.sqlDatabasesLimit > 0, t2.sqlDatabasesLimit, 0)) AS sqlDatabasesLimit,
+              SUM(IF(t2.sqlUsersLimit > 0, t2.sqlUsersLimit, 0)) AS sqlUsersLimit,
+              SUM(t2.monthlyTrafficLimit) AS monthlyTrafficLimit,
+              SUM(t2.diskspaceLimit) AS diskspaceLimit
+             FROM imscp_user AS t1
+             JOIN imscp_client_props AS t2 USING(userID)
+             WHERE t1.createdBy = ?
+          ) AS t2
+          SET
+            t1.domainsLimit = t2.domainsLimit,
+            t1.subdomainsLimit = t2.subdomainsLimit,
+            t1.mailboxesLimit = t2.mailboxesLimit,
+            t1.ftpUsersLimit = t2.ftpUsersLimit,
+            t1.sqlDatabasesLimit = t2.sqlDatabasesLimit,
+            t1.sqlUsersLimit = t2.sqlUsersLimit,
+            t1.monthlyTrafficLimit = t2.monthlyTrafficLimit,
+            t1.diskspaceLimit = t2.diskspaceLimit
             WHERE t1.reseller_id = ?
         ",
         [$resellerId, $resellerId]
@@ -1438,7 +1427,9 @@ function recalculateResellerAssignments(int $resellerId)
  * @param int $customerId Customer unique identifier
  * @param string $action Action to schedule
  * @return void
+ * @deprecated We need now schedule dedicated jobs
  */
+/*
 function changeDomainStatus($customerId, $action)
 {
     ignore_user_abort(true);
@@ -1501,11 +1492,6 @@ function changeDomainStatus($customerId, $action)
         execQuery('UPDATE htaccess_groups SET status = ? WHERE dmn_id = ?', [$newStatus, $domainId]);
         execQuery('UPDATE htaccess_users SET status = ? WHERE dmn_id = ?', [$newStatus, $domainId]);
         execQuery("UPDATE domain SET domain_status = ? WHERE domain_id = ?", [$newStatus, $domainId]);
-        execQuery("UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?", [$newStatus, $domainId]);
-        execQuery("UPDATE domain_aliases SET alias_status = ? WHERE domain_id = ?", [$newStatus, $domainId]);
-        execQuery('UPDATE subdomain_alias JOIN domain_aliases USING(alias_id) SET subdomain_alias_status = ? WHERE domain_id = ?', [
-            $newStatus, $domainId
-        ]);
         execQuery('UPDATE domain_dns SET domain_dns_status = ? WHERE domain_id = ?', [$newStatus, $domainId]);
 
         Application::getInstance()->getEventManager()->trigger(Events::onAfterChangeDomainStatus, NULL, [
@@ -1528,6 +1514,7 @@ function changeDomainStatus($customerId, $action)
         throw $e;
     }
 }
+*/
 
 /**
  * Deletes an SQL user
@@ -1535,7 +1522,9 @@ function changeDomainStatus($customerId, $action)
  * @param int $dmnId Domain unique identifier
  * @param int $userId Sql user unique identifier
  * @return bool TRUE on success, FALSE otherwise
+ * @deprecated We need now schedule dedicated job
  */
+/*
 function deleteSqlUser($dmnId, $userId)
 {
     ignore_user_abort(true);
@@ -1581,6 +1570,7 @@ function deleteSqlUser($dmnId, $userId)
 
     return true;
 }
+*/
 
 /**
  * Deletes the given SQL database
@@ -1588,7 +1578,9 @@ function deleteSqlUser($dmnId, $userId)
  * @param int $dmnId Domain unique identifier
  * @param int $dbId Databse unique identifier
  * @return bool TRUE on success, false otherwise
+ * @deprecated We need now schedule dedicated job
  */
+/*
 function deleteSqlDatabase($dmnId, $dbId)
 {
     ignore_user_abort(true);
@@ -1621,6 +1613,7 @@ function deleteSqlDatabase($dmnId, $dbId)
 
     return true;
 }
+*/
 
 /**
  * Deletes the given customer
@@ -1628,7 +1621,9 @@ function deleteSqlDatabase($dmnId, $dbId)
  * @param integer $customerId Customer unique identifier
  * @param boolean $checkCreatedBy Tell whether or not customer must have been created by logged-in user
  * @return bool TRUE on success, FALSE otherwise
+ * @deprecated We need now schedule dedicated jobs
  */
+/*
 function deleteCustomer($customerId, $checkCreatedBy = false)
 {
     ignore_user_abort(true);
@@ -1700,21 +1695,7 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
         execQuery("UPDATE ftp_users SET status = 'todelete' WHERE admin_id = ?", [$customerId]);
         // Schedule mail accounts deletion
         execQuery("UPDATE mail_users SET status = 'todelete' WHERE domain_id = ?", [$data['domain_id']]);
-        // Schedule subdomain aliases deletion
-        execQuery(
-            "
-                UPDATE subdomain_alias AS t1
-                JOIN domain_aliases AS t2 ON(t2.domain_id = ?)
-                SET t1.subdomain_alias_status = 'todelete'
-                WHERE t1.alias_id = t2.alias_id
-            ",
-            [$data['domain_id']]
-        );
-        // Schedule domain aliases deletion
-        execQuery("UPDATE domain_aliases SET alias_status = 'todelete' WHERE domain_id = ?", [$data['domain_id']]);
-        // Schedule subdomains deletion
-        execQuery("UPDATE subdomain SET subdomain_status = 'todelete' WHERE domain_id = ?", [$data['domain_id']]);
-        // Schedule domain deletion
+        // Schedule domains deletion
         execQuery("UPDATE domain SET domain_status = 'todelete' WHERE domain_id = ?", [$data['domain_id']]);
         // Schedule customer deletion
         execQuery("UPDATE admin SET admin_status = 'todelete' WHERE admin_id = ?", [$customerId]);
@@ -1772,6 +1753,7 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
     \iMSCP\Functions\Daemon::sendRequest();
     return true;
 }
+*/
 
 /**
  * Delete the given domain alias, including any entity that belong to it
@@ -1782,7 +1764,9 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
  * @param string $aliasName Domain alias name
  * @param string $aliasMount Domain alias mount point
  * @return void
+ * @deprecated 
  */
+/*
 function deleteDomainAlias($customerId, $domainId, $aliasId, $aliasName, $aliasMount)
 {
     ignore_user_abort(true);
@@ -1891,6 +1875,7 @@ function deleteDomainAlias($customerId, $domainId, $aliasId, $aliasName, $aliasM
         View::setPageMessage(tr("Couldn't delete domain alias. An unexpected error occurred."), 'error');
     }
 }
+*/
 
 //
 // Reseller related functions
@@ -1905,18 +1890,18 @@ function deleteDomainAlias($customerId, $domainId, $aliasId, $aliasName, $aliasM
  */
 function getResellerProperties($resellerId, $forceReload = false)
 {
-    static $properties = NULL;
+    static $resellerProps = NULL;
 
-    if (NULL === $properties || $forceReload) {
-        $stmt = execQuery('SELECT * FROM reseller_props WHERE reseller_id = ?', [$resellerId]);
+    if (NULL === $resellerProps || $forceReload) {
+        $stmt = execQuery('SELECT * FROM imscp_reseller_props WHERE userId = ?', [$resellerId]);
         if (!$stmt->rowCount()) {
-            throw new \Exception(tr('Properties for reseller with ID %d were not found in database.', $resellerId));
+            throw new \InvalidArgumentException(tr('Properties for reseller with ID %d were not found in database.', $resellerId));
         }
 
-        $properties = $stmt->fetch();
+        $resellerProps = $stmt->fetch();
     }
 
-    return $properties;
+    return $resellerProps;
 }
 
 /**
@@ -1925,7 +1910,9 @@ function getResellerProperties($resellerId, $forceReload = false)
  * @param  int $resellerId Reseller unique identifier.
  * @param  array $props Array that contain new properties values
  * @return \PDOStatement|null
+ * @deprecated 
  */
+/*
 function updateResellerProperties($resellerId, $props)
 {
     ignore_user_abort(true);
@@ -1954,6 +1941,7 @@ function updateResellerProperties($resellerId, $props)
 
     return $stmt;
 }
+*/
 
 // Utils functions
 
@@ -2501,25 +2489,29 @@ function getRequestBaseUrl()
 /**
  * Writes a log message in database and notify administrator by email
  *
- * @param string $msg Message
+ * @param string $log $log
  * @param int $logLevel Log level
  * @return void
  */
-function writeLog($msg, $logLevel = E_USER_WARNING)
+function writeLog($log, $logLevel = E_USER_WARNING)
 {
     if (getenv('IMSCP_INSTALLER')) {
         return;
     }
 
-    $msg = '[' . getIpAddr() . '] ' . replaceHtml($msg);
-    execQuery('INSERT INTO `log` (`log_time`,`log_message`) VALUES(NOW(), ?)', [$msg]);
+    $log = '[' . getIpAddr() . '] ' . replaceHtml($log);
+    $log = new \iMSCP\Model\CpLog($log);
+
+    $em = Application::getInstance()->getEntityManager();
+    $em->persist($log);
+    $em->flush();
 
     $cfg = Application::getInstance()->getConfig();
     if ($logLevel > $cfg['LOG_LEVEL']) {
         return;
     }
 
-    $msg = strip_tags(preg_replace('/<br\s*\/?>/', "\n", $msg));
+    $log = strip_tags(preg_replace('/<br\s*\/?>/', "\n", $log));
 
     if ($logLevel == E_USER_NOTICE) {
         $severity = 'Notice';
@@ -2532,11 +2524,11 @@ function writeLog($msg, $logLevel = E_USER_WARNING)
     }
 
     \iMSCP\Functions\Mail::sendMail([
-        'mail_id'      => 'imscp-log',
+        'mailID'      => 'imscp-log',
         'username'     => tr('administrator'),
         'email'        => $cfg['DEFAULT_ADMIN_ADDRESS'],
-        'subject'      => "i-MSCP Notification ($severity)",
-        'message'      => tr('Dear {NAME},
+        'emailSubject'  => "i-MSCP Notification ($severity)",
+        'emailBody'      => tr('Dear {NAME},
 
 This is an automatic email sent by your i-MSCP control panel:
 
@@ -2563,7 +2555,7 @@ i-MSCP Mailer'),
             '{VERSION}'          => $cfg['Version'],
             '{BUILDDATE}'        => $cfg['BuildDate'] ?: tr('Unavailable'),
             '{MESSAGE_SEVERITY}' => $severity,
-            '{MESSAGE}'          => $msg
+            '{MESSAGE}'          => $log
         ],
     ]);
 }
@@ -2577,11 +2569,14 @@ i-MSCP Mailer'),
  *
  * @param string $sql SQL statement
  * @param array $parameters Parameter
- * @return \PDOStatement
+ * @return \Doctrine\DBAL\Driver\Statement
  */
-function execQuery(string $sql, array $parameters = NULL): \PDOStatement
+function execQuery(string $sql, array $parameters = NULL): \Doctrine\DBAL\Driver\Statement
 {
-    return Application::getInstance()->getDb()->createStatement($sql)->execute($parameters)->getResource();
+    return Application::getInstance()
+        ->getEntityManager()
+        ->getConnection()
+        ->executeQuery($sql, $parameters);
 }
 
 /**
@@ -2594,7 +2589,10 @@ function execQuery(string $sql, array $parameters = NULL): \PDOStatement
  */
 function quoteIdentifier($identifier)
 {
-    return $db = Application::getInstance()->getDb()->getPlatform()->quoteIdentifier($identifier);
+    return $db = Application::getInstance()
+        ->getEntityManager()
+        ->getConnection()
+        ->quoteIdentifier($identifier);
 }
 
 /**
@@ -2605,7 +2603,10 @@ function quoteIdentifier($identifier)
  */
 function quoteValue($value)
 {
-    return $db = Application::getInstance()->getDb()->getPlatform()->quoteValue($value);
+    return Application::getInstance()
+        ->getEntityManager()
+        ->getConnection()
+        ->quote($value);
 }
 
 // Unclassified functions
@@ -2882,11 +2883,11 @@ function getIpAddr(): string
 }
 
 /**
- * Validate an hosting plan
+ * Validate an hosting plan against its owner (reseller) limits and permissions
  *
- * This function can operate in two context
+ * This function can operate in two contexts
  * - Hosting plan creation/edition in which case only reseller max limits are considered
- * - Customer account creation/edition in which case reseller max limits and current consumption are considered
+ * - Customer account creation/edition in which case reseller max limits and current reseller consumption are considered
  *
  * @param array array containg hosting plan properties
  * @param int $resellerId Reseller unique identifier
@@ -2897,100 +2898,142 @@ function getIpAddr(): string
 function validateHostingPlan(array $hpProps, int $resellerId, $accountContext = false): bool
 {
     $ret = true;
-    $stmt = execQuery('SELECT * FROM reseller_props WHERE reseller_id = ?', [$resellerId]);
+    $resellerProps = getResellerProperties($resellerId);
 
-    if (!$stmt->rowCount()) {
-        throw new InvalidArgumentException("Couldn't find reseller properties.");
-    }
-
-    $row = $stmt->fetch();
-
-    if ($accountContext && $row['max_dmn_cnt'] != 0 && $row['current_dmn_cnt'] + 1 > $row['max_dmn_cnt']) {
+    if ($accountContext && $resellerProps['domainsLimit'] != 0 && $resellerProps['domainsAssigned'] + 1 > $resellerProps['domainsLimit']) {
         View::setPageMessage(tr('The limit for customers is reached. No new customer account can be created.'), 'error');
         $ret = false;
     }
 
-    if ($row['max_sub_cnt'] != 0 && $hpProps['subdomains_limit'] != -1) {
-        if ($hpProps['subdomains_limit'] == 0) {
+    if ($resellerProps['subdomainsLimit'] != 0 && $hpProps['limits']['subdomains'] != -1) {
+        if ($hpProps['limits']['subdomains'] == 0) {
             View::setPageMessage(tr('There is a limit for subdomains. Subdomains cannot be unlimited.'), 'error');
             $ret = false;
-        } elseif ($accountContext && $row['current_sub_cnt'] + $hpProps['subdomains_limit'] > $row['max_sub_cnt']) {
+        } elseif ($accountContext && $resellerProps['current_sub_cnt'] + $hpProps['limits']['subdomains'] > $resellerProps['max_sub_cnt']) {
             View::setPageMessage(tr('The limit for subdomains is reached.'), 'error');
             $ret = false;
         }
     }
 
-    if ($row['max_als_cnt'] != 0 && $hpProps['domain_aliases_limit'] != -1) {
-        if ($hpProps['domain_aliases_limit'] == 0) {
-            View::setPageMessage(tr('There is limit for domain aliases. Domain aliases cannot be unlimited.'), 'error');
-            $ret = false;
-        } elseif ($accountContext && $row['current_als_cnt'] + $hpProps['domain_aliases_limit'] > $row['max_als_cnt']) {
-            View::setPageMessage(tr('The limit for domain aliases is reached.'), 'error');
-            $ret = false;
-        }
-    }
-
-    if ($row['max_mail_cnt'] != 0 && $row['max_mail_cnt'] != -1) {
-        if ($hpProps['mail_accounts_limit'] == 0) {
+    if ($resellerProps['mailboxesLimit'] != 0 && $resellerProps['max_mail_cnt'] != -1) {
+        if ($hpProps['limits']['mail_accounts'] == 0) {
             View::setPageMessage(tr('There is a limit for mail accounts. Mail accounts cannot be unlimited.'), 'error');
             $ret = false;
-        } elseif ($accountContext && $row['current_mail_cnt'] + $hpProps['mail_accounts_limit'] > $row['max_mail_cnt']) {
+        } elseif ($accountContext && $resellerProps['current_mail_cnt'] + $hpProps['limits']['mail_accounts'] > $resellerProps['max_mail_cnt']) {
             View::setPageMessage(tr('The limit for mail accounts is reached.'), 'error');
             $ret = false;
         }
     }
 
-    if ($row['max_ftp_cnt'] != 0 && $row['max_ftp_cnt'] != -1) {
-        if ($hpProps['ftp_accounts_limit'] == 0) {
+    if ($resellerProps['ftpUsersLimit'] != 0 && $resellerProps['max_ftp_cnt'] != -1) {
+        if ($hpProps['limits']['ftp_accounts'] == 0) {
             View::setPageMessage(tr('There is a limit for FTP accounts. FTP accounts cannot be unlimited.'), 'error');
             $ret = false;
-        } elseif ($accountContext && $row['current_ftp_cnt'] + $hpProps['ftp_accounts_limit'] > $row['max_ftp_cnt']) {
+        } elseif ($accountContext && $resellerProps['current_ftp_cnt'] + $hpProps['limits']['ftp_accounts'] > $resellerProps['max_ftp_cnt']) {
             View::setPageMessage(tr('The limit for FTP account is reached.'), 'error');
             $ret = false;
         }
     }
 
-    if ($row['max_sql_db_cnt'] != 0 && $hpProps['sql_databases_limit'] != -1) {
-        if ($hpProps['sql_databases_limit'] == 0) {
+    if ($resellerProps['sqlDatabasesLimit'] != 0 && $hpProps['limits']['sql_databases'] != -1) {
+        if ($hpProps['limits']['sql_databases'] == 0) {
             View::setPageMessage(tr('There is a limit for SQL databases. SQL databases cannot be unlimited.'), 'error');
             $ret = false;
-        } elseif ($accountContext && $row['current_sql_db_cnt'] + $hpProps['sql_databases_limit'] > $row['max_sql_db_cnt']) {
+        } elseif ($accountContext && $resellerProps['current_sql_db_cnt'] + $hpProps['limits']['sql_databases'] > $resellerProps['max_sql_db_cnt']) {
             View::setPageMessage(tr('The limit for SQL database is reached.'), 'error');
             $ret = false;
         }
     }
 
-    if ($row['max_sql_user_cnt'] != 0 && $hpProps['sql_users_limit'] != -1) {
-        if ($hpProps['sql_users_limit'] == 0) {
+    if ($resellerProps['sqlUsersLimit'] != 0 && $hpProps['limits']['sql_users'] != -1) {
+        if ($hpProps['limits']['sql_users'] == 0) {
             View::setPageMessage(tr('There is a limit for SQL users. SQL users cannot be unlimited.'), 'error');
             $ret = false;
-        } elseif ($hpProps['sql_databases_limit'] == -1) {
+        } elseif ($hpProps['limits']['sql_databases'] == -1) {
             View::setPageMessage(tr('There can not be SQL users without SQL databases.'), 'error');
             $ret = false;
-        } elseif ($row['current_sql_user_cnt'] + $hpProps['sql_users_limit'] > $row['max_sql_user_cnt']) {
+        } elseif ($resellerProps['current_sql_user_cnt'] + $hpProps['limits']['sql_users'] > $resellerProps['max_sql_user_cnt']) {
             View::setPageMessage(tr('The limit for SQL users is reached.'), 'error');
             $ret = false;
         }
     }
 
-    if ($row['max_traff_amnt'] != 0) {
-        if ($hpProps['monthly_traffic_limit'] == 0) {
+    if ($resellerProps['monthlyTrafficLimit'] > 0) {
+        if ($hpProps['limits']['monthly_traffic'] == 0) {
             View::setPageMessage(tr('There is a monthly traffic limit. Monthly traffic cannot be unlimited.'), 'error');
             $ret = false;
-        } elseif ($accountContext && $row['current_traff_amnt'] + $hpProps['monthly_traffic_limit'] > $row['max_traff_amnt']) {
+        } elseif ($accountContext && $resellerProps['current_traff_amnt'] + $hpProps['limits']['monthly_traffic'] > $resellerProps['max_traff_amnt']) {
             View::setPageMessage(tr('The limit for monthly traffic is reached.'), 'error');
             $ret = false;
         }
     }
 
-    if ($row['max_disk_amnt'] != 0) {
-        if ($hpProps['diskspace_limit'] == 0) {
+    if ($resellerProps['diskspaceLimit'] > 0) {
+        if ($hpProps['limits']['diskspace'] == 0) {
             View::setPageMessage(tr('There is a diskspace limit. Diskspace cannot be unlimited.'), 'error');
             $ret = false;
-        } elseif ($accountContext && $row['current_disk_amnt'] + $hpProps['diskspace_limit'] > $row['max_disk_amnt']) {
+        } elseif ($accountContext && $resellerProps['current_disk_amnt'] + $hpProps['limits']['diskspace'] > $resellerProps['max_disk_amnt']) {
             View::setPageMessage(tr('The limit for diskspace is reached.'), 'error');
             $ret = false;
         }
+    }
+
+    //
+    // Check for feature against reseller permissions
+    //
+
+    if ($resellerProps['php_perm'] && $hpProps['php']) {
+        View::setPageMessage(tr('There is no PHP feature available.'), 'error');
+        $ret = false;
+    }
+
+    // Check for PHP feature, including PHP editor permissions and limits
+    $phpini = \iMSCP\PHPini::getInstance();
+    $phpini->loadResellerPermissions();
+    if ($hpProps['php'] && $phpini->resellerHasPermission('phpiniSystem')) {
+        $phpini->loadClientPermissions();
+        $phpini->setClientPermission('phpiniSystem', $hpProps['php_ini_system']);
+
+        if ($phpini->clientHasPermission('phpiniSystem')) {
+            // Permissions
+            $phpini->setClientPermission('phpiniConfigLevel', $hpProps['phg_ini_config_level']);
+            $phpini->setClientPermission('phpiniAllowUrlFopen', $hpProps['php_ini_allow_url_fopen']);
+            $phpini->setClientPermission('phpiniDisplayErrors', $hpProps['php_ini_display_error']);
+            $phpini->setClientPermission('phpiniDisableFunctions', $hpProps['php_ini_disable_functions']);
+            $phpini->setClientPermission('phpiniMailFunction', $hpProps['php_ini_mail_function']);
+
+            // Limits
+            $phpini->setIniOption('phpiniMemoryLimit', $hpProps['php_ini_memory_limit']); // Must be set before phpiniPostMaxSize
+            $phpini->setIniOption('phpiniPostMaxSize', $hpProps['php_ini_post_max_size']); // Must be set before phpiniUploadMaxFileSize
+            $phpini->setIniOption('phpiniUploadMaxFileSize', $hpProps['php_ini_upload_max_file_size']);
+            $phpini->setIniOption('phpiniMaxExecutionTime', $hpProps['php_ini_max_execution_time']);
+            $phpini->setIniOption('phpiniMaxInputTime', $hpProps['php_ini_max_input_time']);
+        }
+    }
+
+    if ($resellerProps['cgi_perm'] && $hpProps['cgi']) {
+        View::setPageMessage(tr('There is no CGI feature available.'), 'error');
+        $ret = false;
+    }
+
+    if ($resellerProps['custom_dns_perm'] && $hpProps['custom_dns']) {
+        View::setPageMessage(tr('There is no custom DNS feature available.'), 'error');
+        $ret = false;
+    }
+
+    if ($resellerProps['external_mail_server_perm'] && $hpProps['external_mail_server']) {
+        View::setPageMessage(tr('There is no external mail server feature available.'), 'error');
+        $ret = false;
+    }
+
+    if ($resellerProps['support_system'] && $hpProps['support_system']) {
+        View::setPageMessage(tr('There is no support center feature available.'), 'error');
+        $ret = false;
+    }
+
+    if ($resellerProps['backup_perm'] && !empty($hpProps['backup'])) {
+        View::setPageMessage(tr('There is no backup feature available.'), 'error');
+        $ret = false;
     }
 
     return $ret;
@@ -3036,7 +3079,9 @@ function getMountpoints(int $domainId): array
  * @param string $domainType Domain type (dmn,als,sub,alssub)
  * @param int $ownerId Domain owner unique identifier
  * @return array Array containing domain mount point and document root
+ * @deprecated
  */
+/*
 function getDomainMountpoint(int $domainId, string $domainType, int $ownerId): array
 {
     switch ($domainType) {
@@ -3082,6 +3127,7 @@ function getDomainMountpoint(int $domainId, string $domainType, int $ownerId): a
 
     return $stmt->fetch(\PDO::FETCH_NUM);
 }
+*/
 
 
 /**
@@ -3108,10 +3154,10 @@ function deleteSubdomain(int $id): void
     );
     $stmt->rowCount() or \iMSCP\Functions\View::showBadRequestErrorPage();
     $row = $stmt->fetch();
-    $db = Application::getInstance()->getDb();
+    $db = Application::getInstance()->getEntityManager()->getConnection();
 
     try {
-        $db->getDriver()->getConnection()->beginTransaction();
+        $db->beginTransaction();
 
         Application::getInstance()->getEventManager()->trigger(Events::onBeforeDeleteSubdomain, NULL, [
             'subdomainId'   => $id,
@@ -3163,12 +3209,12 @@ function deleteSubdomain(int $id): void
             'subdomainType' => 'sub'
         ]);
 
-        $db->getDriver()->getConnection()->commit();
+        $db->commit();
         \iMSCP\Functions\Daemon::sendRequest();
         writeLog(sprintf('Deletion of the %s subdomain has been scheduled by %s', decodeIdna($row['subdomain_alias_name']), decodeIdna($identity->getUsername())), E_USER_NOTICE);
         View::setPageMessage(tr('Subdomain scheduled for deletion.'), 'success');
     } catch (\Exception $e) {
-        $db->getDriver()->getConnection()->rollBack();
+        $db->rollBack();
         writeLog(sprintf('System was unable to remove a subdomain: %s', $e->getMessage()), E_ERROR);
         View::setPageMessage(tr("Couldn't delete subdomain. An unexpected error occurred."), 'error');
     }
@@ -3179,7 +3225,9 @@ function deleteSubdomain(int $id): void
  *
  * @param int $id Subdomain alias unique identifier
  * @return void
+ * @deprecated We need now schedule specific job
  */
+/*
 function deleteSubdomainAlias(int $id): void
 {
     ignore_user_abort(true);
@@ -3272,17 +3320,20 @@ function deleteSubdomainAlias(int $id): void
         redirectTo('domains_manage.php');
     }
 }
+*/
 
 /**
- * Is the SQL databases limit of the logged-in customer has been reached?
+ * Is the SQL databases limit of the logged-in client reached?
  *
  * @return bool TRUE if SQL database limit is reached, FALSE otherwise
  */
 function customerSqlDbLimitIsReached(): bool
 {
-    $domainProps = getCustomerProperties($identity = Application::getInstance()->getAuthService()->getIdentity()->getUserId());
-    if ($domainProps['domain_sqld_limit'] == 0
-        || \iMSCP\Functions\Counting::getCustomerSqlDatabasesCount($domainProps['domain_id']) < $domainProps['domain_sqld_limit']
+    $userID = $identity = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
+    $clientProps = getClientProperties();
+
+    if ($clientProps['sqlDatababasesLimit'] == 0
+        || \iMSCP\Functions\Counting::getClientSqlDatabasesCount($userID) < $clientProps['sqlDatababasesLimit']
     ) {
         return false;
     }
@@ -3331,8 +3382,8 @@ function getProcessorUsername(UserIdentityInterface $identity): string
         return $username;
     }
 
-    if ($identity instanceof SuIdentityInterface) {
-        if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
+    if ($identity instanceof CpSuIdentityInterface) {
+        if ($identity->getSuIdentity() instanceof CpSuIdentityInterface) {
             $username = $identity->getSuIdentity()->getSuUsername();
         } else {
             $username = $identity->getSuUsername();
@@ -3342,4 +3393,32 @@ function getProcessorUsername(UserIdentityInterface $identity): string
     }
 
     return $username;
+}
+
+#####
+
+/**
+ * Get master administrator unique identifier
+ * 
+ * @return null
+ */
+function getMasterAdministartorID()
+{
+    static $id = NULL;
+    
+    if(null === $id) {
+        $id = Application::getInstance()
+            ->getEntityManager()
+            ->getConnection()
+            ->createQueryBuilder()
+            ->select('userID')
+            ->from('imscp_user')
+            ->where('createdBy = 0')
+            ->orderBy('userID', 'ASC')
+            ->setMaxResults(1)
+            ->execute()
+            ->fetchColumn();
+    }
+    
+    return $id;
 }

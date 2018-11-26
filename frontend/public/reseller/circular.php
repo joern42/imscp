@@ -72,7 +72,7 @@ function sendCircularMail($senderName, $senderEmail, $subject, $body, $rcptToDat
  */
 function sendCircularToCustomers($senderName, $senderEmail, $subject, $body)
 {
-    if (!Counting::resellerHasCustomers()) {
+    if (!Counting::resellerHasClients()) {
         return;
     }
 
@@ -220,7 +220,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
-Counting::resellerHasCustomers() or View::showBadRequestErrorPage();
+Counting::resellerHasClients() or View::showBadRequestErrorPage();
 
 if (Application::getInstance()->getRequest()->isPost() && sendCircular()) {
     redirectTo('users.php');

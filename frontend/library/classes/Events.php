@@ -816,11 +816,10 @@ class Events
      *  - extMailServer       : External mail server feature
      *  - backup              : backup feature
      *  - webFolderProtection : WebFolderProtection
-     *  - subdomainsLimit     : Subdomains limit
-     *  - DomainAliasesLimit  : Domain aliases limit
-     *  - mailAccountsLimit   : Mail accounts limit
+     *  - DomainsLimit        : Domains limit
+     *  - mailboxesLimit      : Mail accounts limit
      *  - mailQuota           : Mail quota limit
-     *  - ftpAccountsLimit    : Ftp accounts limit
+     *  - ftpUsersLimit       : Ftp accounts limit
      *  - sqlDatabasesLimit   : SQL databases limit
      *  - sqlUsersLimit       : SQL users limit
      *  - monthlyTrafficLimit : Monthly traffic limit
@@ -844,11 +843,10 @@ class Events
      *  - extMailServer       : External mail server feature
      *  - backup              : backup feature
      *  - webFolderProtection : WebFolderProtection
-     *  - subdomainsLimit     : Subdomains limit
-     *  - DomainAliasesLimit  : Domain aliases limit
-     *  - mailAccountsLimit   : Mail accounts limit
+     *  - DomainsLimit        : Domains limit
+     *  - mailboxesLimit      : Mail accounts limit
      *  - mailQuota           : Mail quota limit
-     *  - ftpAccountsLimit    : Ftp accounts limit
+     *  - ftpUsersLimit    : Ftp accounts limit
      *  - sqlDatabasesLimit   : SQL databases limit
      *  - sqlUsersLimit       : SQL users limit
      *  - monthlyTrafficLimit : Monthly traffic limit

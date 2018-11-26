@@ -22,7 +22,7 @@ namespace iMSCP\Functions;
 
 use iMSCP\Application;
 use iMSCP\Events;
-use iMSCP\Model\SuIdentityInterface;
+use iMSCP\Model\CpSuIdentityInterface;
 use iMSCP\TemplateEngine;
 use Zend\Navigation\Navigation;
 use Zend\Navigation\Page\Uri;
@@ -47,7 +47,7 @@ class View
         ]);
         $identity = Application::getInstance()->getAuthService()->getIdentity();
 
-        if (!($identity instanceof SuIdentityInterface)) {
+        if (!($identity instanceof CpSuIdentityInterface)) {
             $tpl->assign([
                 'YOU_ARE_SIGNED_IN_AS' => tr("You're signed in as %s", $identity->getUsername()),
                 'SIGNED_IN_FROM' => ''
@@ -56,7 +56,7 @@ class View
             return;
         }
 
-        if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
+        if ($identity->getSuIdentity() instanceof CpSuIdentityInterface) {
             $tpl->assign([
                 'YOU_ARE_SIGNED_IN_AS'    => tr(
                     '%1$s you are signed in as %2$s, then as %3$s',
@@ -178,10 +178,10 @@ class View
 
         // Dynamic links (only at customer level)
         if ($identity->getUserType() == 'user') {
-            $domainProperties = getCustomerProperties($identity->getUserId());
+            $domainProperties = getClientProperties($identity->getUserId());
             $tpl->assign('WEBSTATS_PATH', 'http://' . decodeIdna($domainProperties['domain_name']) . '/stats/');
 
-            if (Counting::customerHasFeature('mail')) {
+            if (Counting::userHasFeature('mail')) {
                 $webmails = Mail::getWebmailList();
 
                 if (!empty($webmails)) {
@@ -200,7 +200,7 @@ class View
                 }
             }
 
-            if (Counting::customerHasFeature('ftp')) {
+            if (Counting::userHasFeature('ftp')) {
                 $filemanagers = getFilemanagerList();
                 if (!empty($filemanagers)) {
                     $page1 = $navigation->findOneBy('class', 'ftp');
@@ -365,7 +365,7 @@ class View
         } elseif ($userLevel == 'user') {
             $param = 'C';
         } else {
-            throw new \Exception("Unknown user level '$userLevel' for getCustomMenus() function.");
+            throw new \InvalidArgumentException("Unknown user level '$userLevel' for getCustomMenus() function.");
         }
 
         $stmt = execQuery('SELECT * FROM custom_menus WHERE menu_level LIKE ?', ["%$param%"]);
@@ -595,37 +595,6 @@ class View
             'CLIENT_DISABLED_SELECTED'      => $suspended,
             'CLIENT_ERROR_SELECTED'         => $error
         ]);
-    }
-
-    /**
-     * Generates user domain_aliases_list
-     *
-     * @param TemplateEngine $tpl
-     * @param int $domainId Domain unique identifier
-     * @return void
-     */
-    public static function generateDomainAliasesList(TemplateEngine $tpl, int $domainId): void
-    {
-        $tpl->assign('CLIENT_DOMAIN_ALIAS_BLK', '');
-
-        $session = Application::getInstance()->getSession();
-        if (!isset($session['client_domain_aliases_switch']) || $session['client_domain_aliases_switch'] != 'show') {
-            return;
-        }
-
-        $stmt = execQuery('SELECT alias_name FROM domain_aliases WHERE domain_id = ? ORDER BY alias_name ASC', [$domainId]);
-
-        if (!$stmt->rowCount()) {
-            return;
-        }
-
-        while ($row = $stmt->fetch()) {
-            $tpl->assign([
-                'CLIENT_DOMAIN_ALIAS_URL' => toHtml($row['alias_name'], 'htmlAttr'),
-                'CLIENT_DOMAIN_ALIAS'     => toHtml(decodeIdna($row['alias_name']))
-            ]);
-            $tpl->parse('CLIENT_DOMAIN_ALIAS_BLK', '.client_domain_alias_blk');
-        }
     }
 
     /**
@@ -859,14 +828,14 @@ class View
             'sLengthMenu'  => tr(
                 'Show %s records per page',
                 '
-                <select>
-                <option value="10">10</option>
-                <option value="15">15</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-                </select>
-            '
+                    <select>
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                '
             ),
             //'sLengthMenu' => tr('Show %s records per page', '_MENU_'),
             'zeroRecords'  => tr('Nothing found - sorry'),

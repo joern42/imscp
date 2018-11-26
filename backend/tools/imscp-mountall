@@ -52,11 +52,11 @@ sub run
 
     open my $fh, '<', $fstab or die( sprintf( "Couldn't open %s: %s", $fstab, $! ));
 
-    while ( <$fh> ) {
-        next if /^(?:#|$)/; # Ignore comment and empty lines
-        chomp;
+    while ( my $line = <$fh> ) {
+        next if $line =~ /^(?:#|$)/; # Ignore comment and empty lines
+        chomp $line;
         my $fields;
-        @{ $fields }{ qw/ fs_spec fs_file fs_vfstype fs_mntops ignore_failures / } = split;
+        @{ $fields }{ qw/ fs_spec fs_file fs_vfstype fs_mntops ignore_failures / } = split $line;
 
         if ( $action eq 'start' ) {
             next if $fields->{'fs_mntops'} =~ /\bnoauto\b/;

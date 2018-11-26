@@ -36,14 +36,13 @@ use File::Spec;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ error getMessageByType /;
 use iMSCP::H2ph;
-use iMSCP::Umask;
+use iMSCP::Umask '$UMASK';
 use POSIX qw/ mkfifo lchown /;
 use overload '""' => \&__toString, fallback => 1;
 use parent 'iMSCP::Common::Object';
 
 # All the mode bits that can be affected by chmod.
 use constant CHMOD_MODE_BITS => S_ISUID | S_ISGID | S_ISVTX | S_IRWXU | S_IRWXG | S_IRWXO;
-
 # Commonly used file permission combination.
 use constant MODE_RW_UGO => S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
 use constant S_IRWXUGO => S_IRWXU | S_IRWXG | S_IRWXO;
@@ -227,30 +226,27 @@ sub clear
 
     !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
-    if ( defined $regexp ) {
-        opendir my $dh, $self->{'dirname'} or die( sprintf( "Failed to open '%s': %s", $self->{'dirname'}, $! ));
-
-        while ( my $dentry = readdir $dh ) {
-            next if $dentry =~ /^\.{1,2}\z/s;
-            next unless $invertMatching ? $dentry !~ /$regexp/ : $dentry =~ /$regexp/;
-
-            $dentry = $self->{'dirname'} . '/' . $dentry;
-
-            if ( -l $dentry || !-d _ ) {
-                unlink $dentry or die( sprintf( "Failed to remove '%s': %s", $dentry, $! ));
-                next;
-            }
-
-            eval { remove_tree( $dentry, { safe => 1 } ); };
-            !$@ or die( sprintf( "Failed to remove '%s': %s", $dentry, $@ ));
-        }
-
-        closedir $dh;
+    unless ( defined $regexp ) {
+        eval { remove_tree( $self->{'dirname'}, { keep_root => 1, safe => 1 } ); };
+        !$@ or die( sprintf( "Failed to clear '%s': %s", $self->{'dirname'}, $@ ));
         return $self;
     }
 
-    eval { remove_tree( $self->{'dirname'}, { keep_root => 1, safe => 1 } ); };
-    !$@ or die( sprintf( "Failed to clear '%s': %s", $self->{'dirname'}, $@ ));
+    opendir my $dh, $self->{'dirname'} or die( sprintf( "Failed to open '%s': %s", $self->{'dirname'}, $! ));
+
+    while ( my $dentry = readdir $dh ) {
+        next if $dentry =~ /^\.{1,2}\z/s;
+        next unless $invertMatching ? $dentry !~ /$regexp/ : $dentry =~ /$regexp/;
+        $dentry = $self->{'dirname'} . '/' . $dentry;
+        if ( -l $dentry || !-d _ ) {
+            unlink $dentry or die( sprintf( "Failed to remove '%s': %s", $dentry, $! ));
+            next;
+        }
+        eval { remove_tree( $dentry, { safe => 1 } ); };
+        !$@ or die( sprintf( "Failed to remove '%s': %s", $dentry, $@ ));
+    }
+
+    closedir $dh;
     $self;
 }
 
@@ -302,18 +298,18 @@ sub owner
 
  Create this directory
 
- Setting ownership and permissions on created parent directories can lead to several
- permission issues. Starting with version 1.5.0, the ownership and permissions on
- created parent directories are set as EUID:EGID 0777 & ~(UMASK(2) || 0). If other
- permissions are expected for those directories, caller must either pre-create them,
- either fix permissions once after.
+ Setting ownership and permissions on created parent directories can lead to
+ several permission issues. Thus, the ownership and permissions on those
+ directories are set as EUID:EGID 0777 & ~(UMASK(2) || 0). If other permissions
+ are expected, caller must either pre-create them, either fix permissions once
+ after.
 
  Param hashref \%options OPTIONAL options:
-  - umask          : UMASK(2) for a new diretory. For instance if the given umask is 0027, mode will be: 0777 & ~0027 = 0750 (in octal)
-  - user           : File owner (default: EUID for a new file, no change for existent directory unless fixpermissions is TRUE)
-  - group          : File group (default: EGID for a new file, no change for existent directory unless fixpermissions is TRUE)
-  - mode           : File mode (default: 0777 & ~(UMASK(2) || 0) for a new file, no change for existent directory unless fixpermissions is TRUE)
-  - fixpermissions : If TRUE, set ownership and permissions even for existent $self->{'directory'}
+  - umask: UMASK(2) for a new diretory, excluding created parent directories. If the given umask is 0027, mode will be: 0777 & ~0027 = 0750 (in octal)
+  - user: Directory owner (default: EUID for a new directory, no change for existent directory unless fixpermissions is TRUE)
+  - group: Directory group (default: EGID for a new directory, no change for existent directory unless fixpermissions is TRUE)
+  - mode: Directory mode (default: 0777 & ~(UMASK(2) || 0) for a new directory, no change for existent directory unless fixpermissions is TRUE)
+  - fixpermissions : If TRUE, set ownership and permissions even for existent $self->{'dirname'}
  Return self, die on failure
 
 =cut
@@ -348,7 +344,7 @@ sub make
         $self->owner( $options->{'user'} // -1, $options->{'group'} // -1, $self->{'dirname'} );
     }
 
-    # $self->{'directory'} was an existent symlink
+    # $self->{'dirname'} was an existent symlink
     # We do not want call CHMOD(2) on symlinks
     return $self if @dst && -l $self->{'dirname'};
 

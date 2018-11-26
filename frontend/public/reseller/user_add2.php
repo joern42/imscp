@@ -34,14 +34,17 @@ function getFirstStepData()
 {
     global $dmnName, $hpId;
 
-    foreach (['dmn_name', 'dmn_expire', 'dmn_url_forward', 'dmn_type_forward', 'dmn_host_forward', 'dmn_tpl'] as $data) {
-        if (!array_key_exists($data, Application::getInstance()->getSession())) {
-            return false;
-        }
+    // A bit messy. See https://github.com/zendframework/zend-session/issues/111
+    $data = array_intersect_key(Application::getInstance()->getSession()->getArrayCopy(), array_fill_keys([
+        'dmn_name', 'dmn_expire', 'dmn_url_forward', 'dmn_type_forward', 'dmn_host_forward', 'dmn_tpl'], null
+    ));
+    
+    if(count($data) < 6) {
+        return false;
     }
 
-    $dmnName = Application::getInstance()->getSession()['dmn_name'];
-    $hpId = Application::getInstance()->getSession()['dmn_tpl'];
+    $dmnName = $data['dmn_name'];
+    $hpId = $data['dmn_tpl'];
     return true;
 }
 
@@ -75,15 +78,15 @@ function generatePage($tpl)
         'VL_CGIN'           => $cgi == '_yes_' ? '' : ' checked'
     ]);
 
-    if (!Counting::resellerHasFeature('subdomains')) {
+    if (!Counting::userHasFeature('webSubdomains')) {
         $tpl->assign('SUBDOMAIN_FEATURE', '');
     }
 
-    if (!Counting::resellerHasFeature('domain_aliases')) {
+    if (!Counting::userHasFeature('webDomainAliases')) {
         $tpl->assign('ALIAS_FEATURE', '');
     }
 
-    if (!Counting::resellerHasFeature('custom_dns_records')) {
+    if (!Counting::userHasFeature('webDnsEditor')) {
         $tpl->assign('CUSTOM_DNS_RECORDS_FEATURE', '');
     } else {
         $tpl->assign([
@@ -92,20 +95,20 @@ function generatePage($tpl)
         ]);
     }
 
-    if (!Counting::resellerHasFeature('mail')) {
+    if (!Counting::userHasFeature('mailMailboxes')) {
         $tpl->assign('MAIL_FEATURE', '');
         $tpl->assign('EXT_MAIL_FEATURE', '');
     }
 
-    if (!Counting::resellerHasFeature('ftp')) {
+    if (!Counting::userHasFeature('ftp')) {
         $tpl->assign('FTP_FEATURE', '');
     }
 
-    if (!Counting::resellerHasFeature('sql')) {
+    if (!Counting::userHasFeature('sql')) {
         $tpl->assign('SQL_FEATURE', '');
     }
 
-    if (!Counting::resellerHasFeature('backup')) {
+    if (!Counting::userHasFeature('backup')) {
         $tpl->assign('BACKUP_FEATURE', '');
     } else {
         $tpl->assign([
@@ -342,21 +345,21 @@ function checkInputData()
 
     $php = $php == '_yes_' ? '_yes_' : '_no_';
     $cgi = $cgi == '_yes_' ? '_yes_' : '_no_';
-    $dns = Counting::resellerHasFeature('custom_dns_records') && $dns == '_yes_' ? '_yes_' : '_no_';
-    $backup = Counting::resellerHasFeature('backup') ? array_intersect($backup, ['_dmn_', '_sql_', '_mail_']) : [];
+    $dns = Counting::userHasFeature('wrbDnsEditor') && $dns == '_yes_' ? '_yes_' : '_no_';
+    $backup = Counting::userHasFeature('backup') ? array_intersect($backup, ['_dmn_', '_sql_', '_mail_']) : [];
     $extMail = $extMail == '_yes_' ? '_yes_' : '_no_';
     $webFolderProtection = $webFolderProtection == '_yes_' ? '_yes_' : '_no_';
     $errFieldsStack = [];
 
     // Subdomains limit
-    if (!Counting::resellerHasFeature('subdomains')) {
+    if (!Counting::userHasFeature('Websubdomains')) {
         $sub = '-1';
     } elseif (!validateLimit($sub, -1)) {
         View::setPageMessage(tr('Incorrect subdomain limit.'), 'error');
         $errFieldsStack[] = 'nreseller_max_subdomain_cnt';
     }
 
-    if (!Counting::resellerHasFeature('domain_aliases')) {
+    if (!Counting::userHasFeature('webDomainAliases')) {
         $als = '-1';
     } elseif (!validateLimit($als, -1)) {
         View::setPageMessage(tr('Incorrect alias limit.'), 'error');
@@ -364,7 +367,7 @@ function checkInputData()
     }
 
     // Mail accounts limit
-    if (!Counting::resellerHasFeature('mail')) {
+    if (!Counting::userHasFeature('mailMailboxes')) {
         $mail = '-1';
     } elseif (!validateLimit($mail, -1)) {
         View::setPageMessage(tr('Incorrect mail accounts limit.'), 'error');
@@ -384,7 +387,7 @@ function checkInputData()
     }
 
     // Ftp accounts limit
-    if (!Counting::resellerHasFeature('ftp')) {
+    if (!Counting::userHasFeature('ftp_accounts')) {
         $ftp = '-1';
     } elseif (!validateLimit($ftp, -1)) {
         View::setPageMessage(tr('Incorrect FTP accounts limit.'), 'error');
@@ -392,7 +395,7 @@ function checkInputData()
     }
 
     // SQL database limit
-    if (!Counting::resellerHasFeature('sql_db')) {
+    if (!Counting::userHasFeature('sqlDatabases')) {
         $sqld = -1;
     } elseif (!validateLimit($sqld, -1)) {
         View::setPageMessage(tr('Incorrect SQL databases limit.'), 'error');
@@ -404,7 +407,7 @@ function checkInputData()
     }
 
     // SQL users limit
-    if (!Counting::resellerHasFeature('sql_user')) {
+    if (!Counting::userHasFeature('sqlUsers')) {
         $sqlu = -1;
     } elseif (!validateLimit($sqlu, -1)) {
         View::setPageMessage(tr('Incorrect SQL users limit.'), 'error');
@@ -528,7 +531,7 @@ if (isset($_POST['uaction']) && 'user_add2_nxt' == $_POST['uaction'] && !isset(A
             $phpini->getIniOption('phpiniMemoryLimit') . ';' .
             $extMail . ';' . $webFolderProtection . ';' . $mailQuota * 1048576;
 
-        if (validateHostingPlanLimits(Application::getInstance()->getSession()['ch_hpprops'], $identity->getUserId())) {
+        if (validateHostingPlan(Application::getInstance()->getSession()['ch_hpprops'], $identity->getUserId(), true)) {
             redirectTo('user_add3.php');
         }
     }
@@ -589,8 +592,7 @@ $tpl->assign([
     'TR_FEATURES'                   => toHtml(tr('Features')),
     'TR_LIMITS'                     => toHtml(tr('Limits')),
     'TR_WEB_FOLDER_PROTECTION'      => toHtml(tr('Web folder protection')),
-    'TR_WEB_FOLDER_PROTECTION_HELP' => toHtml(tr('If set to `yes`, Web folders will be protected against deletion.')),
-    'TR_SOFTWARE_SUPP'              => toHtml(tr('Software installer'))
+    'TR_WEB_FOLDER_PROTECTION_HELP' => toHtml(tr('If set to `yes`, Web folders will be protected against deletion.'))
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl);

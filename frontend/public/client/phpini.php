@@ -348,7 +348,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('php_editor') or View::showBadRequestErrorPage();
+Counting::userHasFeature('webPhpEditor') or View::showBadRequestErrorPage();
 
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 $phpini = PHPini::getInstance();

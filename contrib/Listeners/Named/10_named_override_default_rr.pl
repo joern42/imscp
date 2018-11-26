@@ -64,12 +64,14 @@ if ( index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1 ) {
                 next;
             };
 
-            if ( $name =~ /^www\Q.$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?/ && $class eq 'IN' && $type eq 'CNAME'
+            if ( $name =~ /^www\Q.$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?/
+                && $class eq 'IN'
+                && ($type eq 'CNAME' || $type eq 'A' || $type eq 'AAAA')
                 && $rdata ne $data->{'DOMAIN_NAME'}
             ) {
                 # Delete default www CNAME record for $data->{'DOMAIN_NAME'}
                 ${ $wrkDbFileContent } =~ s/
-                    ^www(?:\Q.$data->{'DOMAIN_NAME'}.\E)?\s+IN\s+CNAME\s+(?:\@|\Q$data->{'DOMAIN_NAME'}.\E)\n
+                    ^www(?:\Q.$data->{'DOMAIN_NAME'}.\E)?\s+IN\s+(A|AAAA|CNAME)\s+(?:\@|\Q$data->{'DOMAIN_NAME'}.\E|\Q$domainIP\E)\n
                     //gmx;
             }
         }

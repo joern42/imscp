@@ -20,56 +20,82 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class Server
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_server", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
  */
-class Server extends BaseModel
+class Server 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $serverID;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $description;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $hostname;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $type;
 
     /**
-     * @var string
+     * @ORM\Column(type="json")
+     * @var array
      */
     private $metadata;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $hmacSharedSecret;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $services;
 
     /**
+     * @ORM\Column(type="integer")
+     * @var int
+     */
+    private $maxClients = 0;
+
+    /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $apiVersion;
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $isActive = 1;
+    private $isActive = true;
+
+    public function __construct(string $type, array $metadata, $hmacSharedSecret, $services, $apiVersion)
+    {
+    }
 
     /**
      * @return int
@@ -200,9 +226,19 @@ class Server extends BaseModel
     /**
      * @return int
      */
-    public function getIsActive(): int
+    public function getMaxClients(): int
     {
-        return $this->isActive;
+        return $this->maxClients;
+    }
+
+    /**
+     * @param int $maxClients
+     * @return Server
+     */
+    public function setMaxClients(int $maxClients): Server
+    {
+        $this->maxClients = $maxClients;
+        return $this;
     }
 
     /**
@@ -224,10 +260,18 @@ class Server extends BaseModel
     }
 
     /**
-     * @param int $isActive
-     * @return Server
+     * @return bool
      */
-    public function setIsActive(int $isActive): Server
+    public function getIsActive(): bool
+    {
+        return $this->isActive;
+    }
+
+    /**
+     * @param bool $isActive
+     * @return $this
+     */
+    public function setIsActive(bool $isActive)
     {
         $this->isActive = $isActive;
         return $this;

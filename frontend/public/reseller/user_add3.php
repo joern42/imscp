@@ -172,22 +172,21 @@ function addCustomer(Form $form)
             'forwardHost'   => $dmnHostForward
         ]);
         execQuery(
-            '
+            "
                 INSERT INTO domain (
                     domain_name, domain_admin_id, domain_created, domain_expires, domain_mailacc_limit, domain_ftpacc_limit, domain_traffic_limit,
                     domain_sqld_limit, domain_sqlu_limit, domain_status, domain_alias_limit, domain_subd_limit, domain_client_ips, domain_ips,
                     domain_disk_limit, domain_disk_usage, domain_php, domain_cgi, allowbackup, domain_dns, phpini_perm_system,
                     phpini_perm_config_level, phpini_perm_allow_url_fopen, phpini_perm_display_errors, phpini_perm_disable_functions,
-                    phpini_perm_mail_function, domain_external_mail, web_folder_protection, mail_quota, url_forward,type_forward, host_forward
+                    phpini_perm_mail_function, domain_external_mail, web_folder_protection, mail_quota, url_forward, type_forward, host_forward
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, 'toadd', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
-            ',
+            ",
             [
-                $dmnName, $adminId, time(), $dmnExpire, $mail, $ftp, $traff, $sql_db, $sql_user, 'toadd', $als, $sub, implode(',', $clientIps),
-                $clientIps[0], $disk, 0, $php, $cgi, $backup, $dns, $phpEditor, $phpConfigLevel, $phpiniAllowUrlFopen, $phpiniDisplayErrors,
-                $phpiniDisableFunctions, $phpMailFunction, $extMailServer, $webFolderProtection, $mailQuota, $dmnUrlForward, $dmnTypeForward,
-                $dmnHostForward
+                $dmnName, $adminId, time(), $dmnExpire, $mail, $ftp, $traff, $sql_db, $sql_user, $als, $sub, implode(',', $clientIps), $clientIps[0],
+                $disk, 0, $php, $cgi, $backup, $dns, $phpEditor, $phpConfigLevel, $phpiniAllowUrlFopen, $phpiniDisplayErrors, $phpiniDisableFunctions,
+                $phpMailFunction, $extMailServer, $webFolderProtection, $mailQuota, $dmnUrlForward, $dmnTypeForward, $dmnHostForward
             ]
         );
 

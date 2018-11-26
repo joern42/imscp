@@ -282,8 +282,8 @@ sub _validateCronTask
 
  Validate the given cron task field
 
- Param string $name Fieldname (uppercase)
- Param string $value Fieldvalue
+ Param string $name Field name (uppercase)
+ Param string $value Field value
  Return void, croak if the field isn't valid
 
 =cut

@@ -20,151 +20,236 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class User
+ * @ORM\Entity
+ * @ORM\Table(name="imscp_user", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
+ * @ORM\HasLifecycleCallbacks()
  * @package iMSCP\Model
  */
-class User extends BaseModel
+class User 
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $userID;
 
     /**
+     * @ORM\Column(type="string", unique=true)
      * @var string
      */
     private $username;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $passwordHash;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $type;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $email;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $sysName;
 
     /**
+     * @ORM\Column(type="integer", nullable=true)
      * @var int
      */
     private $sysUID;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $sysGroupName;
 
     /**
+     * @ORM\Column(type="integer", nullable=true)
      * @var int
      */
     private $sysGID;
 
     /**
-     * @var \DateTimeImmutable|null
+     * @ORM\Column(type="datetime_immutable")
+     * @var \DateTimeImmutable
      */
     private $createdAt;
 
     /**
+     * @ORM\Column(type="datetime_immutable", nullable=true)
      * @var \DateTimeImmutable|null
      */
     private $updatedAt;
 
     /**
+     * @ORM\Column(type="datetime_immutable", nullable=true)
      * @var \DateTimeImmutable|null
      */
     private $expireAt;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $customerID;
 
     /**
-     * @var string
+     * @ORM\ManyToOne(targetEntity="User", inversedBy="managedUsers")
+     * @ORM\JoinColumn(name="managerID", referencedColumnName="userID", nullable=true)
+     * @var User
      */
-    private $createdBy;
+    private $manager;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $firstName;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $lastName;
 
     /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $gender = 'U';
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $firm;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $street1;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $street2;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $city;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $zip;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $country;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $phone;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string
      */
     private $fax;
 
     /**
+     * @ORM\Column(type="datetime_immutable", nullable=true)
      * @var \DateTimeImmutable|null
      */
     private $lastLostPasswordRequestTime;
 
     /**
+     * @ORM\Column(type="string", nullable=true)
      * @var string|null
      */
     private $lostPasswordKey;
 
     /**
-     * @var int
+     * @ORM\Column(type="boolean")
+     * @var bool
      */
-    private $isActive = 1;
+    private $isActive = true;
+
+    /**
+     * @ORM\OneToMany(targetEntity="User", mappedBy="manager", fetch="EXTRA_LAZY")
+     * @var User[]
+     */
+    public $managedUsers;
+
+    /**
+     * @ORM\Column(nullable=false)
+     * @var string 
+     */
+    public $whatever = 'winner';
+
+    /**
+     * @return User[]
+     */
+    public function getManagedUsers(): array
+    {
+        return $this->managedUsers->toArray();
+    }
+
+    /**
+     * @param User[] $managedUsers
+     * @return User
+     */
+    public function setManagedUsers(array $managedUsers): User
+    {
+        $this->managedUsers = $managedUsers;
+        return $this;
+    }
+
+    /**
+     * User constructor.
+     * @param string $username
+     * @param string $passwordHash
+     * @param string $type
+     * @param string $email
+     * @throws \Exception
+     */
+    public function __construct(string $username, string $passwordHash, string $type, string $email)
+    {
+        $this->setUsername($username);
+        $this->setPasswordHash($passwordHash);
+        $this->setType($type);
+        $this->setEmail($email);
+        $this->managedUsers = new ArrayCollection();
+    }
 
     /**
      * @return int
@@ -173,16 +258,7 @@ class User extends BaseModel
     {
         return $this->userID;
     }
-
-    /**
-     * @param int $userID
-     * @return User
-     */
-    public function setUserID(int $userID): User
-    {
-        $this->userID = $userID;
-        return $this;
-    }
+    
 
     /**
      * @return string
@@ -337,12 +413,12 @@ class User extends BaseModel
     }
 
     /**
-     * @param \DateTimeImmutable|null $createdAt
+     * @ORM\PrePersist()
      * @return User
      */
-    public function setCreatedAt(?\DateTimeImmutable $createdAt): User
+    public function setCreatedAt(): User
     {
-        $this->createdAt = $createdAt;
+        $this->createdAt = new \DateTimeImmutable();
         return $this;
     }
 
@@ -355,12 +431,12 @@ class User extends BaseModel
     }
 
     /**
-     * @param \DateTimeImmutable|null $updatedAt
+     * @ORM\PreUpdate()
      * @return User
      */
-    public function setUpdatedAt(?\DateTimeImmutable $updatedAt): User
+    public function setUpdatedAt(): User
     {
-        $this->updatedAt = $updatedAt;
+        $this->updatedAt = new \DateTimeImmutable();
         return $this;
     }
 
@@ -401,20 +477,20 @@ class User extends BaseModel
     }
 
     /**
-     * @return string
+     * @return User
      */
-    public function getCreatedBy(): string
+    public function getManager(): User
     {
-        return $this->createdBy;
+        return $this->manager;
     }
 
     /**
-     * @param string $createdBy
+     * @param User $manager
      * @return User
      */
-    public function setCreatedBy(string $createdBy): User
+    public function setManager(User $manager): User
     {
-        $this->createdBy = $createdBy;
+        $this->manager = $manager;
         return $this;
     }
 
@@ -653,18 +729,18 @@ class User extends BaseModel
     }
 
     /**
-     * @return int
+     * @return bool
      */
-    public function getIsActive(): int
+    public function getIsActive(): bool
     {
         return $this->isActive;
     }
 
     /**
-     * @param int $isActive
+     * @param bool $isActive
      * @return User
      */
-    public function setIsActive(int $isActive): User
+    public function setIsActive(bool $isActive): User
     {
         $this->isActive = $isActive;
         return $this;

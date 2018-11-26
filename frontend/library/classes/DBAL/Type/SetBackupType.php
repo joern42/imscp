@@ -11,7 +11,18 @@ use Doctrine\DBAL\Types\Type;
  */
 class SetBackupType extends Type
 {
-    const SET_BACKUP = 'setbackup';
+    const SET_BACKUP = 'setbackuptype';
+
+    /**
+     * @var array Allowed backup types
+     */
+    private $allowedBackupTypes = [
+        '',
+        'mail',
+        'sql',
+        'web'
+    ];
+
     const MAIL_BACKUP = 'mail';
     const NO_BACKUP = '';
     const SQL_BACKUP = 'sql';
@@ -22,7 +33,7 @@ class SetBackupType extends Type
      */
     public function getSQLDeclaration(array $fieldDeclaration, AbstractPlatform $platform)
     {
-        return "SET('mail', 'sql', 'web') NOT NULL DEFAULT ''";
+        return 'SET(' . implode(',', $this->allowedBackupTypes) . ')';
     }
 
     /**
@@ -38,7 +49,7 @@ class SetBackupType extends Type
      */
     public function convertToDatabaseValue($value, AbstractPlatform $platform)
     {
-        if (sizeof(array_diff($value, [self::MAIL_BACKUP, self::NO_BACKUP, self::SQL_BACKUP, self::SQL_BACKUP]) > 0)
+        if (sizeof(array_diff($value, [$this->allowedBackupTypes]) > 0)
             || sizeof($value) > 1 && in_array('', $value)
         ) {
             throw new \InvalidArgumentException("Invalid backup type");

@@ -29,7 +29,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::userHasFeature('mailMailboxes') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $catchallId = intval($_GET['id']);
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 $stmt = execQuery('SELECT COUNT(mail_id) FROM mail_users JOIN domain USING(domain_id) WHERE mail_id = ? AND domain_admin_id = ?', [

@@ -20,235 +20,126 @@
 
 namespace iMSCP;
 
+use Doctrine\Common\Persistence\ObjectManager;
+use iMSCP\Model\Store\Service\MonitoredService;
+use iMSCP\Model\Store\Service\ServiceCollection;
+
 /**
  * Class Services
  * @package iMSCP
  */
-class Services implements \iterator, \countable
+class Services implements \IteratorAggregate
 {
     /**
-     * @var array[] Array of services where keys are service names and values are arrays containing service properties
+     * @var
      */
-    private $services = [];
+    private $objectManager;
 
     /**
-     * @var string Service name currently queried
+     * @var ServiceCollection
      */
-    private $queriedService = NULL;
+    private $services;
 
     /**
-     * @var \Zend\Cache\Storage\StorageInterface $cache
+     * Settings constructor
+     * @param ObjectManager $objectManager
      */
-    private $cache;
-
-    /**
-     * Constructor
-     */
-    public function __construct()
+    public function __construct(ObjectManager $objectManager)
     {
-        $this->cache = Application::getInstance()->getCache();
-        $values = Application::getInstance()->getDbConfig()->getArrayCopy();
-
-        // Gets list of services port names
-        $services = array_filter(array_keys($values), function ($name) {
-            return strlen($name) > 5 && substr($name, 0, 5) == 'PORT_';
-        });
-
-        foreach ($services as $name) {
-            $this->services[$name] = explode(';', $values[$name]);
-        }
+        $this->objectManager = $objectManager;
     }
 
     /**
-     * Check if the service is visible
+     * Get service from service collection
      *
-     * @return bool TRUE if the service is visible, FALSE otherwise
+     * @param string $name Setting name
+     * @return MonitoredService
      */
-    public function isVisible()
+    public function getService(string $name): MonitoredService
     {
-        return (bool)$this->getProperty(3);
+        return $this->getServices()->getService($name);
     }
 
     /**
-     * Get a service property value
+     * Add service
      *
-     * @param int $index Service property index
-     * @return mixed Service property value
+     * @param MonitoredService $service
+     * @return Services
      */
-    private function getProperty($index)
+    public function addService(MonitoredService $service): Services
     {
-        if (!is_null($this->queriedService)) {
-            return $this->services[$this->queriedService][$index];
-        } else {
-            throw new \Exception('Name of service to query is not set');
-        }
+        $this->getServices()->addService($service);
+        return $this;
     }
 
     /**
-     * Check if a service is running
+     * Delete service
      *
-     * @param bool $refresh Flag indicating whether or not cached values must be refreshed
-     * @return bool return TRUE if the service is currently running, FALSE otherwise
+     * @param string $name
+     * @return Services
      */
-    public function isRunning($refresh = false)
+    public function deleteService(string $name): Services
     {
-        return $this->getStatus($refresh);
+        $this->getServices()->deleteService($name);
+        return $this;
     }
 
     /**
-     * Get service status
+     * Save setting collection
      *
-     * @param bool $refresh Flag indicating whether or not cached values must be refreshed
-     * @return bool TRUE if the service is currently running, FALSE otherwise
+     * @return Services
      */
-    private function getStatus($refresh = false)
+    public function saveServices(): Services
     {
-        $identifier = __CLASS__ . '_' . __FUNCTION__ . '_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $this->getName());
+        $this->getServices();
 
-        if ($refresh || !$this->cache->hasItem($identifier)) {
-            $ip = $this->getIp();
-
-            if (Net::getVersion($ip) == 6) {
-                $ip = '[' . $ip . ']';
-            }
-
-            $status = false;
-            if (($fp = @fsockopen($this->getProtocol() . '://' . $ip, $this->getPort(), $errno, $errstr, 0.5))) {
-                fclose($fp);
-                $status = true;
-            }
-
-            // A bit messy... See https://github.com/zendframework/zendframework/pull/5386
-            $ttl = $this->cache->getOptions()->getTtl();
-            $this->cache->getOptions()->setTtl(300);
-            $this->cache->setItem($identifier, $status);
-            $this->cache->getOptions()->setTtl($ttl);
-        } else {
-            $status = $this->cache->getItem($identifier);
+        foreach ($this as $service) {
+            $this->services->addService(clone $service);
         }
 
-        return (bool)$status;
+        $this->objectManager->persist($this->services);
+        $this->objectManager->flush();
+
+        return $this;
     }
 
     /**
-     * Get service name
+     * Is the given service known?
      *
-     * @return string
+     * @param string $name
+     * @return bool
      */
-    public function getName()
+    public function hasService(string $name): bool
     {
-        return $this->getProperty(2);
-    }
-
-    /**
-     * Get service IP
-     *
-     * @return array
-     */
-    public function getIp()
-    {
-        return $this->getProperty(4);
-    }
-
-    /**
-     * Get service protocol
-     *
-     * @return string
-     */
-    public function getProtocol()
-    {
-        return $this->getProperty(1);
-    }
-
-    /**
-     * Get service listening port
-     *
-     * @return int
-     */
-    public function getPort()
-    {
-        return $this->getProperty(0);
-    }
-
-    /**
-     * Check if a service is down
-     *
-     * @param bool $refresh Flag indicating whether or not cached values must be refreshed
-     * @return bool return TRUE if the service is currently down, FALSE otherwise
-     */
-    public function isDown($refresh = false)
-    {
-        return !$this->getStatus($refresh);
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function current()
-    {
-        $this->setService($this->key(), false);
-
-        return current($this->services);
-    }
-
-    /**
-     * Set service to be queried
-     *
-     * @param  string $serviceName Service name
-     * @param  bool $normalize Tell whether or not the service name must be normalized
-     * @return void
-     */
-    public function setService($serviceName, $normalize = true)
-    {
-        // Normalise service name (ex. 'dns' to 'PORT_DNS')
-        if ($normalize) {
-            $serviceName = 'PORT_' . strtoupper($serviceName);
-        }
-
-        if (array_key_exists($serviceName, $this->services)) {
-            $this->queriedService = $serviceName;
-        } else {
-            throw new \Exception("Unknown Service: $serviceName");
+        try {
+            $this->getServices()->getService($name);
+            return true;
+        } catch (\Throwable $e) {
+            return false;
         }
     }
 
     /**
      * @inheritdoc
+     * @çeturn Service[]
      */
-    public function key()
+    public function getIterator(): ServiceCollection
     {
-        return key($this->services);
+        return $this->getServices();
     }
 
     /**
-     * @inheritdoc
+     * Get service collection
+     *
+     * @return ServiceCollection
      */
-    public function next()
+    protected function getServices(): ServiceCollection
     {
-        next($this->services);
-    }
+        if (NULL === $this->services) {
+            $this->services = $this->objectManager->find(ServiceCollection::class, ServiceCollection::class);
+        }
 
-    /**
-     * @inheritdoc
-     */
-    public function rewind()
-    {
-        reset($this->services);
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function valid()
-    {
-        return array_key_exists(key($this->services), $this->services);
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function count()
-    {
-        return count($this->services);
+        return $this->services;
     }
 }
+

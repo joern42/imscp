@@ -1,0 +1,58 @@
+<script>
+    $(function () {
+        $('.datatable').dataTable(
+            {
+                language: <?= \iMSCP\Functions\View::getDataTablesPluginTranslations(false) ?>,
+                displayLength: 10,
+                stateSave: true,
+                pagingType: "simple"
+            }
+        );
+    });
+</script>
+<? if (empty($this->services)): ?>
+<? else: ?>
+    <table class="datatable firstColFixed">
+        <thead>
+        <tr>
+            <th><?= toHtml(tr('Server')) ?></th>
+            <th><?= toHtml(tr('Service')) ?></th>
+            <th><?= toHtml(tr('Protocol')) ?></th>
+            <th><?= toHtml(tr('Address')) ?></th>
+            <th><?= toHtml(tr('Port')) ?></th>
+            <th><?= toHtml(tr('Status')) ?></th>
+        </tr>
+        </thead>
+        <tbody>
+        <?
+        /** @var \iMSCP\Model\CpMonitoredService $service */
+        foreach ($this->services as $service):
+        $isRunning = $service->isRunning($this->needRefresh);
+        $servicePort = $service->getPort();
+        ?>
+        <!-- BDP: service_status -->
+        <tr>
+            <td><?= toHtml($service->getServer()->getHostname()); ?></td>
+            <td><?= toHtml($service->getName()); ?></td>
+            <td><?= toHtml($service->getProtocol()); ?></td>
+            <td><?= toHtml($service->getAddress()); ?></td>
+            <td><?= toHtml($service->getPort()); ?></td>
+            <td class="<?= $isRunning ? 'up' : ($servicePort != 23 ? 'down' : 'up') ?>">
+                <span class="tips" title="<?= toHtml($isRunning ? tr('Service is running') : tr('Service is not running'), 'htmlAttr') ?>">
+                    <strong><?= toHtml($isRunning ? tr('UP') : tr('DOWN')); ?></strong>
+                </span>
+            </td>
+        </tr>
+        <!-- EDP: service_status -->
+        </tbody>
+        <tbody>
+        <tr style="background-color:#b0def5">
+            <td colspan="4" class="buttons">
+                <button type="button"
+                        onclick="window.location.href = window.location.href.replace(/[\?#].*|$/, '?refresh=1');"><?= toHtml(tr('Refresh')) ?></button>
+            </td>
+        </tr>
+        <? endforeach ?>
+        </tbody>
+    </table>
+<? endif ?>

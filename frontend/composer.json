@@ -23,21 +23,27 @@
   "require": {
     "php": "^7.1",
     "container-interop/container-interop": "^1.2",
+    "doctrine/migrations": "^1.7",
+    "doctrine/orm": "^v2.6",
+    "doctrine/doctrine-module": "^2.1",
+    "jeremykendall/php-domain-parser": "^5.3",
     "mso/idna-convert": "^v1.1",
     "pear/net_dns2": "^v1.4",
     "phpseclib/phpseclib": "^2.0",
+    "prooph/common": "^4.2",
     "psr/cache": "^1.0",
     "psr/container": "^1.0",
     "psr/simple-cache": "^1.0",
+    "ramsey/uuid-doctrine": "^1.4",
     "zendframework/zend-authentication": "^2.6",
     "zendframework/zend-cache": "^2.8",
     "zendframework/zend-config": "^3.2",
-    "zendframework/zend-db": "^2.9",
     "zendframework/zend-escaper": "^2.6",
     "zendframework/zend-eventmanager": "^3.2",
     "zendframework/zend-filter": "^2.8",
     "zendframework/zend-form": "^2.12",
     "zendframework/zend-http": "^2.8",
+    "zendframework/zend-hydrator": "^2.4",
     "zendframework/zend-i18n": "^2.9",
     "zendframework/zend-inputfilter": "^2.8",
     "zendframework/zend-math": "^2.7",
@@ -47,7 +53,13 @@
     "zendframework/zend-session": "^2.8",
     "zendframework/zend-stdlib": "^3.2",
     "zendframework/zend-uri": "^2.6",
-    "zendframework/zend-validator": "^2.10"
+    "zendframework/zend-validator": "^2.10",
+    "zendframework/zend-view": "^2.10",
+    "zendframework/zend-mvc": "^3.1",
+    "prooph/event-sourcing": "^5.5"
+  },
+  "require-dev": {
+    "jdorn/sql-formatter": "^1.2"
   },
   "config": {
     "classmap-authoritative": false,

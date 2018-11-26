@@ -22,7 +22,7 @@ namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
-use iMSCP\Model\SuIdentityInterface;
+use iMSCP\Model\CpSuIdentityInterface;
 
 require_once 'application.php';
 
@@ -40,7 +40,7 @@ $tpl->define([
 
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 
-if ($identity instanceof SuIdentityInterface) {
+if ($identity instanceof CpSuIdentityInterface) {
     $customerCurrentLanguage = getUserGuiProperties($identity->getUserId())[0];
 } else {
     $customerCurrentLanguage = Application::getInstance()->getSession()['user_def_lang'];
@@ -55,7 +55,7 @@ if (Application::getInstance()->getRequest()->isPost()) {
             $customerNewLanguage, Application::getInstance()->getAuthService()->getIdentity()->getUserId()
         ]);
 
-        if (!($identity instanceof SuIdentityInterface)) {
+        if (!($identity instanceof CpSuIdentityInterface)) {
             Application::getInstance()->getSession()['user_def_lang'] = $customerNewLanguage;
         }
 

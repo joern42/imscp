@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Form\UserPersonalDataFieldset;
+use iMSCP\Form\PersonalDataForm;
 use iMSCP\Functions\View;
 use Zend\Form\Element;
 use Zend\Form\Form;
@@ -41,7 +41,7 @@ function updatePersonalData(Form $form)
     }
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    $pdata = $form->getData()['personalData'];
+    $pdata = $form->getData()['personaldatafieldset'];
 
     Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUserPersonalData, NULL, [
         'userId'       => $identity->getUserId(),
@@ -90,28 +90,14 @@ function generatePage(TemplateEngine $tpl, Form $form)
         [Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
     );
     $pdata = $stmt->fetch() or View::showBadRequestErrorPage();
-    $form->get('personalData')->populateValues($pdata);
+    $form->get('personaldatafieldset')->populateValues($pdata);
 }
 
 require_once 'application.php';
 
 defined('SHARED_SCRIPT_NEEDED') or View::showNotFoundErrorPage();
 
-($form = new Form('PersonalDataEditForm'))
-    ->add([
-        'type' => UserPersonalDataFieldset::class,
-        'name' => 'personalData'
-    ])
-    ->add([
-        'type'    => Element\Csrf::class,
-        'name'    => 'csrf',
-        'options' => [
-            'csrf_options' => [
-                'timeout' => 300,
-                'message' => tr('Validation token (CSRF) was expired. Please try again.')
-            ]
-        ]
-    ])
+($form = new PersonalDataForm())
     ->add([
         'type'    => Element\Submit::class,
         'name'    => 'submit',

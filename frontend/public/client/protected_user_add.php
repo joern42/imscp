@@ -76,7 +76,7 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
+Counting::userHasFeature('webProtectedAreas') or View::showBadRequestErrorPage();
 client_addHtaccessUser();
 
 $tpl = new TemplateEngine();

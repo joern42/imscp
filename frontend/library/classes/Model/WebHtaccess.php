@@ -20,51 +20,60 @@
 
 namespace iMSCP\Model;
 
+use Doctrine\ORM\Mapping as ORM;
+
 /**
  * Class WebHtaccess
+ * @ORM\Entity
+ * @ORM\Table(
+ *     name="imscp_web_htaccess",
+ *     options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci"}
+ * )
  * @package iMSCP\Model
  */
-class WebHtaccess extends BaseModel
+class WebHtaccess
 {
     /**
-     * @var int
+     * @ORM\Id
+     * @ORM\Column(type="uuid_binary_ordered_time", unique=true)
+     * @ORM\GeneratedValue(strategy="CUSTOM")
+     * @ORM\CustomIdGenerator(class="Ramsey\Uuid\Doctrine\UuidOrderedTimeGenerator")
+     * @var string
      */
     private $webHtaccessID;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="WebDomain")
+     * @ORM\JoinColumn(name="webDomainID", referencedColumnName="webDomainID", onDelete="CASCADE")
+     * @var WebDomain
      */
-    private $userID;
+    private $webDomain;
 
     /**
-     * @var int
+     * @ORM\ManyToOne(targetEntity="WebHtgroup")
+     * @ORM\JoinColumn(name="webHtgroupID", referencedColumnName="webHtgroupID")
+     * @var WebHtgroup|null
      */
-    private $serverID;
+    private $webHtgroup;
 
     /**
-     * @var int|null
-     */
-    private $webHtpasswdID;
-
-    /**
-     * @var int|null
-     */
-    private $webHtgroupID;
-
-    /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $authName;
 
     /**
-     * @var string
-     */
-    private $authType;
-
-    /**
+     * @ORM\Column(type="string")
      * @var string
      */
     private $path;
+
+    public function __construct(WebDomain $webDomain, string $authName, WebHtgroup $htgroup = null)
+    {
+        $this->setWebDomain($webDomain);
+        $this->setAuthName($authName);
+        $this->setWebHtgroup($htgroup);
+    }
 
     /**
      * @return int
@@ -75,84 +84,56 @@ class WebHtaccess extends BaseModel
     }
 
     /**
-     * @param int $webHtaccessID
+     * @return WebDomain
+     */
+    public function getWebDomain(): WebDomain
+    {
+        return $this->webDomain;
+    }
+
+    /**
+     * @param WebDomain $webDomain
      * @return WebHtaccess
      */
-    public function setWebHtaccessID(int $webHtaccessID): WebHtaccess
+    public function setWebDomain(WebDomain $webDomain): WebHtaccess
     {
-        $this->webHtaccessID = $webHtaccessID;
+        $this->webDomain = $webDomain;
         return $this;
     }
 
     /**
-     * @return int
+     * @return WebHtpasswd|null
      */
-    public function getUserID(): int
+    public function getWebHtpasswd(): ?WebHtpasswd
     {
-        return $this->userID;
+        return $this->webHtpasswd;
     }
 
     /**
-     * @param int $userID
+     * @param WebHtpasswd|null $webHtpasswd
      * @return WebHtaccess
      */
-    public function setUserID(int $userID): WebHtaccess
+    public function setWebHtpasswd(WebHtpasswd $webHtpasswd = NULL): WebHtaccess
     {
-        $this->userID = $userID;
+        $this->webHtpasswd = $webHtpasswd;
         return $this;
     }
 
     /**
-     * @return int
+     * @return WebHtgroup|null
      */
-    public function getServerID(): int
+    public function getWebHtgroup(): ?WebHtgroup
     {
-        return $this->serverID;
+        return $this->webHtgroup;
     }
 
     /**
-     * @param int $serverID
+     * @param WebHtgroup|null $webHtgroup
      * @return WebHtaccess
      */
-    public function setServerID(int $serverID): WebHtaccess
+    public function setWebHtgroup(WebHtgroup $webHtgroup = NULL): WebHtaccess
     {
-        $this->serverID = $serverID;
-        return $this;
-    }
-
-    /**
-     * @return int|null
-     */
-    public function getWebHtpasswdID(): ?int
-    {
-        return $this->webHtpasswdID;
-    }
-
-    /**
-     * @param int|null $webHtpasswdID
-     * @return WebHtaccess
-     */
-    public function setWebHtpasswdID(int $webHtpasswdID = NULL): WebHtaccess
-    {
-        $this->webHtpasswdID = $webHtpasswdID;
-        return $this;
-    }
-
-    /**
-     * @return int|null
-     */
-    public function getWebHtgroupID(): ?int
-    {
-        return $this->webHtgroupID;
-    }
-
-    /**
-     * @param int|null $webHtgroupID
-     * @return WebHtaccess
-     */
-    public function setWebHtgroupID(int $webHtgroupID = NULL): WebHtaccess
-    {
-        $this->webHtgroupID = $webHtgroupID;
+        $this->webHtgroup = $webHtgroup;
         return $this;
     }
 
@@ -171,24 +152,6 @@ class WebHtaccess extends BaseModel
     public function setAuthName(string $authName): WebHtaccess
     {
         $this->authName = $authName;
-        return $this;
-    }
-
-    /**
-     * @return string
-     */
-    public function getAuthType(): string
-    {
-        return $this->authType;
-    }
-
-    /**
-     * @param string $authType
-     * @return WebHtaccess
-     */
-    public function setAuthType(string $authType): WebHtaccess
-    {
-        $this->authType = $authType;
         return $this;
     }
 

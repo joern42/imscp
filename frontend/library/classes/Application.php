@@ -21,23 +21,29 @@
 namespace iMSCP;
 
 use Composer\Autoload\ClassLoader as Autoloader;
+use Doctrine\Common\Annotations\AnnotationRegistry;
+use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\Setup;
 use iMSCP\Authentication\Adapter\Events as AuthEventAdapter;
 use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Authentication\AuthEvent;
-use iMSCP\Config\DbConfig;
 use iMSCP\Container\Registry;
+use iMSCP\DBAL\EnumForwardType;
+use iMSCP\DBAL\SetBackupType;
 use iMSCP\Exception;
 use iMSCP\Functions\View;
-use iMSCP\Model\SuIdentityInterface;
+use iMSCP\Model\CpSuIdentityInterface;
 use iMSCP\Plugin\PluginManager;
 use iMSCP\Session\SaveHandler\SessionHandler;
+use Ramsey\Uuid\Doctrine\UuidBinaryOrderedTimeType;
 use Zend\Authentication\Storage as AuthenticationStorage;
 use Zend\Cache;
 use Zend\Config;
-use Zend\Db\Adapter\Adapter as DbAdapter;
 use Zend\EventManager;
 use Zend\Http\PhpEnvironment\Request;
 use Zend\I18n\Translator\Translator;
+use Zend\ServiceManager\ServiceManager;
 use Zend\Session\Config\SessionConfig;
 use Zend\Session\Container as SessionContainer;
 use Zend\Session\SessionManager;
@@ -55,6 +61,11 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
      * @var Application
      */
     static protected $application;
+
+    /**
+     * @var ServiceManager
+     */
+    protected $serviceManager;
 
     /**
      * @var string Application environment
@@ -82,9 +93,9 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     protected $config;
 
     /**
-     * @var DbConfig
+     * @var Settings
      */
-    protected $dbConfig;
+    protected $settings;
 
     /**
      * @var Cache\Storage\Adapter\BlackHole|Cache\Storage\Adapter\Apcu
@@ -92,9 +103,9 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     protected $cache;
 
     /**
-     * @var DbAdapter
+     * @var $entityManager EntityManager
      */
-    protected $db;
+    protected $entityManager;
 
     /**
      * @var Translator
@@ -212,7 +223,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             'cookie_path'            => '/',
             'cookie_lifetime'        => 0,
             'use_trans_sid'          => false,
-            'gc_probability'         => $config['PHP_SESSION_GC_PROBABILITY'] ?? 2,
+            'gc_probability'         => $config['PHP_SESSION_GC_PROBABILITY'] ?? 100,
             'gc_divisor'             => $config['PHP_SESSION_GC_DIVISOR'] ?? 100,
             'gc_maxlifetime'         => $config['PHP_SESSION_GC_MAXLIFETIME'] ?? 1440,
             'save_path'              => FRONTEND_ROOT_DIR . '/data/sessions',
@@ -239,7 +250,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         $identity = $this->getAuthService()->getIdentity();
         $session = $this->getSession();
 
-        if (NULL == $identity || $identity instanceof SuIdentityInterface || (isset($session['user_def_lang']) && isset($session['user_theme']))) {
+        if (NULL == $identity || $identity instanceof CpSuIdentityInterface || (isset($session['user_def_lang']) && isset($session['user_theme']))) {
             return;
         }
 
@@ -292,14 +303,14 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             case 'reseller':
                 $this->getEventManager()->attach(Events::onResellerScriptEnd, 'initLayout');
                 break;
-            case 'user':
+            case 'client':
                 $this->getEventManager()->attach(Events::onClientScriptEnd, 'initLayout');
                 break;
             default:
                 throw  new \RuntimeException('Unknown user type');
         }
 
-        if ($identity instanceof SuIdentityInterface) {
+        if ($identity instanceof CpSuIdentityInterface) {
             $this->getEventManager()->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, function () {
                 unset($this->getSession()['user_theme_color']);
             });
@@ -380,8 +391,8 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
                     if (NULL !== $identity
                         && !isXhr()
                         && ($identity->getUserType() == 'admin'
-                            || ($identity instanceof SuIdentityInterface && $identity->getSuUserType() == 'admin'
-                                || $identity->getSuIdentity() instanceof SuIdentityInterface
+                            || ($identity instanceof CpSuIdentityInterface && $identity->getSuUserType() == 'admin'
+                                || $identity->getSuIdentity() instanceof CpSuIdentityInterface
                             )
                         )
                     ) {
@@ -414,10 +425,13 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         $this->config = new Config\Config($reader->fromFile(normalizePath(IMSCP_CONF_DIR . '/imscp.conf')), true);
         // Load and merge settings from the FrontEnd configuration file (frontend.data)
         $this->config->merge(new Config\Config($reader->fromFile(normalizePath(IMSCP_CONF_DIR . '/frontend/frontend.data'))));
+
+
         // Load and merge additional settings
-        $this->config->merge(new Config\Config(include_once(normalizePath(LIBRARY_PATH . '/include/asettings.php')), true));
+        //$this->config->merge(new Config\Config(include_once(normalizePath(LIBRARY_PATH . '/include/asettings.php')), true));
         // Load and merge settings that were overridden
-        $this->config->merge(new Config\Config($this->getDbConfig()->getArrayCopy()));
+        //$this->config->merge(new Config\Config($this->getDbConfig()->getArrayCopy()));
+
 
         // Set default root template directory according current theme
         $this->config['ROOT_TEMPLATE_PATH'] = FRONTEND_ROOT_DIR . '/themes/' . $this->config['USER_INITIAL_THEME'];
@@ -441,8 +455,8 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
             $identity = $this->getAuthService()->getIdentity();
             if (NULL !== $identity && !isXhr() && ($identity->getUserType() == 'admin'
-                    || ($identity instanceof SuIdentityInterface && $identity->getSuUserType() == 'admin')
-                    || $identity->getSuIdentity() instanceof SuIdentityInterface
+                    || ($identity instanceof CpSuIdentityInterface && $identity->getSuUserType() == 'admin')
+                    || $identity->getSuIdentity() instanceof CpSuIdentityInterface
                 )
             ) {
                 View::setPageMessage(tr('The debug mode is currently enabled meaning that the cache is also disabled.'), 'static_warning');
@@ -461,17 +475,17 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     }
 
     /**
-     * Get configuration from database
+     * Get settings from database
      *
-     * @return DbConfig
+     * @return Settings
      */
-    public function getDbConfig()
+    public function getSettings()
     {
-        if (NULL === $this->dbConfig) {
-            $this->dbConfig = new DbConfig($this->getDb());
+        if (NULL === $this->settings) {
+            $this->settings = new Settings($this->getEntityManager());
         }
 
-        return $this->dbConfig;
+        return $this->settings;
     }
 
     /**
@@ -610,6 +624,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             $this->getEventManager()->trigger(Events::onAfterSessionStart, $this);
         }
 
+        $this->sessionContainer->getManager();
         return $this->sessionContainer;
     }
 
@@ -654,16 +669,16 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     }
 
     /**
-     * Get application database handle
+     * Get doctrine entity manager
      *
      * FIXME: Should it be safe to cache key/iv and decrypted password for faster processing?
-     * FIXME: Acpu cache is not shared accross multiple user here.
+     * FIXME: APCu cache is not shared accross multiple user here.
      *
-     * @return DbAdapter
+     * @return EntityManagerInterface
      */
-    public function getDb(): DbAdapter
+    public function getEntityManager(): EntityManagerInterface
     {
-        if (NULL === $this->db) {
+        if (NULL === $this->entityManager) {
             $config = $this->getConfig();
             $keyFile = $config['CONF_DIR'] . '/imscp-db-keys.php';
             $imscpKEY = $imscpIV = '';
@@ -675,26 +690,37 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
                 ));
             }
 
-            $this->db = new DbAdapter([
-                'driver'         => 'Pdo_Mysql',
-                'driver_options' => [
-                    \PDO::ATTR_EMULATE_PREPARES         => false,
-                    \PDO::ATTR_STRINGIFY_FETCHES        => false,
-                    \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
-                    \PDO::ATTR_CASE                     => \PDO::CASE_NATURAL,
-                    \PDO::ATTR_DEFAULT_FETCH_MODE       => \PDO::FETCH_ASSOC,
-                    \PDO::MYSQL_ATTR_INIT_COMMAND       => "SET @@session.sql_mode = 'NO_AUTO_CREATE_USER', @@session.group_concat_max_len = 4294967295",
+            $this->entityManager = EntityManager::create(
+                [
+
+                    'driver'        => 'pdo_mysql',
+                    'host'          => $config['DATABASE_HOST'],
+                    'port'          => $config['DATABASE_PORT'],
+                    'user'          => $config['DATABASE_USER'],
+                    'password'      => Crypt::decryptRijndaelCBC($imscpKEY, $imscpIV, $config['DATABASE_PASSWORD']),
+                    'dbname'        => $config['DATABASE_NAME'],
+                    'driverOptions' => [
+                        \PDO::MYSQL_ATTR_INIT_COMMAND => "SET @@session.sql_mode = 'NO_AUTO_CREATE_USER', @@session.group_concat_max_len = 4294967295",
+                    ],
+                    'charset'       => 'utf8mb4'
+
                 ],
-                'hostname'       => $config['DATABASE_HOST'],
-                'port'           => $config['DATABASE_PORT'],
-                'database'       => $config['DATABASE_NAME'],
-                'username'       => $config['DATABASE_USER'],
-                'password'       => Crypt::decryptRijndaelCBC($imscpKEY, $imscpIV, $config['DATABASE_PASSWORD']),
-                'charset'        => 'utf8'
-            ]);
+                Setup::createAnnotationMetadataConfiguration(
+                    [__DIR__ . '/Model'], $config['DEBUG'], FRONTEND_ROOT_DIR . '/data/doctrine', NULL, false
+                )
+            );
+
+            \Doctrine\DBAL\Types\Type::addType('enumforwardtype', EnumForwardType::class);
+            \Doctrine\DBAL\Types\Type::addType('setbackuptype', SetBackupType::class);
+            \Doctrine\DBAL\Types\Type::addType('uuid_binary_ordered_time', UuidBinaryOrderedTimeType::class);
+
+            $platform = $this->entityManager->getConnection()->getDatabasePlatform();
+            $platform->registerDoctrineTypeMapping('uuid_binary', 'binary');
+
+            AnnotationRegistry::registerLoader('class_exists');
         }
 
-        return $this->db;
+        return $this->entityManager;
     }
 
     /**

@@ -38,17 +38,14 @@ use versions;
 # Depending on the PHP configuration level set for a given customer, this
 # listener file acts differently:
 # 
-# - Per site   : INI options can be set for the main domain, domain aliases
-#                and subdomains. INI options set will apply only to the
-#                targeted domain, domain alias or subdomain.
+# - Per site   : INI options are set on a site basis. They apply only to the
+#                targeted domain.
 #
-# - Per domain : INI options can be set for the main domain and domain aliases
-#                only. INI options set for the main domain will also apply to
-#                the main domain's subdomains, and INI options set for domain
-#                aliases will also apply to domain aliases's subdomains.
+# - Per domain : INI options are set on a per domain basis. They apply to the
+#                targeted domain and all its subdomains.
 #
-# - Per user   : INI options can be set for the main domain name only. They
-#                will apply to the main domain, domain aliases and subdomains.
+# - Per user   : INI options are set on a per user basis. They apply to all
+#                domains and subdomains.
 #
 # The PHP configuration level is set on a per customer basis. You can change it
 # for a specific customer as follows:
@@ -63,7 +60,7 @@ use versions;
 # {HOME_DIR} Will be replaced by client homedir path
 # {TMPDIR}   Will be replaced by PHP temporary directory
 #
-# Note that domain names must be in ACE form.
+# Note that domain names must be in ASCII form.
 my %SETTINGS = (
     # Global INI options
     # These settings apply to all domains.

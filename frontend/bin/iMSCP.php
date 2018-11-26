@@ -41,9 +41,7 @@ $doctrineMigrationsConfiguration->setMigrationsDirectory('data/db_migrations');
 $doctrineMigrationsConfiguration->setMigrationsNamespace('iMSCP\\Database\\Migration');
 
 // Create and run console application
-$cli = new \Symfony\Component\Console\Application(
-    'i-MSCP management tool', '1.0.0-DEV'
-);
+$cli = new \Symfony\Component\Console\Application('i-MSCP management tool', '1.0.0-DEV');
 $cli->setCatchExceptions(true);
 $cli->setHelperSet(new HelperSet([
     'db'            => new DoctrinDBALConsole\Helper\ConnectionHelper($DBALConnection),
@@ -51,43 +49,41 @@ $cli->setHelperSet(new HelperSet([
     'question'      => new \Symfony\Component\Console\Helper\QuestionHelper(),
     'configuration' => new DoctrineMigrationsConsole\Helper\ConfigurationHelper($DBALConnection, $doctrineMigrationsConfiguration)
 ]));
-$cli->addCommands(
-    [
-        // Doctrine DBAL Commands
-        new DoctrinDBALConsole\Command\ImportCommand(),
-        new DoctrinDBALConsole\Command\ReservedWordsCommand(),
-        new DoctrinDBALConsole\Command\RunSqlCommand(),
+$cli->addCommands([
+    // Doctrine DBAL commands
+    new DoctrinDBALConsole\Command\ImportCommand(),
+    new DoctrinDBALConsole\Command\ReservedWordsCommand(),
+    new DoctrinDBALConsole\Command\RunSqlCommand(),
 
-        // Doctrine ORM Commands
-        new DoctrineORMConsole\Command\ClearCache\CollectionRegionCommand(),
-        new DoctrineORMConsole\Command\ClearCache\EntityRegionCommand(),
-        new DoctrineORMConsole\Command\ClearCache\MetadataCommand(),
-        new DoctrineORMConsole\Command\ClearCache\QueryCommand(),
-        new DoctrineORMConsole\Command\ClearCache\QueryRegionCommand(),
-        new DoctrineORMConsole\Command\ClearCache\ResultCommand(),
-        new DoctrineORMConsole\Command\SchemaTool\CreateCommand(),
-        new DoctrineORMConsole\Command\SchemaTool\UpdateCommand(),
-        new DoctrineORMConsole\Command\SchemaTool\DropCommand(),
-        new DoctrineORMConsole\Command\EnsureProductionSettingsCommand(),
-        new DoctrineORMConsole\Command\ConvertDoctrine1SchemaCommand(),
-        new DoctrineORMConsole\Command\GenerateRepositoriesCommand(),
-        new DoctrineORMConsole\Command\GenerateEntitiesCommand(),
-        new DoctrineORMConsole\Command\GenerateProxiesCommand(),
-        new DoctrineORMConsole\Command\ConvertMappingCommand(),
-        new DoctrineORMConsole\Command\RunDqlCommand(),
-        new DoctrineORMConsole\Command\ValidateSchemaCommand(),
-        new DoctrineORMConsole\Command\InfoCommand(),
-        new DoctrineORMConsole\Command\MappingDescribeCommand(),
+    // Doctrine ORM commands
+    new DoctrineORMConsole\Command\ClearCache\CollectionRegionCommand(),
+    new DoctrineORMConsole\Command\ClearCache\EntityRegionCommand(),
+    new DoctrineORMConsole\Command\ClearCache\MetadataCommand(),
+    new DoctrineORMConsole\Command\ClearCache\QueryCommand(),
+    new DoctrineORMConsole\Command\ClearCache\QueryRegionCommand(),
+    new DoctrineORMConsole\Command\ClearCache\ResultCommand(),
+    new DoctrineORMConsole\Command\SchemaTool\CreateCommand(),
+    new DoctrineORMConsole\Command\SchemaTool\UpdateCommand(),
+    new DoctrineORMConsole\Command\SchemaTool\DropCommand(),
+    new DoctrineORMConsole\Command\EnsureProductionSettingsCommand(),
+    new DoctrineORMConsole\Command\ConvertDoctrine1SchemaCommand(),
+    new DoctrineORMConsole\Command\GenerateRepositoriesCommand(),
+    new DoctrineORMConsole\Command\GenerateEntitiesCommand(),
+    new DoctrineORMConsole\Command\GenerateProxiesCommand(),
+    new DoctrineORMConsole\Command\ConvertMappingCommand(),
+    new DoctrineORMConsole\Command\RunDqlCommand(),
+    new DoctrineORMConsole\Command\ValidateSchemaCommand(),
+    new DoctrineORMConsole\Command\InfoCommand(),
+    new DoctrineORMConsole\Command\MappingDescribeCommand(),
 
-        // Doctrine Migrations commands
-        new DoctrineMigrationsConsole\Command\DiffCommand(),
-        new DoctrineMigrationsConsole\Command\ExecuteCommand(),
-        new DoctrineMigrationsConsole\Command\GenerateCommand(),
-        new DoctrineMigrationsConsole\Command\LatestCommand(),
-        new DoctrineMigrationsConsole\Command\MigrateCommand(),
-        new DoctrineMigrationsConsole\Command\StatusCommand(),
-        new DoctrineMigrationsConsole\Command\UpToDateCommand(),
-        new DoctrineMigrationsConsole\Command\VersionCommand(),
-    ]
-);
+    // Doctrine Migrations commands
+    new DoctrineMigrationsConsole\Command\DiffCommand(),
+    new DoctrineMigrationsConsole\Command\ExecuteCommand(),
+    new DoctrineMigrationsConsole\Command\GenerateCommand(),
+    new DoctrineMigrationsConsole\Command\LatestCommand(),
+    new DoctrineMigrationsConsole\Command\MigrateCommand(),
+    new DoctrineMigrationsConsole\Command\StatusCommand(),
+    new DoctrineMigrationsConsole\Command\UpToDateCommand(),
+    new DoctrineMigrationsConsole\Command\VersionCommand(),
+]);
 $cli->run();
