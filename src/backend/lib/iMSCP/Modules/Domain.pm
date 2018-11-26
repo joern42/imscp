@@ -1,0 +1,416 @@
+=head1 NAME
+
+ iMSCP::Modules::Domain - i-MSCP Domain module
+
+=cut
+
+# i-MSCP - internet Multi Server Control Panel
+# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
+package iMSCP::Modules::Domain;
+
+use strict;
+use warnings;
+use File::Basename;
+use File::Spec;
+use File::Temp;
+use iMSCP::Boolean;
+use iMSCP::Crypt 'randomStr';
+use iMSCP::Debug qw/ debug error getLastError warning /;
+use iMSCP::Ext2Attributes 'clearImmutable';
+use iMSCP::Execute qw/ execute escapeShell /;
+use iMSCP::Server::httpd;
+use iMSCP::Server::sqld;
+use Net::LibIDN 'idn_to_unicode';
+use parent 'iMSCP::Modules::Abstract';
+
+=head1 DESCRIPTION
+
+ i-MSCP Domain module.
+
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item getType( )
+
+ See iMSCP::Modules::Abstract::getType()
+
+=cut
+
+sub getType
+{
+    my ( $self ) = @_;
+
+    'Dmn';
+}
+
+=item process( $domainId )
+
+ See iMSCP::Modules::Abstract::process()
+
+=cut
+
+sub process
+{
+    my ( $self, $domainId ) = @_;
+
+    my $rs = $self->_loadData( $domainId );
+    return $rs if $rs;
+
+    my @sql;
+    if ( grep ( $self->{'domain_status'} eq $_, 'toadd', 'tochange', 'toenable' ) ) {
+        $rs = $self->add();
+        @sql = (
+            'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok', $domainId
+        );
+    } elsif ( $self->{'domain_status'} eq 'todelete' ) {
+        $rs = $self->delete();
+        @sql = $rs ? (
+            'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, getLastError( 'error' ) || 'Unknown error', $domainId
+        ) : (
+            'DELETE FROM domain WHERE domain_id = ?', undef, $domainId
+        );
+    } elsif ( $self->{'domain_status'} eq 'todisable' ) {
+        $rs = $self->disable();
+        @sql = (
+            'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled', $domainId
+        );
+    } elsif ( $self->{'domain_status'} eq 'torestore' ) {
+        $rs = $self->restore();
+        @sql = (
+            'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok', $domainId
+        );
+    } else {
+        warning( sprintf( 'Unknown action (%s) for domain alias (ID %d)', $self->{'domain_status'}, $domainId ));
+        return 0;
+    }
+
+    local $self->{'dbh'}->{'RaiseError'} = TRUE;
+    $self->{'dbh'}->do( @sql );
+    $rs;
+}
+
+=item toadd( )
+
+ See iMSCP::Modules::Abstract::toadd()
+
+=cut
+
+sub toadd
+{
+    my ( $self ) = @_;
+
+    {
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
+
+        # Schedule change of custom DNS records that belong to this domain
+        # unless they are already scheduled for deletion
+        # See https://youtrack.i-mscp.net/issue/IP-1801
+        $self->{'dbh'}->do(
+            "UPDATE domain_dns SET domain_dns_status = 'tochange' WHERE domain_id = ? AND alias_id = 0 AND domain_dns_status <> 'todelete'",
+            undef,
+            $self->{'domain_id'}
+        );
+    }
+
+    $self->SUPER::toadd();
+}
+
+=item disable( )
+
+ See iMSCP::Modules::Abstract::disable()
+
+=cut
+
+sub disable
+{
+    my ( $self ) = @_;
+
+    {
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
+
+        # Schedule change of subdomains that belong to this domain unless they
+        # are already scheduled for deletion
+        $self->{'dbh'}->do(
+            "UPDATE subdomain SET subdomain_status = 'todisable' WHERE domain_id = ? AND subdomain_status <> 'todelete'", undef, $self->{'domain_id'}
+        );
+    }
+
+    $self->SUPER::disable();
+}
+
+=item restore( )
+
+ See iMSCP::Modules::Abstract::restore()
+
+=cut
+
+sub restore
+{
+    my ( $self ) = @_;
+
+    my $homeDir = "$::imscpConfig{'SRV_DIR'}/$self->{'domain_name'}";
+    my $bkpDir = "$homeDir/backups";
+
+    # Restore know databases only
+    local $self->{'dbh'}->{'RaiseError'} = TRUE;
+
+    my $rows = $self->{'dbh'}->selectall_arrayref(
+        'SELECT sqld_name FROM sql_database WHERE domain_id = ?', { Slice => {} }, $self->{'domain_id'}
+    );
+
+    for my $row ( @{ $rows } ) {
+        # Encode slashes as SOLIDUS unicode character
+        # Encode dots as Full stop unicode character
+        ( my $encodedDbName = $row->{'sqld_name'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
+
+        for my $ext ( '.sql', '.sql.bz2', '.sql.gz', '.sql.lzma', '.sql.xz' ) {
+            my $dbDumpFilePath = File::Spec->catfile( $bkpDir, $encodedDbName . $ext );
+            debug( $dbDumpFilePath );
+            next unless -f $dbDumpFilePath;
+            $self->_restoreDatabase( $row->{'sqld_name'}, $dbDumpFilePath );
+        }
+    }
+
+    # Restore first Web backup found
+    while ( my $backupFile = <$bkpDir/*> ) {
+        # Don't follow symlinks (See #IP-990)
+        next if $backupFile !~ /^web-backup-.+?\.tar(?:\.(bz2|gz|lzma|xz))?$/ || -l $backupFile;
+        my $archFormat = $1 || '';
+
+        # Since we are now using immutable bit to protect some folders, we must in order do the following
+        # to restore a backup archive:
+        #
+        # - Un-protect user homedir (clear immutable flag recursively)
+        # - Restore web files
+        # - Update status of sub, als and alssub, entities linked to the parent domain to 'torestore'
+        # - Run the restore( ) parent method
+        #
+        # The third and last tasks allow the i-MSCP Httpd server implementations to set correct permissions and
+        # set immutable flag on folders if needed for each entity
+        #
+        # Note: This is a lot of works but this will be fixed when the backup feature will be rewritten
+
+        if ( $archFormat eq 'bz2' ) {
+            $archFormat = 'bzip2';
+        } elsif ( $archFormat eq 'gz' ) {
+            $archFormat = 'gzip';
+        }
+
+        clearImmutable( $homeDir, TRUE ); # Un-protect homedir recursively
+
+        my $rs = execute(
+            [ 'tar', '-x', '-p', $archFormat ne '' ? "--$archFormat" : (), '-C', $homeDir, '-f', $backupFile ], \my $stdout, \my $stderr
+        );
+        debug( $stdout ) if $stdout;
+        if ( $rs ) {
+            error( $stderr || 'Unknown error' );
+            return $rs;
+        }
+
+        eval {
+            $self->{'dbh'}->begin_work();
+            $self->{'dbh'}->do( "UPDATE subdomain SET subdomain_status = 'torestore' WHERE domain_id = ?", undef, $self->{'domain_id'} );
+            $self->{'dbh'}->do( "UPDATE domain_aliasses SET alias_status = 'torestore' WHERE domain_id = ?", undef, $self->{'domain_id'} );
+            $self->{'dbh'}->do(
+                "
+                    UPDATE subdomain_alias
+                    SET subdomain_alias_status = 'torestore'
+                    WHERE alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
+                ",
+                undef, $self->{'domain_id'}
+            );
+            $self->{'dbh'}->commit();
+        };
+        if ( $@ ) {
+            $self->{'dbh'}->rollback();
+            die;
+        }
+
+        last;
+    }
+
+    $self->SUPER::restore();
+}
+
+=back
+
+=head1 PRIVATE METHODS
+
+=over 4
+
+=item _loadData( $domainId )
+
+ Load data
+
+ Param int $domainId Domain unique identifier
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _loadData
+{
+    my ( $self, $domainId ) = @_;
+
+    local $self->{'dbh'}->{'RaiseError'} = TRUE;
+
+    my $row = $self->{'dbh'}->selectrow_hashref(
+        "
+            SELECT t1.domain_id, t1.domain_admin_id, t1.domain_mailacc_limit, t1.domain_name, t1.domain_status, t1.domain_php, t1.domain_cgi,
+                t1.external_mail, t1.web_folder_protection, t1.document_root, t1.url_forward, t1.type_forward, t1.host_forward,
+                IFNULL(t2.ip_number, '0.0.0.0') AS ip_number,
+                t3.private_key, t3.certificate, t3.ca_bundle, t3.allow_hsts, t3.hsts_max_age, t3.hsts_include_subdomains,
+                t4.mail_on_domain
+            FROM domain AS t1
+            LEFT JOIN server_ips AS t2 ON (t2.ip_id = t1.domain_ip_id)
+            LEFT JOIN ssl_certs AS t3 ON(t3.domain_id = t1.domain_id AND t3.domain_type = 'dmn' AND t3.status = 'ok')
+            LEFT JOIN (
+                SELECT domain_id, COUNT(domain_id) AS mail_on_domain FROM mail_users WHERE mail_type LIKE 'normal\\_%' GROUP BY domain_id
+            ) AS t4 ON(t4.domain_id = t1.domain_id)
+            WHERE t1.domain_id = ?
+        ",
+        undef, $domainId
+    );
+    $row or die( sprintf( 'Data not found for domain (ID %d)', $domainId ));
+    %{ $self } = ( %{ $self }, %{ $row } );
+    0;
+}
+
+=item _getData( $action )
+
+ See iMSCP::Modules::Abstract::_getData()
+
+=cut
+
+sub _getData
+{
+    my ( $self, $action ) = @_;
+
+    $self->{'_data'} ||= do {
+        my $httpd = iMSCP::Server::httpd->factory();
+        my $usergroup = $::imscpConfig{'USER_PREFIX'} . ( $::imscpConfig{'USER_MIN_UID'}+$self->{'domain_admin_id'} );
+        my $homeDir = File::Spec->canonpath( "$::imscpConfig{'SRV_DIR'}/$self->{'domain_name'}" );
+        my $documentRoot = File::Spec->canonpath( "$homeDir/$self->{'document_root'}" );
+
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
+        my $phpini = $self->{'dbh'}->selectrow_hashref(
+            "SELECT * FROM php_ini WHERE domain_id = ? AND domain_type = 'dmn'", undef, $self->{'domain_id'}
+        ) || {};
+
+        my $haveCert = defined $self->{'certificate'} && -f "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$self->{'domain_name'}.pem";
+        my $allowHSTS = $haveCert && $self->{'allow_hsts'} eq 'on';
+        my $hstsMaxAge = $allowHSTS ? $self->{'hsts_max_age'} : 0;
+        my $hstsIncludeSubDomains = $allowHSTS && $self->{'hsts_include_subdomains'} eq 'on'
+            ? '; includeSubDomains' : ( $allowHSTS ? '' : '; includeSubDomains' );
+
+        {
+            ACTION                  => $action,
+            STATUS                  => $self->{'domain_status'},
+            DOMAIN_ADMIN_ID         => $self->{'domain_admin_id'},
+            DOMAIN_ID               => $self->{'domain_id'},
+            DOMAIN_NAME             => $self->{'domain_name'},
+            DOMAIN_NAME_UNICODE     => idn_to_unicode( $self->{'domain_name'}, 'utf-8' ),
+            DOMAIN_IP               => $self->{'ip_number'},
+            DOMAIN_TYPE             => 'dmn',
+            PARENT_DOMAIN_NAME      => $self->{'domain_name'},
+            ROOT_DOMAIN_NAME        => $self->{'domain_name'},
+            HOME_DIR                => $homeDir,
+            WEB_DIR                 => $homeDir,
+            MOUNT_POINT             => '/',
+            DOCUMENT_ROOT           => $documentRoot,
+            SHARED_MOUNT_POINT      => 0,
+            PEAR_DIR                => $httpd->{'phpConfig'}->{'PHP_PEAR_DIR'},
+            TIMEZONE                => $::imscpConfig{'TIMEZONE'},
+            USER                    => $usergroup,
+            GROUP                   => $usergroup,
+            PHP_SUPPORT             => $self->{'domain_php'},
+            CGI_SUPPORT             => $self->{'domain_cgi'},
+            WEB_FOLDER_PROTECTION   => $self->{'web_folder_protection'},
+            SSL_SUPPORT             => $haveCert,
+            HSTS_SUPPORT            => $allowHSTS,
+            HSTS_MAX_AGE            => $hstsMaxAge,
+            HSTS_INCLUDE_SUBDOMAINS => $hstsIncludeSubDomains,
+            FORWARD                 => $self->{'url_forward'} || 'no',
+            FORWARD_TYPE            => $self->{'type_forward'} || '',
+            FORWARD_PRESERVE_HOST   => $self->{'host_forward'} || 'Off',
+            DISABLE_FUNCTIONS       => $phpini->{'disable_functions'} // '',
+            MAX_EXECUTION_TIME      => $phpini->{'max_execution_time'} || 30,
+            MAX_INPUT_TIME          => $phpini->{'max_input_time'} || 60,
+            MEMORY_LIMIT            => $phpini->{'memory_limit'} || 128,
+            ERROR_REPORTING         => $phpini->{'error_reporting'} || 'E_ALL & ~E_DEPRECATED & ~E_STRICT',
+            DISPLAY_ERRORS          => $phpini->{'display_errors'} || 'off',
+            POST_MAX_SIZE           => $phpini->{'post_max_size'} || 8,
+            UPLOAD_MAX_FILESIZE     => $phpini->{'upload_max_filesize'} || 2,
+            ALLOW_URL_FOPEN         => $phpini->{'allow_url_fopen'} || 'off',
+            PHP_FPM_LISTEN_PORT     => ( $phpini->{'id'} // 1 )-1,
+            EXTERNAL_MAIL           => $self->{'external_mail'},
+            MAIL_ENABLED            => $self->{'external_mail'} eq 'off' && ( $self->{'mail_on_domain'} || $self->{'domain_mailacc_limit'} >= 0 )
+        }
+    };
+}
+
+=item _restoreDatabase( $dbName, $dbDumpFilePath )
+
+ Restore a database from the given database dump file
+ 
+ Param string $dbName Database name
+ Param string $dbDumpFilePath Path to database dump file
+ die on failure
+
+=cut
+
+sub _restoreDatabase
+{
+    my ( $self, $dbName, $dbDumpFilePath ) = @_;
+
+    my $archFormat = ( fileparse( $dbDumpFilePath, qr/\.(?:bz2|gz|lzma|xz)/ ) )[2];
+    my $cmd;
+    if ( defined $archFormat ) {
+        if ( $archFormat eq '.bz2' ) {
+            $cmd = 'bzcat -d ';
+        } elsif ( $archFormat eq '.gz' ) {
+            $cmd = 'zcat -d ';
+        } elsif ( $archFormat eq '.lzma' ) {
+            $cmd = 'lzma -dc ';
+        } elsif ( $archFormat eq '.xz' ) {
+            $cmd = 'xz -dc ';
+        } else {
+            warning( sprintf( "Unsupported '%s' database dump archive format. skipping...", $archFormat ));
+            return 0;
+        }
+    } else {
+        $cmd = 'cat ';
+    }
+
+    my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', 'mysql', escapeShell( $dbName ) );
+    my $rs = execute( "@cmd", \my $stdout, \my $stderr );
+    debug( $stdout ) if $stdout;
+    $rs == 0 or die( error( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' )));
+    0;
+}
+
+=back
+
+=head1 AUTHOR
+
+ Laurent Declercq <l.declercq@nuxwin.com>
+
+=cut
+
+1;
+__END__

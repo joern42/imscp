@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folders>/etc//apache2/imscp/before</folders>
+    <folders>${SYSCONFDIR}/apache</folders>
+    <copy_config>${SYSCONFDIR}/imscp/apache/00_imscp.conf</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/apache/00_nameserver.conf</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/apache/apache.conf.dist</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/apache/custom.conf.tpl</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/apache/domain.tpl</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/apache/domain_disabled.tpl</copy_config>
+    <copy_config copy_as="apache2.conf">/etc/logrotate.d/logrotate.conf</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/apache/vlogger.conf.tpl</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/apache/vlogger.sql</copy_config>
+</install>

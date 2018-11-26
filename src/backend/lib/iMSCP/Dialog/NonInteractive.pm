@@ -25,11 +25,11 @@ package iMSCP::Dialog::NonInteractive;
 
 use strict;
 use warnings;
-use parent 'iMSCP::Dialog::FrontEndInterface';
+use parent qw/ iMSCP::Common::Singleton iMSCP::Dialog::FrontEndInterface /;
 
 =head1 DESCRIPTION
 
- Non-interactive FrontEnd
+ Non-interactive FrontEnd for user interface.
 
 =head1 PRIVATE METHODS/FUNCTIONS
 
@@ -45,27 +45,39 @@ sub AUTOLOAD
 {
     ( my $method = $iMSCP::Dialog::NonInteractive::AUTOLOAD ) =~ s/.*:://;
 
-    grep ( $method eq $_, qw/ select multiselect boolean msgbox infobox string password startGauge setGauge endGauge hasGauge / ) or die(
+    grep ( $method eq $_, qw/ select multiselect boolean error note text string password startGauge setGauge endGauge hasGauge / ) or die(
         sprintf( 'Unknown %s method', $iMSCP::Dialog::NonInteractive::AUTOLOAD )
     );
 
     no strict 'refs';
-    *{ $iMSCP::Dialog::NonInteractive::AUTOLOAD } = grep ( $method eq $_, 'setGauge', 'endGauge', 'hasGauge', 'infobox', 'msgbox' ) ? sub { 0 } : sub {
-        die( sprintf( "A configuration parameter is in unexpected state. Please retry without the --non-interactive option.\n" ));
+    *{ $iMSCP::Dialog::NonInteractive::AUTOLOAD } = grep ( $method eq $_, 'setGauge', 'endGauge', 'hasGauge', 'note', 'text' ) ? sub { 0 } : sub {
+        die( sprintf(
+            "Bad configuration parameter detected. Please retry without the --non-interactive option.\n\nDialog was:\n\n%s",
+            _stripEmbeddedSequences( $_[1] )
+        ));
     };
 
     goto &{ $iMSCP::Dialog::NonInteractive::AUTOLOAD };
 }
 
-=item DESTROY
+=back
 
- Needed due to AUTOLOAD
+=head1 PRIVATE FUNCTIONS
+
+=over 4
+
+=item _stripEmbeddedSequences( $string )
+
+ Strip out any DIALOG(1) embedded "\Z" sequences
+
+ Param string $string String from which DIALOG(1) embedded "\Z" sequences must be stripped
+ Return string String stripped out of any DIALOG(1) embedded "\Z" sequences
 
 =cut
 
-sub DESTROY
+sub _stripEmbeddedSequences
 {
-
+    $_[0] =~ s/\\Z[0-7bBrRuUn]//gmr;
 }
 
 =back

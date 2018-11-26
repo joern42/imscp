@@ -57,10 +57,11 @@ my %SETTINGS = (
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConfFile', sub {
+iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConfFile', sub
+{
     my ( $tplContent, $tplName, $data ) = @_;
 
-    return 0 unless $tplName eq 'pool.conf' && $::imscpConfig{'HTTPD_SERVER'} eq 'apache_php_fpm';
+    return unless $tplName eq 'pool.conf' && $::imscpConfig{'HTTPD_SERVER'} eq 'apache_php_fpm';
 
     # Apply global PHP-FPM settings
     if ( exists $SETTINGS{'*'} ) {
@@ -69,14 +70,12 @@ iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConfFile', sub {
         }
     }
 
-    return 0 unless exists $SETTINGS{$data->{'DOMAIN_NAME'}};
+    return unless exists $SETTINGS{$data->{'DOMAIN_NAME'}};
 
     # Apply per domain PHP-FPM settings
     while ( my ( $setting, $value ) = each( %{ $SETTINGS{$data->{'DOMAIN_NAME'}} } ) ) {
         ${ $tplContent } =~ s/^\Q$setting\E\s+=.*?\n/$setting = $value\n/gm;
     }
-
-    0;
 } );
 
 1;

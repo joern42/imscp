@@ -80,7 +80,6 @@ sub parse
     };
 
     require Getopt::Long;
-    Getopt::Long::Configure( 'bundling' );
     Getopt::Long::GetOptions( @options ) or $class->showUsage( TRUE );
 }
 
@@ -102,8 +101,7 @@ sub showUsage
     $SHOW_USAGE->( $exitCode );
 }
 
-my %reconfigurationItems = (
-    all                  => 'All items',
+my %RECONFIGURATION_ITEMS = (
     alternatives         => 'All alternatives',
     antirootkits         => 'Antirootkits packages',
     antispam             => 'Spam filtering system',
@@ -127,14 +125,14 @@ my %reconfigurationItems = (
     named_type           => 'DNS server type',
 
     cp                   => 'Control panel',
-    cp_backup            => 'Control panel database and configuration backup',
-    cp_admin             => 'Master administrator',
-    cp_admin_credentials => 'Master administrator credential',
-    cp_admin_email       => 'Master administrator email',
-    cp_hostname          => 'Hostname for the control panel',
-    cp_php               => 'PHP version for the control panel',
-    cp_ports             => 'Http(s) ports for the control panel',
-    cp_ssl               => 'SSL for the control panel',
+    cp_backup            => 'Control panel backup',
+    cp_admin             => 'Control panel master administrator',
+    cp_admin_credentials => 'Control panel master administrator credential',
+    cp_admin_email       => 'Control panel master administrator email',
+    cp_hostname          => 'Controll panel hostname',
+    cp_php               => 'Control panel PHP version',
+    cp_ports             => 'Control panel HTTP(s) ports',
+    cp_ssl               => 'Control panel SSL',
 
     php                  => 'PHP version for customers',
     po                   => 'IMAP/POP servers',
@@ -146,7 +144,7 @@ my %reconfigurationItems = (
     system_primary_ip    => 'System primary IP address',
     system_timezone      => 'System timezone',
 
-    services_ssl         => 'SSL for the IMAP/POP, SMTP and FTP services',
+    services_ssl         => 'SSL for the IMAP/POP, FTP and SMTP services',
     sqld                 => 'SQL server',
     sqlmanager           => 'SQL manager packages',
     ssl                  => 'SSL for the servers and control panel',
@@ -155,60 +153,64 @@ my %reconfigurationItems = (
     webstats             => 'Webstats packages'
 );
 
-=item reconfigure( [ $items = 'none', [ $viaCmdLine = FALSE, [ $append = FALSE ] ] ] )
+=item reconfigure( [ $item = 'all', [ $viaCmdLineOpt = TRUE, [ $append = FALSE ] ] ] )
 
- Reconfiguration item
+ Accessor/Mutator for reconfiguration item
 
  Param string $items OPTIONAL List of comma separated items to reconfigure
- Param boolean $viaCmdLineOpt Flag indicating whether or not $items were been
+ Param boolean $viaCmdLineOpt Flag indicating whether or not $item has been
                               passed through command line option rather than
-                              programmatically
- Param boolean $append Flag indicating whether $items must be appended
+                              programmatically.
+ Param boolean $append Flag indicating whether $item must be appended (only
+                       relevant when $item is passed programmatically as this
+                       is already the default behavior for item passed-in
+                       through command line option.
  Return array_ref List of item to reconfigure
 
 =cut
 
 sub reconfigure
 {
-    my ( undef, $items, $viaCmdLineOpt, $append ) = @_;
+    my ( undef, $item, $viaCmdLineOpt, $append ) = @_;
+    $viaCmdLineOpt //= TRUE;
 
-    return $OPTIONS->{'reconfigure'} ||= [ 'none' ] unless defined $items;
+    return $OPTIONS->{'reconfigure'} ||= [ 'none' ] unless defined $item;
 
-    my @items = split /,/, $items;
-
-    if ( grep ( 'help' eq $_, @items ) ) {
+    if ( 'help' eq $item ) {
         $OPTION_HELP = <<"EOF";
 
 Reconfiguration option usage:
 
-Without any argument, this option make it possible to reconfigure all items. You can reconfigure specific items by providing a list of comma separated items as follows:
+Without any argument, this option make it possible to reconfigure all items. You can reconfigure specific items by providing a list of items as follows:
 
- perl @{[ basename( $0 ) ]} --reconfigure httpd,php,po
+ perl @{[ basename( $0 ) ]} --reconfigure httpd php po
 
 The following items are available:
 
 EOF
-        $OPTION_HELP .= " - $_" . ( ' ' x ( 20-length( $_ ) ) ) . " : $reconfigurationItems{$_}\n" for sort keys %reconfigurationItems;
-        die();
-    } elsif ( !@items ) {
-        push @items, 'all';
-    } else {
-        for my $item ( @items ) {
-            !$viaCmdLineOpt || grep ( $_ eq $item, keys %reconfigurationItems, 'none' ) or die(
-                sprintf( "Error: '%s' is not a valid item for the the --reconfigure option.", $item )
-            );
-        }
-
-        # Both the 'node' and 'forced' items MUST not be set through command
-        # line options as those are used internally only.
-        die() if $viaCmdLineOpt && grep (/^(?:force|none)$/, @items);
+        $OPTION_HELP .= " - $_" . ( ' ' x ( 20-length( $_ ) ) ) . " : $RECONFIGURATION_ITEMS{$_}\n" for sort keys %RECONFIGURATION_ITEMS;
+        die $@;
+    } elsif ( $item eq '' ) {
+        $item = 'all';
+    } elsif ( $viaCmdLineOpt ) {
+        grep ( $_ eq $item, keys %RECONFIGURATION_ITEMS ) or do {
+            $@ = sprintf( "Error: '%s' is not a valid item for the the --reconfigure option.\n", $item );
+            @_ = ( undef, 'help' );
+            goto \&reconfigure;
+        };
     }
 
-    push @items, @{ $OPTIONS->{'reconfigure'} } if $OPTIONS->{'reconfigure'} && $append;
-    $OPTIONS->{'reconfigure'} = [ do {
-        my %seen;
-        grep { !$seen{$_}++ } @items
-    } ];
+    if ( $append || $viaCmdLineOpt ) {
+        push @{ $OPTIONS->{'reconfigure'} }, $item if $append || $viaCmdLineOpt;
+        $OPTIONS->{'reconfigure'} = [ do {
+            my %seen;
+            grep { !$seen{$_}++ } @{ $OPTIONS->{'reconfigure'} }
+        } ];
+    } else {
+        @{ $OPTIONS->{'reconfigure'} } = ( $item );
+    }
+
+    @{ $OPTIONS->{'reconfigure'} };
 }
 
 =item context( [ $context = 'backend' ])
@@ -219,9 +221,6 @@ EOF
  Return string Execution context
 
 =cut
-
-# Backward compatibility with 3rd-party
-$::execmode = 'backend' unless defined $::execmode;
 
 sub context
 {
@@ -236,8 +235,6 @@ sub context
         $ENV{'IMSCP_INSTALLER'} = TRUE;
     }
 
-    # Backward compatibility with 3rd-party
-    $::execmode = $context;
     $OPTIONS->{'context'} = $context;
 }
 

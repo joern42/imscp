@@ -39,7 +39,7 @@ iMSCP::EventManager->getInstance()->register( 'beforePoBuildConf', sub
 {
     my ( $cfgTpl, $tplName ) = @_;
 
-    return 0 unless $tplName eq 'dovecot.conf';
+    return unless $tplName eq 'dovecot.conf';
 
     my $cfgSnippet = <<"EOF";
 
@@ -55,7 +55,6 @@ EOF
 
     # Enable these only if you want compression while saving
     ${ $cfgTpl } =~ s/^(plugin\s+\{.*?)(\})/$1$cfgSnippet$2/sm;
-    0;
 } );
 
 1;

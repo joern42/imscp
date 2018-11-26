@@ -22,7 +22,7 @@ package Listener::Postfix::Policy::Whitelist;
 use strict;
 use warnings;
 use iMSCP::EventManager;
-use Servers::mta;
+use iMSCP::Server::mta;
 
 ## Configuration variables
 
@@ -31,11 +31,9 @@ my $policyRecipientWhitelistTable = '/etc/postfix/policy_recipient_whitelist';
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
-    my $mta = Servers::mta->factory();
-    my $rs = $mta->addMapEntry( $policyClientWhitelistTable );
-    $rs ||= $mta->addMapEntry( $policyRecipientWhitelistTable );
-    $rs ||= $mta->postconf( (
+iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub
+{
+    iMSCP::Server::mta->factory()->addMapEntry( $policyClientWhitelistTable )->addMapEntry( $policyRecipientWhitelistTable )->postconf(
         smtpd_recipient_restrictions => {
             action => 'add',
             before => qr/permit/,
@@ -44,7 +42,7 @@ iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
                 "check_recipient_access hash:$policyRecipientWhitelistTable"
             ]
         }
-    ));
+    );
 }, -99 );
 
 1;

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/skel</folder>
+    <copy_config>${SYSCONFDIR}/imscp/skel/alias</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/skel/domain</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/skel/domain_disabled_pages</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/skel/subdomain</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/skel/README</copy_config>
+</install>

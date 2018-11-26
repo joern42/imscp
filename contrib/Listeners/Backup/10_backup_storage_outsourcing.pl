@@ -17,109 +17,110 @@
 
 package Listener::Backup::Storage::Outsourcing;
 
-# Stores customer backup directories elsewhere on local file system
+# Outsource core client backup directories
 #
 # Howto setup and activate
 # 1. Upload that listener file into the /etc/imscp/listeners.d directory
-# 2. Edit the /etc/imscp/listeners.d/10_backup_storage_outsourcing.pl file
-#    and set the $STORAGE_ROOT_PATH variable below according your needs
-# 3. Trigger an i-MSCP reconfiguration: perl /var/www/imscp/engine/bin/imscp-installer -danv
+# 2. Edit the uploaded file and set the $BACKUP_ROOT_DIR configuration
+#    variable to the new backup root directory location
+# 3. Trigger an i-MSCP reconfiguration: imscp-installer -danv
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::EventManager;
 use iMSCP::Ext2Attributes qw/ setImmutable clearImmutable /;
 use iMSCP::Dir;
+use iMSCP::Getopt;
 use iMSCP::Mount qw/ addMountEntry removeMountEntry mount umount /;
 
-# Configuration parameters
+#  Configuration variables
 
-# Storage root path for outsourced customer backup directories
-# For instance /srv/imscp/backups would mean that customer backup
-# directories would be stored into:
-# - /srv/imscp/backups/<customer1>
-# - /srv/imscp/backups/<customer2>
+# Outsourced client backups root directory
+# For instance /srv/imscp/backups would mean that client backup
+# directories would be outsourced as follows:
+# - /srv/imscp/backups/<client1>
+# - /srv/imscp/backups/<client2>
 # - ...
 #
 # Warning: Be sure to have enough space in the specified location.
-my $STORAGE_ROOT_PATH = '';
+my $BACKUP_ROOT_DIR = '';
 
-## Please don't edit anything below this line
+# Please don't edit anything below this line
 
-# Don't register event listeners if the listener file is not configured yet
-unless ( $STORAGE_ROOT_PATH eq '' ) {
-    iMSCP::EventManager->getInstance()->register( 'onBoot', sub {
-        # Make sure that the root path for outsourced backup directories
-        # exists and that it is set with expected ownership and permissions
-        iMSCP::Dir->new( dirname => $STORAGE_ROOT_PATH )->make( {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => 0750
-        } );
+# Don't register event listeners if not needed
+return 1 unless length $BACKUP_ROOT_DIR;
+
+# Create/Update outsourced backup root directory
+iMSCP::EventManager->getInstance()->register( 'onBoot', sub
+{
+    iMSCP::Dir->new( dirname => $BACKUP_ROOT_DIR )->make( {
+        user           => $::imscpConfig{'ROOT_USER'},
+        group          => $::imscpConfig{'ROOT_GROUP'},
+        mode           => 0750,
+        fixpermissions => iMSCP::Getopt->fixpermissions
     } );
+} );
 
-    iMSCP::EventManager->getInstance()->register( 'beforeHttpdAddFiles', sub {
-        my ( $data ) = @_;
+# When files are being copied by the i-MSCP httpd server, we must first
+# umount the outsourced client backup directory if any
+iMSCP::EventManager->getInstance()->register( 'beforeHttpdAddFiles', sub
+{
+    return unless $_[0]->{'DOMAIN_TYPE'} eq 'dmn' && -d "$_[0]->{'WEB_DIR'}/backups";
+    umount( "$_[0]->{'WEB_DIR'}/backups" );
+} );
 
-        return 0 unless $data->{'DOMAIN_TYPE'} eq 'dmn' && -d "$data->{'WEB_DIR'}/backups";
+# Create outsourced client backup directory and mount it on core
+# client backup directory
+iMSCP::EventManager->getInstance()->register( 'afterHttpdAddFiles', sub
+{
+    return unless $_[0]->{'DOMAIN_TYPE'} eq 'dmn';
 
-        # When files are being copied by i-MSCP httpd server, we must first
-        # umount the outsourced backup directory
-        umount( "$data->{'WEB_DIR'}/backups" );
-    } );
+    my $dir = iMSCP::Dir->new( dirname => "$_[0]->{'WEB_DIR'}/backups" );
 
-    iMSCP::EventManager->getInstance()->register( 'afterHttpdAddFiles', sub {
-        my ( $data ) = @_;
+    unless ( $dir->isEmpty() ) {
+        clearImmutable( $_[0]->{'WEB_DIR'} );
 
-        return 0 unless $data->{'DOMAIN_TYPE'} eq 'dmn';
-
-        my $backupDirHandle = iMSCP::Dir->new( dirname => "$data->{'WEB_DIR'}/backups" );
-
-        # If needed, moves data from existents backup directory into the
-        # new backup directory
-        unless ( $backupDirHandle->isEmpty() ) {
-            clearImmutable( $data->{'WEB_DIR'} );
-
-            unless ( -d "$STORAGE_ROOT_PATH/$data->{'DOMAIN_NAME'}" ) {
-                # Move backup directory to new location
-                $backupDirHandle->rcopy( "$STORAGE_ROOT_PATH/$data->{'DOMAIN_NAME'}" );
-            }
-
-            # Empty directory by re-creating it from scratch (should never occurs)
-            $backupDirHandle->clear();
-            setImmutable( $data->{'WEB_DIR'} ) if $data->{'WEB_FOLDER_PROTECTION'} eq 'yes';
-        } else {
-            # Create empty outsourced customer backup directory
-            iMSCP::Dir->new( dirname => "$STORAGE_ROOT_PATH/$data->{'DOMAIN_NAME'}" )->make( {
-                user  => $data->{'USER'},
-                group => $data->{'GROUP'},
-                mode  => 0750
-            } );
+        unless ( -d "$BACKUP_ROOT_DIR/$_[0]->{'DOMAIN_NAME'}" ) {
+            # Move client backup into oursourced client backup directory
+            $dir->copy( "$BACKUP_ROOT_DIR/$_[0]->{'DOMAIN_NAME'}", preverve => TRUE );
         }
 
-        # Outsource customer backup directory by mounting new backup directory on top of it
-        my $rs ||= mount( {
-            fs_spec    => "$STORAGE_ROOT_PATH/$data->{'DOMAIN_NAME'}",
-            fs_file    => "$data->{'WEB_DIR'}/backups",
-            fs_vfstype => 'none',
-            fs_mntops  => 'bind,slave'
+        # Make sure that the core client backup directory is free of any
+        # garbage (should never occurs)
+        $dir->clear();
+        setImmutable( $_[0]->{'WEB_DIR'} ) if $_[0]->{'WEB_FOLDER_PROTECTION'} eq 'yes';
+    } else {
+        # Create empty outsourced client backup directory
+        iMSCP::Dir->new( dirname => "$BACKUP_ROOT_DIR/$_[0]->{'DOMAIN_NAME'}" )->make( {
+            user           => $_[0]->{'USER'},
+            group          => $_[0]->{'GROUP'},
+            mode           => 0750,
+            fixpermissions => iMSCP::Getopt->fixpermissions
         } );
-        $rs ||= addMountEntry( "$STORAGE_ROOT_PATH/$data->{'DOMAIN_NAME'} $data->{'WEB_DIR'}/backups none bind,slave" );
+    }
+
+    # Mount outsourced client backup diretory on core client backup directory
+    mount( {
+        fs_spec    => "$BACKUP_ROOT_DIR/$_[0]->{'DOMAIN_NAME'}",
+        fs_file    => "$_[0]->{'WEB_DIR'}/backups",
+        fs_vfstype => 'none',
+        fs_mntops  => 'bind,slave'
     } );
+    addMountEntry( "$BACKUP_ROOT_DIR/$_[0]->{'DOMAIN_NAME'} $_[0]->{'WEB_DIR'}/backups none bind,slave" );
+} );
 
-    iMSCP::EventManager->getInstance()->register( 'beforeHttpdDelDmn', sub {
-        my $data = shift;
+# Umount outsourced client backup directory and remove it
+iMSCP::EventManager->getInstance()->register( 'beforeHttpdDelDmn', sub
+{
+    return unless $_[0]->{'DOMAIN_TYPE'} eq 'dmn';
 
-        return 0 unless $data->{'DOMAIN_TYPE'} eq 'dmn';
+    my $fsFile = "$_[0]->{'WEB_DIR'}/backups";
+    removeMountEntry( qr%.*?[ \t]+\Q$fsFile\E(?:/|[ \t]+)[^\n]+% );
+    umount( $fsFile );
 
-        my $fsFile = "$data->{'WEB_DIR'}/backups";
-        my $rs = removeMountEntry( qr%.*?[ \t]+\Q$fsFile\E(?:/|[ \t]+)[^\n]+% );
-        $rs ||= umount( $fsFile );
-        return $rs if $rs;
-
-        iMSCP::Dir->new( dirname => "$STORAGE_ROOT_PATH/$data->{'DOMAIN_NAME'}" )->remove();
-    } );
-}
+    iMSCP::Dir->new( dirname => "$BACKUP_ROOT_DIR/$_[0]->{'DOMAIN_NAME'}" )->remove();
+} );
 
 1;
 __END__

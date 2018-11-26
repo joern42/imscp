@@ -28,25 +28,22 @@ use iMSCP::File;
 # Configuration variables
 
 # Path to system hosts file
-my $hostsFilePath = '/etc/hosts';
+my $HOSTS_FILE_PATH = '/etc/hosts';
 
 # Parameter which allow to add one or many host entries in the system hosts file
 # Please replace the entries below by your own entries
-my @hostsFileEntries = (
+my @HOSTS_FILE_ENTRIES = (
     '192.168.1.10	foo.mydomain.org	foo',
     '192.168.1.13	bar.mydomain.org	bar'
 );
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'afterSetupServerHostname', sub {
-    return 0 unless -f $hostsFilePath;
-
-    my $file = iMSCP::File->new( filename => $hostsFilePath );
-    my $fileC = $file->getAsRef();
-    return 1 unless defined $fileC;
-
-    ${ $fileC} .= join( "\n", @hostsFileEntries ) . "\n";
+iMSCP::EventManager->getInstance()->register( 'afterSetupServerHostname', sub
+{
+    return unless -f $HOSTS_FILE_PATH;
+    my $file = iMSCP::File->new( filename => $HOSTS_FILE_PATH );
+    ${ $file->getAsRef() } .= join( "\n", @HOSTS_FILE_ENTRIES ) . "\n";
     $file->save();
 } );
 

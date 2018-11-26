@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>/etc/systemd/system</folder>
+    <folder>/etc/tmpfiles.d</folder>
+    <copy_config copy_if="'${NAMED_PACKAGE}' eq 'iMSCP::Server::named::bind'">/etc/systemd/system/bind9.service</copy_config>
+    <copy_config copy_if="'${NAMED_PACKAGE}' eq 'iMSCP::Server::named::bind'">/etc/systemd/system/bind9-resolvconf.service</copy_config>
+    <copy_config copy_if="'${PO_PACKAGE}' eq 'iMSCP::Server::po::courier'">/etc/tmpfiles.d/courier-authdaemon.conf</copy_config>
+    <copy_config expand_vars="1">/etc/systemd/system/imscp_daemon.service</copy_config>
+    <copy_config expand_vars="1">/etc/systemd/system/imscp_mountall.service</copy_config>
+    <copy_config expand_vars="1">/etc/systemd/system/imscp_traffic.service</copy_config>
+</install>

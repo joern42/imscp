@@ -215,8 +215,8 @@ CONGIGS
 	Removed: The iterate_query parameter from the dovecot-sql.conf file ( Parameter not available in Dovecot 1.x )
 
 ENGINE
-	Added: Cron task attributes validation routines ( Servers::cron::cron )
-	Fixed: Cron server is broken - Unable to remove cron task ( Servers::cron::cron )
+	Added: Cron task attributes validation routines ( iMSCP::Server::cron::cron )
+	Fixed: Cron server is broken - Unable to remove cron task ( iMSCP::Server::cron::cron )
 
 GUI
 	Added: Browser detection capability (i18n)
@@ -255,8 +255,8 @@ CONFIGS
 	Fixed: Wrong HOST_NAME variable in quota-waring template files ( Dovecot )
 
 ENGINE
-	Fixed: Servers::cron::cron server is broken - Cron file are never installed
-	Fixed: i-MSCP create many garbage (file under /) ( related to Servers::cron::cron server is broken... )
+	Fixed: iMSCP::Server::cron::cron server is broken - Cron file are never installed
+	Fixed: i-MSCP create many garbage (file under /) ( related to iMSCP::Server::cron::cron server is broken... )
 
 GUI
 	Fixed: PHP must search files in i-MSCP library directories prior any other directory ( PHP include_path )
@@ -291,7 +291,7 @@ CONFIGS
 	Fixed: Virtual mail directory must not be hardcoded in dovecot configuration file
 
 ENGINE
-	Added: Support for alternative cron files ( Servers::cron::cron )
+	Added: Support for alternative cron files ( iMSCP::Server::cron::cron )
 	Changed: Ignore errors regarding the move of home directory ( Modules::User )
 	Fixed: main::run: Argument "yes" isn't numeric in addition (+) at /var/www/imscp/engine/imscp-sw-mngr line 111
 	Fixed: Wrong IP added in DNS zone files when the BASE_SERVER_IP and BASE_SERVER_PUBLIC_IP parameters are referring
@@ -314,7 +314,7 @@ GUI
 INSTALLER
 	Fixed: Error about unknown IP when attempting to add new IP
 	Fixed: lo must not be used as default device when adding new IP (installer)
-	Fixed: Unable to upgrade to 1.1.14 (packages file is corrupted - Ubuntu Precise)
+	Fixed: Unable to upgrade to 1.1.14 (package file is corrupted - Ubuntu Precise)
 
 PLUGINS
 	Fixed: Configuration change not processed when a plugin is being updated
@@ -806,7 +806,7 @@ CONFIGS
 	Updated: Fcgid/PHP-FPM config to fit with servers which have at least 4GiB ram
 
 DISTROS
-	Added: Packages file for Ubuntu Saucy Slamander and Ubuntu Trusty Tahr (experimental)
+	Added: Package file for Ubuntu Saucy Slamander and Ubuntu Trusty Tahr (experimental)
 	Removed: Courier from Jessie packages list (See https://release.debian.org/migration/testing.pl?package=courier)
 
 ENGINE
@@ -820,7 +820,7 @@ ENGINE
 	Fixed: Do not compute traffic data for disabled domains
 	Fixed: External command died with signal 9 (without core dump)
 	Fixed: iMSCP::Rights - Any target referenced by a symlink must not be affected by owner/group modification
-	Fixed: Keep current unix user uid/gid when updating the SYSTEM_USER_PREFIX and SYSTEM_USER_MIN_UID parameters
+	Fixed: Keep current unix user uid/gid when updating the USER_PREFIX and USER_MIN_UID parameters
 	Fixed: Missing customer logs directories cannot be re-created (permissions denied)
 	Fixed: Pass-in domain data to the listeners which listen to the *HttpdBuildConfFile and *HttpdBuildConf events
 	Fixed: Proftpd server is down after update
@@ -1022,11 +1022,11 @@ TICKETS
 
 CONFIGS
 	Changed: MASTER_GROUP parameter become IMSCP_GROUP
-	Fixed: Packages file for Debian Jessie (testing)
+	Fixed: Package file for Debian Jessie (testing)
 	Fixed: Package dovecot-mysql is not available for Ubuntu Lucid
 	Fixed: Dovecot - Wrong path for delivery agent
 	Removed: Cron templates
-	Removed: Packages awstats, chkrootkit and rkhunter from global packages file
+	Removed: Packages awstats, chkrootkit and rkhunter from global package file
 
 DOCS
 	Updated: Preseed template file
@@ -1045,7 +1045,7 @@ ENGINE
 TICKETS
 	Fixed #636: Bug - Rkhunter - Unreadable log file
 	Fixed #810: Bug - https default access redirect mode not working for base server url
-	Fixed #902: Bug - User UID/GID mismatch after updating the SYSTEM_USER_PREFIX and/or SYSTEM_USER_MIN_UID parameters
+	Fixed #902: Bug - User UID/GID mismatch after updating the USER_PREFIX and/or USER_MIN_UID parameters
 	Fixed #918: Bug - Courier - Unlimited quota doesn't works
 	Fixed #919: Bug - Preseed feature is broken - A template has not been found
 	Fixed #924: Defect - After Update from RC3 to RC4.1 pop3-ssl and imap-ssl don't work (dovecot 1.2.15)
@@ -1070,7 +1070,7 @@ TICKETS
 
 CONFIGS
 	Added: Specific quota warning script for Dovecot 2.x.x branch
-	Added: Packages file for Debian Jessie (testing)
+	Added: Package file for Debian Jessie (testing)
 	Added: SPF Resource Record Type in bind template
 	Added: php5-imap package (required by i-MSCP frontEnd)
 	Changed: php5-mysql package to php5-mysqlnd (native driver) when available
@@ -1262,7 +1262,7 @@ CONFIGS
 	Added: Web folder skeletons (Httpd server impls.)
 	Fixed: Useless section must be removed in generated Apache configuration files
 	Fixed: diff package isn't available for Ubuntu > 12.04 (replaced by diffutils)
-	Removed: packages file for Ubuntu Oneiric Ocelot (EOL 20130509)
+	Removed: package file for Ubuntu Oneiric Ocelot (EOL 20130509)
 	Updated: php.ini files
 
 ENGINE

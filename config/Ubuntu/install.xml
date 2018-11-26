@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <install>../Debian/apache</install>
+    <install>../Debian/apt</install>
+    <install>../Debian/awstats</install>
+    <install>../Debian/backup</install>
+    <install>../Debian/bind</install>
+    <install>../Debian/clamav</install>
+    <install>../Debian/courier</install>
+    <install>../Debian/cron</install>
+    <install>../Debian/dovecot</install>
+    <install>../Debian/dpkg</install>
+    <install>../Debian/frontend</install>
+    <install>../Debian/listeners.d</install>
+    <install>../Debian/logrotate.d</install>
+    <install>../Debian/mounts</install>
+    <install>../Debian/mysql</install>
+    <install>../Debian/openssl</install>
+    <install>../Debian/php</install>
+    <install>../Debian/phpmyadmin</install>
+    <install>../Debian/postfix</install>
+    <install>../Debian/postscreen</install>
+    <install>../Debian/proftpd</install>
+    <install>../Debian/rspamd</install>
+    <install>../Debian/skel</install>
+    <install>../Debian/sysctl.d</install>
+    <install>../Debian/systemd</install>
+    <install>../Debian/sysvinit</install>
+    <install>../Debian/upstart</install>
+    <install>../Debian/vsftpd</install>
+    <install>../Debian/websitesalturls</install>
+</install>

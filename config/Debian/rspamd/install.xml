@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/rspamd</folder>
+    <copy_config>${SYSCONFDIR}/imscp/rspamd/local.d</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/rspamd/rspamd.conf.dist</copy_config>
+</install>

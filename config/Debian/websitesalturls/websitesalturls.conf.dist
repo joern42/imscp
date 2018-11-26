@@ -1,0 +1,3 @@
+# Alternative URLs for client websites
+# possible value: yes, no
+WEBSITE_ALT_URLS =

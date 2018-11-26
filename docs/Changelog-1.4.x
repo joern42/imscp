@@ -69,8 +69,8 @@ INSTALLER
     Fixed: Lose of data in configuration files due to deferred writing (all servers/packages)
     Fixed: Make sure that LOGROTATE(8) configuration files are copied with expected ownership and permissions
     Fixed: Make sure that none of package being installed/updated is in `hold' state
-    Fixed: The `IPV6_SUPPORT' configuration parameter is never set (Servers::server::local::installer)
-    Fixed: The `IPV6_SUPPORT' configuration parameter must be set early (Servers::server::local::installer)
+    Fixed: The `IPV6_SUPPORT' configuration parameter is never set (iMSCP::Server::server::local::installer)
+    Fixed: The `IPV6_SUPPORT' configuration parameter must be set early (iMSCP::Server::server::local::installer)
     Fixed: The master configuration file (imscp.conf) must stay writable during all setup process
 
 VENDOR
@@ -117,7 +117,7 @@ CONFIG
 DISTRIBUTIONS
     Fixed: Erroneous MariaDB repository (Ubuntu 14.04, 16.04)
     Fixed: libmysqlclient20 package must be installed in any case (Ubuntu 16.04; Regression fix)
-    Fixed: Missing switch for MariaDB 10.2 server in distribution packages files
+    Fixed: Missing switch for MariaDB 10.2 server in distribution package files
 
 FRONTEND
     Fixed: Cannot create catch-all email account (Forward mail) due to erroneous SQL query (Regression fix)
@@ -143,7 +143,7 @@ SCRIPTS
     Fixed: imscp-backup-imscp backup script: Global symbol "$dbName" requires explicit package name (Regression fix)
 
 SERVERS
-    Added: System local server implementation (Servers::server::local)
+    Added: System local server implementation (iMSCP::Server::server::local)
     
 YOUTRACK
     IP-1722 Missing IP addresses in event logs
@@ -268,7 +268,7 @@ SERVERS
     Fixed: Maildir not removed when turning normal mail account into forward only mail account (Postfix)
     Fixed: Make use of pristine suexec for better performances (Apache2/Suexec)
     Fixed: Recipient address rejected: User unknown in local recipient table (Postfix)
-    Fixed: Skip write operation in Servers::Postfix::deleteMapEntry() when not necessary (Postfix)
+    Fixed: Skip write operation in iMSCP::Server::Postfix::deleteMapEntry() when not necessary (Postfix)
     Fixed: Unwanted directory listings (Apache2 - Regression fix)
     Fixed: warning: do not list domain xxxxxx in BOTH `mydestination' and `virtual_mailbox_domains' (Postfix)
     Fixed: Wrong POP3 traffic accounting (Dovecot)
@@ -298,7 +298,7 @@ YOUTRACK
     RELEASE i-MSCP 1.4.3
 
 CONFIG
-    Added: `class', `default' and `description' attributes in distribution packages files for service alternatives
+    Added: `class', `default' and `description' attributes in distribution package files for service alternatives
     Added: /etc/apt/apt/conf.d/01norecommend to avoid installation of recommended/suggested distribution packages
     Added: `*._PACKAGE' variables in master conffile. Variables holding i-MSCP server class names
     Removed: FastCGI section in Apache2 domain.tpl vhost template (mod_proxy_fcgi is now available for all distributions)
@@ -306,7 +306,7 @@ CONFIG
 
 BACKEND
     Added: iMSCP::File::getAsRef() method - Method allowing to get scalar reference to file content
-    Added: Servers::php class (doesn't do anything yet - currently a child of Servers::noserver)
+    Added: iMSCP::Server::php class (doesn't do anything yet - currently a child of iMSCP::Server::noserver)
     Fixed: Couldn't umount mounts that are in deleted state due to wrong regexp in iMSCP::Mount library
     Review: Mitigate IO operations by reading full fstab-like file in memory and by reusing same file object (iMSCP::Mount)
 
@@ -385,7 +385,7 @@ LISTENERS
 
 SERVERS
     Fixed: FastCgiExternalServer: redefinition of previously defined class (apache_php_fpm httpd server impl.)
-    Fixed: Modules::Plugin::_call: Can't locate object method "getInstance" via package "Servers::mta::postfix" (po servers impl.)
+    Fixed: Modules::Plugin::_call: Can't locate object method "getInstance" via package "iMSCP::Server::mta::postfix" (po servers impl.)
 
 SERVICES
     Changed: Niceness from 0 to 10 for imscp_daemon and imscp_panel services 
@@ -404,7 +404,7 @@ DATABASE
     Fixed: Delete invalid default email accounts
 
 DISTRIBUTION
-    Fixed: Couldn't install unauthenticated distribution packages - Wrong attribute name in packages file
+    Fixed: Couldn't install unauthenticated distribution packages - Wrong attribute name in package file
 
 INSTALLER
     Fixed: Don't allows switching to other SGBD vendor (most of the time, there are pre-required manual tasks to be done)
@@ -484,7 +484,7 @@ DISTRIBUTIONS
     Dropped: Support for Debian Wheezy - Many softwares and library are really too old
     Dropped: Support for PHP versions that are considered EOL by upstream PHP team (Ubuntu/Debian)
     Dropped: Support for Ubuntu Precise Pangolin (12.04) - Will be EOL on April 2017
-    Updated: Debian Stretch packages file according last state of repository (full freeze since 20170205)
+    Updated: Debian Stretch package file according last state of repository (full freeze since 20170205)
 
 DOCUMENTATION
     Added: CGI script sample for Perl, Python and Ruby
@@ -542,7 +542,7 @@ PLUGINS
     Updated: API version to 1.4.0
 
 SERVERS
-    Added: LAN IP address in virtualhost for local access (Servers::ftpd::proftpd::installer)
+    Added: LAN IP address in virtualhost for local access (iMSCP::Server::ftpd::proftpd::installer)
     Added: Support for Python and Ruby CGI scripts (Httpd server impl.)
     Added: `/.well-known' directory to site skeletons (Httpd server impl.)
     Changed: Usage of mpm_event in place of mpm_worker (PHP-FPM httpd server impl.)
@@ -558,7 +558,7 @@ SERVERS
     Fixed: POSTCONF(1) is being slow when called multiple-times, slowing down i-MSCP installer (Postfix server impl.)
     Fixed: Set HSTS `max-age' value to zero when HSTS is disabled (See RFC 6797)
     Fixed: The `/.well-known' directory is not reacheable when a site is redirected or proxied (httpd server impl.)
-    Fixed: Wrong events triggered (Servers::mta::postfix)
+    Fixed: Wrong events triggered (iMSCP::Server::mta::postfix)
     Fixed: Wrong permissions set on Courier Authdaemon socket dir, making maildrop MDA unable to connect
     Fixed: Wrong permissions set on Dovecot configuration files
 

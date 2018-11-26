@@ -22,7 +22,7 @@ package Listener::Postfix::BCC::Map;
 use strict;
 use warnings;
 use iMSCP::EventManager;
-use Servers::mta;
+use iMSCP::Server::mta;
 
 # Configuration variables
 
@@ -31,11 +31,9 @@ my $postfixSenderBccMap = '/etc/postfix/sender_bcc_map';
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
-    my $mta = Servers::mta->factory();
-    my $rs = $mta->addMapEntry( $postfixRecipientBccMap );
-    $rs ||= $mta->addMapEntry( $postfixSenderBccMap );
-    $rs ||= $mta->postconf( (
+iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub
+{
+    iMSCP::Server::mta->factory()->addMapEntry( $postfixRecipientBccMap )->addMapEntry( $postfixSenderBccMap )->postconf( (
         recipient_bcc_maps => {
             action => 'add',
             values => [ "hash:$postfixRecipientBccMap" ]

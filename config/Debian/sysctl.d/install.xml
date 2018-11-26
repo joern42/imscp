@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>/etc/sysctl.d</folder>
+    <remove>/etc/sysctl.d/imscp.conf</remove>
+    <copy_config>/etc/sysctl.d/99-imscp.conf</copy_config>
+</install>

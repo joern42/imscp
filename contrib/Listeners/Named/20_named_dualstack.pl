@@ -24,7 +24,7 @@ use warnings;
 use iMSCP::Boolean;
 use iMSCP::EventManager;
 use iMSCP::Net;
-use iMSCP::TemplateParser qw / getBlocByRef replaceBlocByRef /;
+use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
 use List::MoreUtils 'uniq';
 
 # Configuration variables
@@ -44,7 +44,8 @@ my @additionalIPs = ( 'IP1', 'IP2' );
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'afterNamedAddDmnDb', sub {
+iMSCP::EventManager->getInstance()->register( 'afterNamedAddDmnDb', sub
+{
     my ( $tplDbFileContent, $data ) = @_;
 
     my $net = iMSCP::Net->getInstance();
@@ -55,7 +56,7 @@ iMSCP::EventManager->getInstance()->register( 'afterNamedAddDmnDb', sub {
         )
     );
 
-    return 0 unless @ipList;
+    return unless @ipList;
 
     my @formattedEntries = ();
     for my $ip ( @ipList ) {
@@ -69,11 +70,10 @@ iMSCP::EventManager->getInstance()->register( 'afterNamedAddDmnDb', sub {
         $tplDbFileContent,
         TRUE
     );
-
-    0;
 } );
 
-iMSCP::EventManager->getInstance()->register( 'afterNamedAddSub', sub {
+iMSCP::EventManager->getInstance()->register( 'afterNamedAddSub', sub
+{
     my ( $fileC, $data ) = @_;
 
     my $net = iMSCP::Net->getInstance();
@@ -84,7 +84,7 @@ iMSCP::EventManager->getInstance()->register( 'afterNamedAddSub', sub {
         )
     );
 
-    return 0 unless @ipList;
+    return unless @ipList;
 
     my @formattedEntries = ();
     for my $ip ( @ipList ) {
@@ -102,8 +102,6 @@ iMSCP::EventManager->getInstance()->register( 'afterNamedAddSub', sub {
             . "; sub [$data->{'DOMAIN_NAME'}] ending.\n",
         $fileC
     );
-
-    0;
 } );
 
 1;

@@ -31,8 +31,10 @@ use warnings;
 use strict;
 use iMSCP::Boolean;
 use iMSCP::DistPackageManager;
+use iMSCP::Execute 'executeNoWait';
 use iMSCP::Getopt;
-use iMSCP::LsbRelease;
+use iMSCP::ProgramFinder;
+use iMSCP::Stepper;
 
 BEGIN {
     local $@;
@@ -42,17 +44,40 @@ BEGIN {
 
 return TRUE if iMSCP::Getopt->skipDistPackages;
 
-iMSCP::Debug::debug( "Satisfying i-MSCP installer prerequisites for @{ [ iMSCP::LsbRelease->getInstance()->getId( TRUE ) ] } OS..." );
+iMSCP::Debug::debug( 'Satisfying i-MSCP installer prerequisites for Debian like OS...' );
 iMSCP::DistPackageManager
     ->getInstance()
     # Install pre-required distribution packages
     ->installPackages( [ qw/
         apt-transport-https ca-certificates cpanminus debconf-utils dialog dirmngr dpkg-dev gdebi-core libbit-vector-perl libdata-clone-perl
-        libdata-compare-perl libdatetime-timezone-perl libemail-valid-perl liblist-moreutils-perl libnet-libidn-perl libreadonly-perl
-        libreadonly-xs-perl libscalar-defer-perl libxml-simple-perl lsb-release pbuilder perl perl-modules policyrcd-script-zg2 wget whiptail
-    / ] )
+        libdata-compare-perl libdatetime-timezone-perl libemail-valid-perl liblist-moreutils-perl libnet-libidn-perl libjson-perl libreadonly-perl
+        libreadonly-xs-perl libscalar-defer-perl libxml-simple-perl make pbuilder perl perl-modules policyrcd-script-zg2 wget virt-what
+        whiptail ruby libc6-dev libc6-dev-x32 gcc lsb-release
+/ ] )
+    
     # Install pre-required Perl modules from CPAN
     ->installPerlModules( [ qw/ Class::Autouse@2.01 Data::Validate::Domain@0.14 Net::Domain::TLD@1.75 Net::IP@1.26 / ] );
 
+# Install pre-required facter program
+startDetail();
+my $msgHeader = "Installing/Updating cross-platform library for gathering system facts:\n\n - ";
+my $msgFooter = "\nPlease be patient. This may take few seconds...";
+my $stderr;
+step(
+    sub
+    {
+        executeNoWait(
+            [ '/usr/bin/gem', 'install', 'facter', '--conservative', '--version', '2.5.1' ],
+            iMSCP::Getopt->noninteractive && iMSCP::Getopt->verbose ? undef : sub {
+                step( undef, $msgHeader . $_[0] . $msgFooter, 1, 1 );
+            },
+            sub { $stderr .= $_[0]; }
+        ) == 0 or die( $stderr || 'Unknown error' );
+    },
+    $msgHeader . "Initialization...\n" . $msgFooter, 1, 0
+);
+endDetail();
+
 1;
+
 __END__

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp</folder>
+    <install>apache</install>
+    <install>apt</install>
+    <install>awstats</install>
+    <install>backup</install>
+    <install>bind</install>
+    <install>clamav</install>
+    <install>courier</install>
+    <install>cron</install>
+    <install>dovecot</install>
+    <install>dpkg</install>
+    <install>frontend</install>
+    <install>listeners.d</install>
+    <install>logrotate.d</install>
+    <install>mounts</install>
+    <install>mysql</install>
+    <install>openssl</install>
+    <install>php</install>
+    <install>phpmyadmin</install>
+    <install>postfix</install>
+    <install>postscreen</install>
+    <install>proftpd</install>
+    <install>rspamd</install>
+    <install>skel</install>
+    <install>sysctl.d</install>
+    <install>systemd</install>
+    <install>sysvinit</install>
+    <install>upstart</install>
+    <install>vsftpd</install>
+    <install>websitesalturls</install>
+</install>

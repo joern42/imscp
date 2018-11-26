@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/mounts</folder>
+    <copy_config>${SYSCONFDIR}/imscp/mounts/mounts.conf</copy_config>
+</install>

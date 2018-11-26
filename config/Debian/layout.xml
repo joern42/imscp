@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    layout.xml - Distribution installation path layout for Debian OS
+    
+    Hints:
+    - layout can be overridden with installer -l <LAYOUT_XML_FILE> option
+    - a trailing plus character (`+') on paths is replaced with a `/<target>'
+      suffix where <target> is currently hardcoded to 'imscp'.
+-->
+<install>
+    <folder export="PREFIX">/usr/local</folder>
+    <folder export="EXEC_PREFIX">${PREFIX}</folder>
+    <folder export="BINDIR">${EXEC_PREFIX}/bin</folder>
+    <folder export="SBINDIR">${EXEC_PREFIX}/sbin</folder>
+    <!--<folder export="LIBEXECDIR">${EXEC_PREFIX}/libexec</folder>-->
+    <folder export="DATAROOTDIR">${PREFIX}/share</folder>
+    <folder export="DATADIR">${DATAROOTDIR}</folder>
+    <folder export="SYSCONFDIR">${PREFIX}/etc</folder>
+    <!--<folder export="SHAREDSTATEDIR">${PREFIX}/com</folder>-->
+    <folder export="LOCALSTATEDIR">${PREFIX}/var</folder>
+    <folder export="RUNSTATEDIR">${LOCALSTATEDIR}/run</folder>
+    <!--<folder export="INCLUDEDIR">${PREFIX}/include</folder>-->
+    <folder export="DOCDIR">${DATAROOTDIR}/doc</folder>
+    <!--<folder export="INFODIR">${DATAROOTDIR}/info</folder>-->
+    <!--<folder export="LIBDIR">${EXEC_PREFIX}/lib</folder>-->
+    <!--<folder export="LOCALDIR">${DATAROOTDIR}/locale</folder>-->
+    <folder export="MANDIR">${DATAROOTDIR}/man</folder>
+    <!--<folder export="MAN1DIR">${MANDIR}/man1</folder>-->
+    <!--<folder export="MAN2DIR">${MANDIR}/man2</folder>-->
+    <!--<folder export="MAN3DIR">${MANDIR}/man3</folder>-->
+    
+    
+    <folder export="CONFDIR">${SYSCONFDIR}/imscp</folder>
+    <folder export="LOG_DIR"></folder>
+    <folder export="PLUGIN_DIR"></folder>
+    <folder export="CACHE_DIR"></folder>
+</install>
+<!--
+OLD:
+LOG_DIR            : /var/log/imscp
+ROOT_DIR           : /var/www/imscp
+GUI_ROOT_DIR       : /var/www/imscp/gui
+GUI_PUBLIC_DIR     : /var/www/imscp/gui/public
+ENGINE_ROOT_DIR    : /var/www/imscp/engine
+PLUGINS_DIR        : /var/www/imscp/gui/plugins
+USER_WEB_DIR       : /var/www/virtual
+LOGROTATE_CONF_DIR : /etc/logrotate.d
+BACKUP_ROOT_DIR    : /var/www/imscp/engine/backup
+BACKUP_FILE_DIR    : /var/www/imscp/backups
+TRAFF_LOG_DIR      : /var/log
+TRAFF_ROOT_DIR     : /var/www/imscp/engine/traffic
+TOOLS_ROOT_DIR     : /var/www/imscp/engine/tools
+QUOTA_ROOT_DIR     : /var/www/imscp/engine/quota
+-->

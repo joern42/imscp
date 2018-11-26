@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/websitesalturls</folder>
+    <copy_config>${SYSCONFDIR}/imscp/websitesalturls/websitesalturls.conf.dist</copy_config>
+</install>

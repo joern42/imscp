@@ -24,16 +24,17 @@ package Listener::Named::OverrideDefaultRecords;
 
 use strict;
 use warnings;
-use iMSCP::Net;
 use iMSCP::EventManager;
+use iMSCP::Net;
 
 # Listener that is responsible to replace following default DNS records:
 # - @   IN {IP_TYPE} {DOMAIN_IP}
 # - www IN CNAME     @
-iMSCP::EventManager->getInstance()->register( 'beforeNamedAddCustomDNS', sub {
+iMSCP::EventManager->getInstance()->register( 'beforeNamedAddCustomDNS', sub
+{
     my ( $wrkDbFileContent, $data ) = @_;
 
-    return 0 unless @{ $data->{'DNS_RECORDS'} };
+    return unless @{ $data->{'DNS_RECORDS'} };
 
     my $domainIP = iMSCP::Net->getInstance()->isValidAddr( $data->{'DOMAIN_IP'} ) ? $data->{'DOMAIN_IP'} : $::imscpConfig{'BASE_SERVER_PUBLIC_IP'};
 
@@ -50,14 +51,13 @@ iMSCP::EventManager->getInstance()->register( 'beforeNamedAddCustomDNS', sub {
             ${ $wrkDbFileContent } =~ s/^www(?:\Q.$data->{'DOMAIN_NAME'}.\E)?\s+IN\s+CNAME\s+(?:\@|\Q$data->{'DOMAIN_NAME'}.\E)\n//gm;
         }
     }
-
-    0;
 } );
 
 # Listener that is responsible to re-add the default DNS records when needed.
 # i-MSCP Bind9 server impl. will not do it unless the domain is being fully
 # reconfigured
-iMSCP::EventManager->getInstance()->register( 'afterNamedAddCustomDNS', sub {
+iMSCP::EventManager->getInstance()->register( 'afterNamedAddCustomDNS', sub
+{
     my ( $wrkDbFileContent, $data ) = @_;
 
     my $net = iMSCP::Net->getInstance();
@@ -73,8 +73,6 @@ iMSCP::EventManager->getInstance()->register( 'afterNamedAddCustomDNS', sub {
     if ( ${ $wrkDbFileContent } !~ /^www\Q.$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?\s+IN\s+CNAME\s+/m ) {
         ${ $wrkDbFileContent } .= "www.$data->{'DOMAIN_NAME'}.\t\tIN\tCNAME\t$data->{'DOMAIN_NAME'}.\n";
     }
-
-    0;
 } );
 
 1;

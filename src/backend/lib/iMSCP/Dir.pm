@@ -224,7 +224,7 @@ sub clear
 
     !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
-    if ( defined $regexp ) {
+    unless ( defined $regexp ) {
         eval { remove_tree( $self->{'dirname'}, { keep_root => TRUE, safe => TRUE } ); };
         !$@ or die( sprintf( "Failed to clear '%s': %s", $self->{'dirname'}, $@ ));
         return $self;
@@ -378,7 +378,7 @@ sub remove
     are preserved only if the copy of both owner and group succeeded.
     This is nearly same as executing: cp(1) --recursive --preserve=ownership,mode dir dest
 
-  - If the 'preserve option is not explicitely set to FALSE, ownership and permissions of existent files are left untouched and the following
+  - If the 'preserve' option is not explicitely set to FALSE, ownership and permissions of existent files are left untouched and the following
     rules apply for new files:
      - Permissions set are those from source file on which UMASK(2) is applied. Non-permission bits are not preserved.
      - Owner is set to EUID while the group set depends on a range of factors:

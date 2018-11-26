@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder export="FRONTEND_SHAREDIR">${DATAROOTDIR}/imscp/frontend}</folder>
+    <folder export="FRONTEND_STATEDIR">${LOCALSTATEDIR}/lib/imscp/frontend}</folder>
+    <copy>${FRONTEND_STATEDIR}/data</copy>
+    <copy>${FRONTEND_SHAREDIR}/i18n</copy>
+    <copy>${FRONTEND_SHAREDIR}/library</copy>
+    <copy>${FRONTEND_STATEDIR}/plugins</copy>
+    <copy>${FRONTEND_SHAREDIR}/public</copy>
+    <copy>${FRONTEND_SHAREDIR}/theme</copy>
+</install>

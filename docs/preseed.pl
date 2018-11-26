@@ -173,7 +173,7 @@
     # Master administrator email address
     # Possible value: A valid email address. Mails sent to local root user will
     # be forwarded to that address.
-    DEFAULT_ADMIN_ADDRESS               => '',
+    MASTER_ADMIN_EMAIL               => '',
 
     ## DNS server configuration
 

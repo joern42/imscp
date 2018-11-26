@@ -56,7 +56,8 @@ my %configOptions = (
 
 # Please, don't edit anything below this line #
 
-iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConfFile', sub {
+iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConfFile', sub
+{
     my ( $tplContent, $tplName, $data ) = @_;
 
     if ( $tplName eq 'php.ini' && $::imscpConfig{'HTTPD_SERVER'} eq 'apache_fcgid' ) {
@@ -74,10 +75,10 @@ iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConfFile', sub {
             }
         }
 
-        return 0;
+        return;
     }
 
-    return 0 unless $tplName eq 'pool.conf' && $::imscpConfig{'HTTPD_SERVER'} eq 'apache_php_fpm';
+    return unless $tplName eq 'pool.conf' && $::imscpConfig{'HTTPD_SERVER'} eq 'apache_php_fpm';
 
     # Apply global PHP configuration options overriding if any
     if ( exists $configOptions{'*'} ) {
@@ -91,7 +92,7 @@ iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConfFile', sub {
         }
     }
 
-    return 0 unless exists $configOptions{$data->{'DOMAIN_NAME'}};
+    return unless exists $configOptions{$data->{'DOMAIN_NAME'}};
 
     # Apply per domain PHP configuration options overriding if any
     while ( my ( $option, $value ) = each( %{ $configOptions{$data->{'DOMAIN_NAME'}} } ) ) {
@@ -102,8 +103,6 @@ iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConfFile', sub {
             ${ $tplContent } .= "php_admin_value[$option] = $value\n";
         }
     }
-
-    0;
 } );
 
 1;

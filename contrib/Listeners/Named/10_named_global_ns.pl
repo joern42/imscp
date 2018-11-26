@@ -56,7 +56,8 @@ my @NAMESERVERS = (
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'beforeNamedAddDmnDb', sub {
+iMSCP::EventManager->getInstance()->register( 'beforeNamedAddDmnDb', sub
+{
     my ( $tpl, $data ) = @_;
 
     # Override default SOA RR (for all zones)
@@ -91,7 +92,6 @@ iMSCP::EventManager->getInstance()->register( 'beforeNamedAddDmnDb', sub {
 
     replaceBlocByRef( "; ns rr begin.\n", "; ns rr ending.\n", $nsRecords, $tpl );
     replaceBlocByRef( "; glue rr begin.\n", "; glue rr ending.\n", $glueRecords, $tpl );
-    0;
 } );
 
 1;

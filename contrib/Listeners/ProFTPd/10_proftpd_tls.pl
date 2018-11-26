@@ -28,9 +28,8 @@ use iMSCP::EventManager;
 iMSCP::EventManager->getInstance()->register( 'afterFtpdBuildConf', sub {
     my ( $tplContent, $tplName ) = @_;
 
-    return 0 unless $tplName eq 'proftpd.conf';
+    return unless $tplName eq 'proftpd.conf';
     ${ $tplContent } =~ s/(TLSRequired\s+)off/${1}on/im;
-    0;
 } );
 
 1;

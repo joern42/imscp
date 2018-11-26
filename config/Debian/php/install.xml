@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/php</folder>
+    <copy_config>${SYSCONFDIR}/imscp/php/apache</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/php/fcgi</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/php/fpm</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/php/php.conf.dist</copy_config>
+</install>

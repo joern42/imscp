@@ -1,0 +1,137 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+ imscp-backup-imscp Backup i-MSCP configuration files and database.
+
+=head1 SYNOPSIS
+
+ imscp-backup-imscp [OTPION]...
+
+=cut
+
+# i-MSCP - internet Multi Server Control Panel
+# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+use strict;
+use warnings;
+use File::Basename 'basename';
+use iMSCP::Boolean;
+use iMSCP::Bootstrapper;
+use iMSCP::Debug qw/ error getMessageByType newDebug /;
+use iMSCP::Dir;
+use iMSCP::Execute 'execute';
+use iMSCP::File;
+use iMSCP::Getopt;
+use iMSCP::LockFile;
+use iMSCP::Mail;
+use iMSCP::Package::Installer::Backup;
+use POSIX qw/ strftime locale_h /;
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
+
+$ENV{'LANG'} = 'C.UTF-8';
+
+$> == 0 or die( "You do not have permission to call this script.\n" );
+
+exit unless iMSCP::LockFile->new( path => "$::imscpConfig{'LOCK_DIR'}/imscp-backup-imscp.lock", non_blocking => TRUE )->acquire();
+
+iMSCP::Getopt->parse( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq{
+
+Backup i-MSCP configuration files and database.
+
+OPTIONS:
+ -d,   --debug   Enable debug mode.
+ -h,-? --help    Show this help.
+ -v,   --verbose Enable verbose mode.
+},
+    'debug|d'   => \&iMSCP::Getopt::debug,
+    'help|?|h'  => \&iMSCP::Getopt::showUsage,
+    'verbose|v' => \&iMSCP::Getopt::verbose
+);
+
+newDebug( 'imscp-backup-imscp.log' );
+
+iMSCP::Bootstrapper->getInstance()->boot( { config_readonly => TRUE } );
+
+eval {
+    my ( $stdout, $stderr );
+    my $config = iMSCP::Package::Installer::Backup->getInstance()->getConfig();
+    my $date = strftime "%Y.%m.%d-%H-%M", localtime;
+
+    iMSCP::Dir->new( dirname => $config->{'BACKUP_DIR'} )->make( {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => 0750
+    } );
+
+    my $commands = {
+        pbzip2 => { command => 'pbzip2', extension => 'bz2' },
+        bzip2  => { command => 'bzip2', extension => 'bz2' },
+        gzip   => { command => 'gzip', extension => 'gz' },
+        pigz   => { command => 'pigz', extension => 'gz' },
+        lzma   => { command => 'lzma', extension => 'lzma' },
+        xz     => { command => 'xz', extension => 'xz' }
+    };
+
+    {
+        my $db = iMSCP::Database->factory();
+        $db->dumpdb( $::imscpConfig{'DATABASE_NAME'}, $config->{'BACKUP_DIR'} );
+        # Encode slashes as SOLIDUS unicode character
+        # Encode dots as Full stop unicode character
+        ( my $encodedDbName = $::imscpConfig{'DATABASE_NAME'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
+        iMSCP::File->new( filename => "$config->{'BACKUP_DIR'}/$encodedDbName.sql" )->moveFile( "$config->{'BACKUP_DIR'}/$encodedDbName-$date.sql" );
+        if ( $config->{'BACKUP_COMPRESS_ALGORITHM'} ne 'no' ) {
+            my $rs = execute(
+                [
+                    $commands->{$config->{'BACKUP_COMPRESS_ALGORITHM'}}->{'command'}, "-$config->{'BACKUP_COMPRESS_LEVEL'}", '--force',
+                    "$config->{'BACKUP_DIR'}/$encodedDbName-$date.sql"
+                ],
+                \$stdout,
+                \$stderr
+            );
+
+            # Tar exit with status 1 only if some files were changed while
+            #  being read. We want ignore this.
+            die( $stderr || 'Unknown error' ) if $rs > 1;
+        }
+    }
+
+    my $archive = "$config->{'BACKUP_DIR'}/config-backup-$date.tar";
+    my @cmd = (
+        "tar -c -C $::imscpConfig{'CONF_DIR'}", '--exclude=./*/backup/*.[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]', '--preserve-permissions',
+        '.',
+        ( $config->{'BACKUP_COMPRESS_ALGORITHM'} eq 'none'
+            ? "-f $archive"
+            : "| $commands->{$config->{'BACKUP_COMPRESS_ALGORITHM'}}->{'command'} -$config->{'BACKUP_COMPRESS_LEVEL'} > "
+            . "$archive.$commands->{$config->{'BACKUP_COMPRESS_ALGORITHM'}}->{'extension'}"
+        )
+    );
+    execute( "@cmd", \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
+};
+error( $@ ) if $@;
+
+iMSCP::Mail->new()->errorMsg( scalar getMessageByType( 'error' ))->warnMsg( scalar getMessageByType( 'warn' ));
+
+=head1 AUTHOR
+
+ Laurent Declercq <l.declercq@nuxwin.com>
+
+=cut
+
+1;
+__END__

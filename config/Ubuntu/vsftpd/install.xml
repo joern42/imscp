@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>/etc/vsftpd/imscp</folder>
+    <folder>${SYSCONFDIR}/imscp/</folder>
+    <copy_config>${SYSCONFDIR}/imscp/vsftpd/vsftpd.conf.tpl</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/vsftpd/vsftpd.data.dist</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/vsftpd/vsftpd.pam.tpl</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/vsftpd/vsftpd_user.conf.tpl</copy_config>
+</install>

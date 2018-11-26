@@ -1,0 +1,101 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+ imscp-rkhunter - Rkhunter checks
+
+=head1 SYNOPSIS
+
+ imscp-rkhunter [OPTION]... start|stop
+
+=cut
+
+# i-MSCP - internet Multi Server Control Panel
+# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+use strict;
+use warnings;
+use File::Basename;
+use iMSCP::Boolean;
+use iMSCP::Bootstrapper;
+use iMSCP::Debug qw/ debug getMessageByType newDebug /;
+use iMSCP::Execute 'executeNoWait';
+use iMSCP::File;
+use iMSCP::LockFile;
+use iMSCP::Mail;
+use POSIX qw/ locale_h /;
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
+
+$ENV{'LANG'} = 'C.UTF-8';
+
+$> == 0 or die( "You do not have permission to call this script.\n" );
+
+exit unless iMSCP::LockFile->new( path => "$::imscpConfig{'LOCK_DIR'}/imscp-rkhunter.lock", non_blocking => TRUE )->acquire();
+
+sub output
+{
+    chomp @_;
+    debug( @_, '' );
+}
+
+iMSCP::Getopt->parse( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq{
+
+Process the rkhunter(8) checks in non-interactive mode.
+
+OPTIONS:
+ -d,   --debug   Enable debug mode.
+ -h,-? --help    Show this help.
+ -v,   --verbose Enable verbose mode.
+},
+    'debug|d'   => \&iMSCP::Getopt::debug,
+    'help|?|h'  => \&iMSCP::Getopt::showUsage,
+    'verbose|v' => \&iMSCP::Getopt::verbose
+);
+
+newDebug( 'imscp-rkhunter.log' );
+
+iMSCP::Bootstrapper->getInstance()->boot( {
+    config_readonly => TRUE,
+    nodatabase      => TRUE
+} );
+
+my $logFile = exists $::{'RKHUNTER_LOG'} && length $::{'RKHUNTER_LOG'} ? $::{'RKHUNTER_LOG'} : '/var/log/rkhunter.log';
+
+executeNoWait(
+    [
+        'nice', '-n', '0', 'rkhunter', '--check', '--nocolors', '--skip-keypress', '--no-mail-on-warning', '--no-verbose-logging', '--noappendlog',
+        '--logfile', $logFile
+    ],
+    \&output,
+    \&output
+);
+
+if ( -f $logFile ) {
+    iMSCP::File->new( filename => $logFile )->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'IMSCP_GROUP'} )->mode( 0640 );
+}
+
+iMSCP::Mail->new()->errorMsg( scalar getMessageByType( 'error' ))->warnMsg( scalar getMessageByType( 'warn' ));
+
+=head1 AUTHOR
+
+ Laurent Declercq <l.declercq@nuxwin.com>
+
+=cut
+
+1;
+__END__

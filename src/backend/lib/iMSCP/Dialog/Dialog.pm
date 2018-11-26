@@ -25,6 +25,7 @@ package iMSCP::Dialog::Dialog;
 
 use strict;
 use warnings;
+use Carp 'croak';
 use iMSCP::Boolean;
 use iMSCP::Execute 'execute';
 use iMSCP::ProgramFinder;
@@ -32,7 +33,7 @@ use parent 'iMSCP::Dialog::Whiptail';
 
 =head1 DESCRIPTION
 
- FrontEnd for user interface based on DIALOG(1)
+ FrontEnd for user interface based on DIALOG(1).
 
 =head1 PUBLIC METHODS
 
@@ -49,9 +50,9 @@ sub select
     my ( $self, $text, $choices, $defaultTag, $showTags ) = @_;
     $showTags //= FALSE;
 
-    ref \$text eq 'SCALAR' && length $text or die( '$text parameter is undefined or invalid.' );
-    defined $choices && ref $choices eq 'HASH' or die( '\%choices parameter is undefined or invalid.' );
-    !defined $defaultTag || ref \$defaultTag eq 'SCALAR' or die( '$defaultTag parameter is invalid.' );
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
+    defined $choices && ref $choices eq 'HASH' or croak( '\%choices parameter is undefined or invalid.' );
+    !defined $defaultTag || ref \$defaultTag eq 'SCALAR' or croak( '$defaultTag parameter is invalid.' );
 
     my @init;
     push @init, $_, $choices->{$_}, $defaultTag eq $_ ? 'on' : 'off' for sort keys %{ $choices };
@@ -71,9 +72,9 @@ sub multiselect
     my ( $self, $text, $choices, $defaultTags, $showTags ) = @_;
     $defaultTags //= [];
 
-    ref \$text eq 'SCALAR' && length $text or die( '$text parameter is undefined or invalid.' );
-    defined $choices && ref $choices eq 'HASH' or die( '\%choices parameter is undefined or invalid.' );
-    ref $defaultTags eq 'ARRAY' or die( '\@defaultTags parameter is invalid.' );
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
+    defined $choices && ref $choices eq 'HASH' or croak( '\%choices parameter is undefined or invalid.' );
+    ref $defaultTags eq 'ARRAY' or dicroake( '\@defaultTags parameter is invalid.' );
 
     my @init;
     for my $tag ( sort keys %{ $choices } ) {
@@ -108,6 +109,8 @@ sub boolean
 {
     my ( $self, $text, $defaultno, $backup ) = @_;
 
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
+
     unless ( $backup ) {
         local $ENV{'DIALOG_CANCEL'} = TRUE;
         local $self->{'_opts'}->{'defaultno'} = $defaultno ? '' : undef;
@@ -129,6 +132,7 @@ sub password
 {
     my ( $self, $text, $default ) = @_;
 
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
     local $self->{'_opts'}->{'insecure'} = '';
     $self->_showDialog( 'passwordbox', $text, $self->{'lines'}, $self->{'columns'}, $default // ());
 }
@@ -143,9 +147,10 @@ sub startGauge
 {
     my ( $self, $text, $percent ) = @_;
 
-    defined $text or die( '$text parameter is undefined' );
-
     return 0 if $self->hasGauge();
+
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
+    ref \$percent eq 'SCALAR' && $percent =~ /^[\d]+$/ or croak( '$text parameter is invalid.' );
 
     open $self->{'_gauge'}, '|-', $self->{'_bin'}, $self->_getCommonOptions( 'gauge' ), '--gauge', $text, $self->{'lines'}, $self->{'columns'},
         $percent // 0 or die( "Couldn't start gauge" );
@@ -162,6 +167,9 @@ sub startGauge
 sub setGauge
 {
     my ( $self, $percent, $text ) = @_;
+
+    ref \$percent eq 'SCALAR' && $percent =~ /^[\d]+$/ or croak( '$text parameter is invalid.' );
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
 
     unless ( defined $self->{'_gauge'} ) {
         $self->startGauge( $text, $percent );
@@ -235,8 +243,8 @@ sub _getCommonOptions
         delete @options{qw/ yes-button no-button defaultno extra-button extra-label /};
     }
 
-    ( map { defined $options{$_} ? ( '--' . $_, ( $options{$_} eq '' ? () : $options{$_} ) ) : () } keys %options ), (
-        $boxType ne 'gauge' ? ( '--colors', '--cr-wrap', '--no-collapse' ) : ()
+    ( map { defined $options{$_} ? ( '--' . $_, ( $options{$_} eq '' ? () : $options{$_} ) ) : () } keys %options ), ( '--colors',
+        $boxType ne 'gauge' ? ( '--cr-wrap', '--no-collapse' ) : ()
     );
 }
 

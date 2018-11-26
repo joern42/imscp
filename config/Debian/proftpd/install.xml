@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/proftpd</folder>
+    <copy_config>${SYSCONFDIR}/imscp/proftpd/proftpd.conf</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/proftpd/proftpd.conf.dist</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/proftpd/proftpd-basic</copy_config>
+</install>

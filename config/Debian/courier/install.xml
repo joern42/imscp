@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/courier</folder>
+    <copy_config>${SYSCONFDIR}/imscp/courier/authmysqlrc</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/courier/courier.conf.dist</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/courier/imapd.local</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/courier/quota-warning</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/courier/smtpd.conf</copy_config>
+</install>

@@ -24,7 +24,7 @@ package Listener::ProFTPd::ServerIdent;
 use strict;
 use warnings;
 use iMSCP::EventManager;
-use iMSCP::TemplateParser;
+use iMSCP::TemplateParser 'processByRef';
 
 # Configuration parameters
 
@@ -36,13 +36,10 @@ my $SERVER_IDENT_MESSAGE = 'i-MSCP FTP server.';
 iMSCP::EventManager->getInstance()->register( 'beforeFtpdBuildConf', sub {
     my ( $tplContent, $tplName ) = @_;
 
-    return 0 unless $tplName eq 'proftpd.conf';
+    return unless $tplName eq 'proftpd.conf';
+
     $SERVER_IDENT_MESSAGE =~ s%("|\\)%\\$1%g;
-    ${ $tplContent } = process(
-        { SERVER_IDENT_MESSAGE => qq/"$SERVER_IDENT_MESSAGE"/ },
-        ${ $tplContent }
-    );
-    0;
+    processByRef( { SERVER_IDENT_MESSAGE => qq/"$SERVER_IDENT_MESSAGE"/ }, $tplContent );
 } );
 
 1;

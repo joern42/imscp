@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>/etc/logrotate.d</folder>
+    <folder>/etc/nginx</folder>
+    <folder>/etc/conf.d</folder>
+    <folder>/etc/sites-available</folder>
+    <folder>/etc/sites-enabled</folder>
+    <folder>${SYSCONFDIR}/imscp/frontend</folder>
+    <copy_config>${SYSCONFDIR}/imscp/00_master.nginx</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/00_master_ssl.nginx</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/frontend.data.dist</copy_config>
+    <copy_config mode="0750">${LIB_DIR}/imscp_panel_reopenlogs</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/imscp_fastcgi.nginx</copy_config>
+    <copy_config>/etc/logrotate.d/imscp_panel</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/imscp_php.nginx</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/nginx.nginx</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/php.ini</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/php-fpm.conf</copy_config>
+</install>

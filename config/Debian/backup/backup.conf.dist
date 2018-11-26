@@ -1,0 +1,24 @@
+# Backup directory for i-MSCP database and configuration files
+BACKUP_DIR = {LOCALSTATEDIR}/lib/imscp//backups
+
+# Algorithm for backups compression.
+#
+# Possible values: 'none' for no compression, gzip, pigz, bzip2, pbzip2, lzma, or xz
+# Note: When using a vserver, it is not recommended to use pbzip2 or pigz
+BACKUP_COMPRESS_ALGORITHM = bzip2
+
+# Backup compression level
+# Possible values: An integer in range 1..9
+BACKUP_COMPRESS_LEVEL = 1
+
+# Tells whether i-MSCP database and configuration files should be daily saved
+# Possible value: yes,no
+BACKUP_IMSCP =
+
+# Tells whether or not backup feature is available for clients.
+# If yes, client's data are daily saved according their hosting plan setup.
+# Possible value: yes,no
+BACKUP_CLIENTS =
+
+BACKUP_CLIENTS_HOUR = 23
+BACKUP_CLIENTS_MINUTE = 40

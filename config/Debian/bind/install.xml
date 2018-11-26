@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/bind/working</folder>
+    <copy_config>${SYSCONFDIR}/imscp/bin/bind.conf.dist</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/bin/cfg_master.tpl</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/bin/cfg_slave.tpl</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/bin/db.tpl</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/bin/db_sub.tpl</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/bin/named.conf</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/bin/named.conf.local</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/bin/named.conf.options</copy_config>
+</install>

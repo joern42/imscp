@@ -68,7 +68,7 @@ INSTALLER
     Fixed: Mitigate possible PHP timezone warning with CLI SAPI
     Fixed: Update notices are not sorted correctly
     Fixed: Use MySQL 5.6 from official Trusty repository in place of MySQL Team repository
-    Fixed: Wrong package name (mysql-client-5.5 instead of mysql-client-5.6) in Debian Stretch (testing) packages file
+    Fixed: Wrong package name (mysql-client-5.5 instead of mysql-client-5.6) in Debian Stretch (testing) package file
     Pending: Courier support for Debian Stretch (testing) - packages not available at this moment
     Pending: VsFTPd support for Debian Stretch (testing) - libpam-mysql package not available at this moment
     Removed: ispCP migration script (Migration from ispCP is no longer supported)
@@ -148,13 +148,13 @@ FRONTEND
     Removed: OpenSSL configuration template file (replaced by /etc/imscp/openssl/openssl.cnf.tpl)
 
 INSTALLER
-    Fixed: Can't locate object method "setVersion" via package Servers::sqld::remote_server
+    Fixed: Can't locate object method "setVersion" via package iMSCP::Server::sqld::remote_server
     Fixed: Connection timeout with pgp.mit.edu PGP key server (replaced by keyserver.ubuntu.com)
     Fixed: Ensure that mysql service is enabled
     Fixed: Installer must die when server hostname is missconfigured
-    Fixed: Missing 'use iMSCP::Crypt qw/decryptBlowfishCBC/' statement in Servers::sqld::remote_server
-    Fixed: Missing 'use iMSCP::Execute qw/escapeShell/' statement in Servers::sqld::remote_server
-    Fixed: Missing 'use iMSCP::TemplateParser' statement in Servers::sqld::remote_server
+    Fixed: Missing 'use iMSCP::Crypt qw/decryptBlowfishCBC/' statement in iMSCP::Server::sqld::remote_server
+    Fixed: Missing 'use iMSCP::Execute qw/escapeShell/' statement in iMSCP::Server::sqld::remote_server
+    Fixed: Missing 'use iMSCP::TemplateParser' statement in iMSCP::Server::sqld::remote_server
     Fixed: Overwrite any existing conflicting symlinks when enabling service (systemd)
     Fixed: Possible use of uninitialized value $sqlServer in autoinstaller/Adapter/DebianAdapter.pm
     Fixed: sysvinit scripts are not enabled when using systemd (regression fix)
@@ -544,9 +544,9 @@ BACKEND
     Fixed: Force usage of search path when executing external commands
     Fixed: Frontend http port must be added in server traffic accounting
     Fixed: In some contexts, configuration files which belongs to subdomains are not regenerated
-    Fixed: Last rotated log file must be processed when log rotation is detected (Servers::mta::postfix::getTraffic())
-    Fixed: Last rotated log file must be processed when log rotation is detected (Servers::po::courier::getTraffic())
-    Fixed: Last rotated log file must be processed when log rotation is detected (Servers::po::dovecot::getTraffic())
+    Fixed: Last rotated log file must be processed when log rotation is detected (iMSCP::Server::mta::postfix::getTraffic())
+    Fixed: Last rotated log file must be processed when log rotation is detected (iMSCP::Server::po::courier::getTraffic())
+    Fixed: Last rotated log file must be processed when log rotation is detected (iMSCP::Server::po::dovecot::getTraffic())
     Fixed: Some errors are not trapped
     Fixed: When the backend is invoked by the i-MSCP daemon, some paths are missing (iMSCP::ProgramFinder)
 

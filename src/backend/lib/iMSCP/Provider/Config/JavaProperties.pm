@@ -88,7 +88,7 @@ sub new
 
  Functor implementation
 
- Return hashref on sucess, croak on failure
+ Return hashref on sucess, croak or die on failure
 
 =cut
 
@@ -113,7 +113,7 @@ sub __invoke
 
  Note that this implementation doesn't allow usage of delimiter in key names.
 
- Return hashref on success, croak on failure
+ Return hashref on success, die on failure
 
 =cut
 
@@ -123,7 +123,7 @@ sub _parseFile
 
     my ( %config, $key, $value, $valueLength, $delimiterPos, $isLineContinuation );
 
-    open my $fh, '<', $file or croak( "Couldn't open file: $!" );
+    open my $fh, '<', $file or die( "Couldn't open file: $!" );
     while ( my $line = <$fh> ) {
         $line =~ s/^\s+|\s+$//g;
         next if !length $line || ( !$isLineContinuation && ( index( $line, '#' ) == 0 || index( $line, '!' ) == 0 ) );

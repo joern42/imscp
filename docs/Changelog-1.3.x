@@ -9,8 +9,8 @@ i-MSCP ChangeLog
 
 INSTALLER
     Fixed: Default value for the `DATABASE_USER_HOST' parameter cannot be a local host when using SQL remote server
-    Fixed: iMSCP::Dialog::InputValidation::isNotEmpty() validation method always return true, causing unexpected results
-    Fixed: iMSCP::Dialog::InputValidation::isValidPassword() validation method always return true, causing security hole
+    Fixed: iMSCP::InputValidation::isNotEmpty() validation method always return true, causing unexpected results
+    Fixed: iMSCP::InputValidation::isValidPassword() validation method always return true, causing security hole
            due to acceptance of empty passwords
 
 PACKAGES
@@ -49,7 +49,7 @@ FRONTEND
 
 INSTALLER
     Added: `admin_credentials' and `admin_email' reconfiguration items
-    Added: iMSCP::Dialog::InputValidation library for ease of user input validation
+    Added: iMSCP::InputValidation library for ease of user input validation
     Added: preInstall() and postInstall() methods (autoinstaller::Adapter::AbstractAdapter)
     Enhancement: Try to guess WAN IP using ipinfo.io Web service
     Removed: `afterPreBuild', `beforeBuild' and `beforePostBuild' events
@@ -110,7 +110,7 @@ INSTALLER
     Fixed: Possible corruption of server/package configuration files
 
 LISTENERS
-    Fixed: Servers::httpd config is loaded too early in 10_apache2_dualstack.pl
+    Fixed: iMSCP::Server::httpd config is loaded too early in 10_apache2_dualstack.pl
 
 SERVERS
     Fixed: Usage of rewrite engine for setting up FCGI handlers leads to many troubles (apache2_php_fpm server)
@@ -501,7 +501,7 @@ PLUGINS
     Removed: Support for ZIP plugin archives (only tar.gz and tar.bz2 archives are now supported)
 
 SERVERS
-    Fixed: Installation fail if main.cf is missing or misconfigured (Servers::mta::postfix::installer)
+    Fixed: Installation fail if main.cf is missing or misconfigured (iMSCP::Server::mta::postfix::installer)
     
 SERVICES
     Fixed: Empty lines are not ignored in the /etc/imscp/mounts/mounts.conf configuration file (imscp_mountall)
@@ -577,7 +577,7 @@ INSTALLER
     Fixed: Cannot create pbuilder environment - Wrong repository (pbuilder use first entry from sources.list)
     Fixed: Could not install pre-required packages error on first run
     Fixed: Could not remove deprecated `phptmp' directories on update (Httpd servers)
-    Fixed: Ensure that DEFAULT_ADMIN_ADDRESS parameter is set
+    Fixed: Ensure that MASTER_ADMIN_EMAIL parameter is set
     Fixed: Prefer IPv4 address family on IPv6 capable hosts (Wget)
     Fixed: SQL server data directory must not be hardcoded
     Fixed: Update and Security repositories are missing in pbuilder environments
@@ -614,7 +614,7 @@ SERVERS
     Fixed: mysql-client-5.6 package not available in Ubuntu 16.04 repositories (Remote server)
     Fixed: Permissions on courier-authdaemon rundir are resetted on reboot (systemd tmpfiles.d)
     Fixed: Process $ORIGIN substitutions before triggering the `afterNamedAddCustomDNS' event (Bind9 server impl.)
-    Fixed: Wrong argument passed to Servers::named::bind::_updateSOAserialNumber
+    Fixed: Wrong argument passed to iMSCP::Server::named::bind::_updateSOAserialNumber
 
 SKELETON
     Added: Dedicated `domain_disabled_pages' directory for pages of disabled domains
@@ -666,7 +666,7 @@ BACKEND
     Added: iMSCP::Mount library - Library for mounting/unmounting file systems
     Added: iMSCP::OpenSSL::getCertificateExpiryTime() method - Allow to get SSL certificate expiry time (UNIX timestamp)
     Added: onBoot event in iMSCP::Bootstrapper (triggered at end of bootstrapping process)
-    Added: Servers::mta::postfix::postconf method() - Allows editing of Postfix main.cf parameters
+    Added: iMSCP::Server::mta::postfix::postconf method() - Allows editing of Postfix main.cf parameters
     Added: Support for PHP 7.0 (httpd servers implementations)
     Added: Support for prime256v1 (ECDSA) keys (iMSCP::OpenSSL)
     Added: Support for systemd socket units (systemd init provider)
@@ -689,7 +689,7 @@ BACKEND
     Removed: installConfFile() method from httpd server packages
     Rewritten: iMSCP::Mail library
     Rewritten: iMSCP::SetRights library (usage of built-in functions to avoid call of system chown/chmod commands)
-    Rewritten: Postfix Server implementation (Servers::mta::postfix)
+    Rewritten: Postfix Server implementation (iMSCP::Server::mta::postfix)
 
 CONFIG
     Added: php configuration directory (directory which holds all PHP template and configuration parameters)
@@ -783,7 +783,7 @@ INSTALLER
     Added: Check to prevent downgrade attempts (when DB schema change is involved)
     Added: Conditional statement feature for install.xml files (copy_config items only)
     Added: Layer allowing to rebuild Debian/Ubuntu source packages using pbuilder after applying a set patches on them
-    Added: `onBuildPackageList' event (Allows to override default distribution packages file)
+    Added: `onBuildPackageList' event (Allows to override default distribution package file)
     Fixed: `_' and `%' wildcards must be escaped in GRANT statements
     Fixed: Debug and verbose modes must be set early
     Fixed: Disable Dovecot systemd socket activation unit if any (not needed for Dovecot as configured by i-MSCP)
@@ -795,7 +795,7 @@ INSTALLER
     Fixed: Master DNS zone is always deleted on i-MSCP update/reconfiguration (Package::FrontEnd::Installer)
     Fixed: MySQL server 5.6 no longer available for Ubuntu 16.04 (replaced by MySQL server 5.7)
     Fixed: Plugin setup listeners are no longer registered (regression fix)
-    Fixed: SQL user and password not correctly escaped in imscp.cnf file (Servers::sqld::mysql::installer)
+    Fixed: SQL user and password not correctly escaped in imscp.cnf file (iMSCP::Server::sqld::mysql::installer)
     Moved: Master administrator questions and setup routines into Package::FrontEnd::Installer
     Removed: Update notices (link to errata file is sufficient)
     Renamed: imscp-setup script to imscp-reconfigure
@@ -828,7 +828,7 @@ SERVERS
     Fixed: Courier sysvinit script must not be copied when selected PO server is Dovecot
     Fixed: Disabled mod_tls_memcache.c module to avoid weird notice on restart (ProFTPD)
     Fixed: Do not fix user/group and mode when not required (Httpd server implementations)
-    Fixed: Do not remove default DNS records that are not redefined (Servers::named::bind)
+    Fixed: Do not remove default DNS records that are not redefined (iMSCP::Server::named::bind)
     Fixed: Enable support for UTF-8 file systems (VsFTPd)
     Fixed: Hide real server identity (ProFTPD)
     Fixed: Invalid version format (non-numeric data) when installing VsFTPd on Debian Stretch (testing)
@@ -840,7 +840,7 @@ SERVERS
     Fixed: ON|OFF strings not recognized as boolean value in imscp.cnf file (MySQL)
     Fixed: Postfix (>= 3.0) is showing many warnings about backwards-compatible settings (default setting chroot=y)
     Fixed: Postfix maps must not be world-readable (Postfix)
-    Fixed: The SOA serial number must be incremented only once when a DNS zone is updated (Servers::named::bind)
+    Fixed: The SOA serial number must be incremented only once when a DNS zone is updated (iMSCP::Server::named::bind)
     Fixed: Traffic accounting routines must not remove log files (ProFTPD/VsFTPd). Files are now truncated instead
     Fixed: Useless reload of VsFTPd when adding/removing an FTP user (privileges are given by session)
     Fixed: VsFTPd doesn't reopen xferlog file automatically when the file has been removed, leading to traffic data loss

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/postfix</folder>
+    <copy_config>${SYSCONFDIR}/imscp/postfix/main.cf</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/postfix/master.cf</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/postfix/postfix.conf.dist</copy_config>
+</install>

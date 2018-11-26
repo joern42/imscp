@@ -22,7 +22,7 @@ package Listener::Postfix::Sender::Canonical;
 use strict;
 use warnings;
 use iMSCP::EventManager;
-use Servers::mta;
+use iMSCP::Server::mta;
 
 # Configuration variables
 
@@ -30,15 +30,14 @@ my $postfixSenderCanoncial = '/etc/postfix/sender_canonical';
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
-    my $mta = Servers::mta->factory();
-    my $rs = $mta->addMapEntry( $postfixSenderCanoncial );
-    $rs ||= $mta->postconf( (
+iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub
+{
+    iMSCP::Server::mta->factory()->addMapEntry( $postfixSenderCanoncial )->postconf(
         sender_canonical_maps => {
             action => 'add',
             values => [ "hash:$postfixSenderCanoncial" ]
         }
-    ));
+    );
 }, -99 );
 
 1;

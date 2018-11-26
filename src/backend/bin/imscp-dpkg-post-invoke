@@ -1,0 +1,87 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+ imscp-dpkg-post-invoke - Process dpkg post invoke tasks
+
+=head1 SYNOPSIS
+
+ imscp-dpkg-post-invoke [OPTION]...
+
+=cut
+
+# i-MSCP - internet Multi Server Control Panel
+# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+use strict;
+use warnings;
+use File::Basename 'basename';
+use iMSCP::Boolean;
+use iMSCP::Debug 'newDebug';
+use iMSCP::Bootstrapper;
+use iMSCP::Getopt;
+use iMSCP::LockFile;
+use iMSCP::Servers;
+use iMSCP::Packages;
+use POSIX 'locale_h';
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
+
+@{ENV}{qw/ LANG IMSCP_INSTALLER / } = ( 'C.UTF-8', FALSE );
+
+$> == 0 or die( "You do not have permission to call this script.\n" );
+
+exit unless iMSCP::LockFile->new( path => "$::imscpConfig{'LOCK_DIR'}/imscp-dpkg-post-invoke.lock", non_blocking => TRUE )->acquire();
+
+iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
+
+Execute i-MSCP servers and packages DPKG(1) post invoke tasks
+
+OPTIONS:
+ -d,   --debug   Enable debug mode.
+ -h,-? --help    Show this help.
+ -v,   --verbose Enable verbose mode.
+},
+    'debug|d'   => \&iMSCP::Getopt::debug,
+    'help|?|h'  => \&iMSCP::Getopt::showUsage,
+    'verbose|v' => \&iMSCP::Getopt::verbose
+);
+
+# The 'instaler' context is needed as some of routines could want
+# update configuration which in 'backend' context is readonly
+iMSCP::Getopt->context( 'installer' );
+
+newDebug( 'imscp-dpkg-post-invoke.log' );
+
+iMSCP::Bootstrapper->getInstance()->boot( {  config_readonly => TRUE, } );
+
+for my $server ( iMSCP::Servers->getInstance()->getList() ) {
+    $server->factory()->dpkgPostInvokeTasks();
+}
+
+for my $package ( iMSCP::Packages->getInstance()->getList() ) {
+    $package->getInstance()->dpkgPostInvokeTasks();
+}
+
+=head1 AUTHOR
+
+ Laurent Declercq <l.declercq@nuxwin.com>
+
+=cut
+
+1;
+__END__

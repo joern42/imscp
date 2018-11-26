@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folders>/etc/logrotate.d</folders>
+    <folders>${SYSCONFDIR}/imscp/proftpd</folders>
+    <copy_config>${SYSCONFDIR}/imscp/proftpd/proftpd.conf</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/proftpd/proftpd.data.dist</copy_config>
+    <copy_config copy_if="'${FTPD_PACKAGE}' eq 'iMSCP::Server::ftpd::proftpd'">/etc/logrotate.d/proftpd-basic</copy_config>
+</install>

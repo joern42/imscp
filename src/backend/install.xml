@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <command>make install UNINST=1 DESTDIR=$(DESTDIR)</command>
+</install>
+
+
+        #    # TO BE MOVED at install files step
+        #    require Config;
+        #    # Eg:
+        #    # /usr/local/lib/x86_64-linux-gnu/perl/5.20.2
+        #    # /usr/local/share/perl/5.20.2
+        #    my $dirs = qw/ sitearch sitelib /;
+        #    for ($dirs) {
+        #        my $dir = $Config{$_};
+        #
+        #        # Eg: /usr/local/lib/x86_64-linux-gnu/perl/5.20.2/auto/iMSCP/.packlist
+        #        if(-f "$dir/iMSCP/auto/iMSCP/.packlist") {
+        #            open my $fh, '<', "$dir/iMSCP/auto/iMSCP/.packlist" or die( $! );
+        #            while(my $file = <$fh>) {
+        #                chomp( $file );
+        #                unlink $file or die( $!) if -f $file;
+        #            }
+        #        }
+        #
+        #        require File::Path;
+        #        File::Path::remove_tree( "$dir/iMSCP", safe => TRUE ) if -d "$dir/iMSCP";
+        #    }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>/etc/apt/apt.conf.d</folder>
+    <copy_config>/etc/apt/apt.conf.d/90imscp</copy_config>
+</install>

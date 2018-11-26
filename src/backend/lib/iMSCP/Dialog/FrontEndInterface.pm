@@ -25,11 +25,10 @@ package iMSCP::Dialog::FrontEndInterface;
 
 use strict;
 use warnings;
-use parent 'iMSCP::Common::SingletonClass';
 
 =head1 DESCRIPTION
 
- Interface for dialog frontEnds
+ Interface for dialog frontEnds.
 
 =head1 PUBLIC METHODS
 
@@ -37,83 +36,92 @@ use parent 'iMSCP::Common::SingletonClass';
 
 =item select( $text, \%choices [, $defaultTag = none [, $showTags = FALSE ] ] )
 
- Show select box
+ Display a dialog box with a list of choices on it
 
  Param string $text Text to show
  Param hashref \%choices List of choices where keys are tags and values are items.
  Param string $default Default selected tag
  Param bool $showTags Flag indicating whether or not tags must be showed in dialog box
- Return Array containing checked tags or a list containing both dialog return code and checked tag
+ Return Selected tag in scalar context, a list containing both dialog return code and selected tag in list context, croak on failure
 
 =cut
 
 =item multiselect( $text, \%choices [, \@defaultTags = [] [, $showTags =  FALSE ] ] )
 
- Show multiselect box
+ Display a dialog box with a check list on it
 
  Param string $text Text to show
  Param hashref \%choices List of choices where keys are tags and values are items.
  Param arrayref \@default Default tags
  Param bool $showTags Flag indicating whether or not tags must be showed in dialog box
- Return Array containing checked tags or a list containing both dialog return code and an array containing checked tags
+ Return An array of checked tags in scalar context, a list containing the dialog return code and an array of checked tags in list context, croak on failure
 
 =cut
 
 =item boolean( $text [, $defaultno =  FALSE [, $backbutton = FALSE ] ] )
 
- Show boolean box
+ Display a dialog box with two buttons, one for TRUE meaning, other for FALSE meaning
 
  Param string $text Text to show
  Param string bool defaultno Set the default value of the box to 'No'
- Return int 0 (Yes), 1 (No), 30 (Back)
+ Return int 0 (Yes), 1 (No), 30 (Back), croak on failure
 
 =cut
 
-=item msgbox( $text )
+=item error( $text )
 
- Show message box
+ Display a dialog box with an error message on it
 
- Param string $text Text to show in message dialog box
- Return int 0 (Ok), 30 (Back)
+ Param string $text Text to display
+ Return int 0 (Ok), 30 (Back), croak on failure
 
 =cut
 
-=item infobox( $text )
+=item note( $text )
 
- Show info box
+ Display a dialog box with a note on it
 
- Param string $text Text to show
- Return int 0, other on failure
+ Param string $text Text to display
+ Return int 0 (Ok), 30 (Back), croak on failure
+
+=cut
+
+=item text( $text )
+
+ Display a dialog box with a text on it
+
+ Param string $text Text to display
+ Return int 0 (Ok), 30 (Back), croak on failure
 
 =cut
 
 =item string( $text [, $default = '' ] )
 
- Show string box
+ Display a dialog box with a text input field on it
 
  Param string $text Text to show
  Param string $default Default value
- Return string|list Input string or a list containing both DIALOG(1) exit code and input string
+ Return Input string in scalar context, a list containing both dialog return code and input string in list context
 
 =cut
 
 =item password( $text [, $default = '' ] )
 
- Show password box
+ Display a dialog box with a password input field on it
 
  Param string $text Text to show
  Param string $default Default value
- Return string|list Input password or a list containing both DIALOG(1) exit code and input password
+ Return Input password in scalar context, a list containing both dialog return code and input password in list context
 
 =cut
 
 =item startGauge( $text [, $percent = 0 ] )
 
- Start gauge
+ Display a dialog box wit a progress bar on it
 
  Param string $text Text to show
  Param int $percent Initial percentage show in the meter
- Return void
+ Return void, croak on failure
 
 =cut
 
@@ -125,7 +133,7 @@ use parent 'iMSCP::Common::SingletonClass';
 
  Param int $percent New percentage to show in gauge dialog box
  Param string $text New text to show in gauge dialog box
- Return void
+ Return void, croak on failure
 
 =cut
 
@@ -141,7 +149,7 @@ use parent 'iMSCP::Common::SingletonClass';
 
  Is a gauge currently running?
 
- Return boolean TRUE if a gauge is running FALSE otherwise
+ Return boolean TRUE if a gauge is running, FALSE otherwise
 
 =cut
 
@@ -150,7 +158,7 @@ sub AUTOLOAD
     my $self = shift;
     ( my $method = $iMSCP::Dialog::FrontEndInterface::AUTOLOAD ) =~ s/.*:://;
 
-    grep ( $method eq $_, qw/ select multiselect boolean msgbox infobox string password startGauge setGauge endGauge hasGauge executeDialogs / ) or die(
+    grep ( $method eq $_, qw/ select multiselect boolean error note text string password startGauge setGauge endGauge hasGauge executeDialogs / ) or die(
         sprintf( 'Unknown %s method', $iMSCP::Dialog::FrontEndInterface::AUTOLOAD )
     );
 
@@ -159,7 +167,7 @@ sub AUTOLOAD
 
 =item DESTROY
 
- Needed due to AUTOLOAD
+ Must exist so AUTOLOAD doesn't try to handle it
 
 =cut
 

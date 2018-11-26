@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/phpmyadmin</folder>
+    <copy_config>${SYSCONFDIR}/imscp/phpmyadmin/nginx.tpl</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/phpmyadmin/phpmyadmin.conf.dist</copy_config>
+</install>

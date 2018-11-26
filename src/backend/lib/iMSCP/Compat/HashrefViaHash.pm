@@ -25,6 +25,7 @@ package iMSCP::Compat::HashrefViaHash;
 
 use strict;
 use warnings;
+use Carp 'croak';
 use iMSCP::Boolean;
 use Params::Check qw/ check last_error /;
 
@@ -63,7 +64,7 @@ sub TIEHASH
 
     my $hashref = check(
         { HASHREF => { default => {}, required => TRUE, strict_type => TRUE } }, \%params, TRUE
-    ) or die( Params::Check::last_error());
+    ) or croak( Params::Check::last_error());
 
     bless [ $hashref->{'HASHREF'} ], $class;
 }

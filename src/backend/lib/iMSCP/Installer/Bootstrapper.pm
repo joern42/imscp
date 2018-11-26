@@ -68,23 +68,17 @@ sub bootstrap
     iMSCP::Getopt->verbose( FALSE ) unless iMSCP::Getopt->noninteractive;
 
     my $distBootstrapFile = "src/backend/lib/iMSCP/Installer/Bootstrapper/@{ [ $self->_getDistBootstrapFile() ] }";
-    -f $distBootstrapFile or die(
-        sprintf( "The %s distribution installer bootstrap file is missing. Please contact the i-MSCP Team.", $distBootstrapFile )
-    );
+    -f $distBootstrapFile or die( sprintf( 'The %s distribution installer bootstrap file is missing.', $distBootstrapFile ));
+
+    $self->_showLicenseMsg();
+    $self->_confirmInstallOrReconfigure();
 
     # Execute the distribution installer bootstrap file
     do $distBootstrapFile or die;
 
     $self->_gatherSystemFacts();
     $self->_checkDistSupport();
-
-    # FIXME Should be done before evaluation of distribution installer
-    # bootstrap file to avoid installing package on cancellation
-    $self->_showWelcomeMsg();
-    $self->_confirmInstallOrReconfigure();
-
     $self->_buildBackendLibrary();
-    exit;
 }
 
 =back
@@ -149,8 +143,8 @@ sub _checkDistSupport
 
     unless ( -f "config/$self->{'lsb'}->{'distid'}/packages/@{ [ lc $self->{'lsb'}->{'distcodename'} ] }.xml" ) {
         my $dialog = ( iMSCP::Dialog->getInstance() );
-        local @{ ${ $dialog }->{'_opts'} }{qw/ titleok-button /} = ( 'Unsupported distribution', 'Abort' );
-        ${ $dialog }->msgbox( <<"EOF" );
+        local @{ ${ $dialog }->{'_opts'} }{qw/ title ok-button /} = ( 'Unsupported distribution', 'Abort' );
+        ${ $dialog }->error( <<"EOF" );
 We are sorry but your distribution $self->{'lsb'}->{'distdescription'} isn't supported by this i-MSCP version.
         
 If your distribution is already supported in an \\Zbearlier\\ZB release, you can try to copy the package file of the release that is closest to your distribution and try again. For instance:
@@ -168,38 +162,38 @@ EOF
 
 =cut
 
-=item _showWelcomeMsg( )
+=item _showLicenseMsg( )
 
- Show welcome message
+ Show license message
 
  Return void, exit on ESC
 
 =cut
 
-sub _showWelcomeMsg
+sub _showLicenseMsg
 {
     return if iMSCP::Getopt->noninteractive || !grep ( $_ eq 'none', @{ iMSCP::Getopt->reconfigure } );
 
     my $dialog = iMSCP::Dialog->getInstance();
-    local @{ $dialog->{'_opts'} }{qw/ title yes-button no-button /} = ( 'Welcome to i-MSCP installer', 'Continue', 'Abort' );
+    local @{ $dialog->{'_opts'} }{qw/ title yes-button no-button /} = ( 'License agreement', 'Agree', 'Abort' );
 
-    my $rs = $dialog->boolean( <<"EOF" );
-\\Zb\\Z4i-MSCP - internet Multi Server Control Panel
+    my $rs = $dialog->boolean( <<"EOF", TRUE );
+\\Zb\\Z4i-MSCP™ - internet Multi Server Control Panel
 ____________________________________________\\Zn
 
-Welcome to the i-MSCP installer.
+i-MSCP™ is a control panel easing shared hosting management on Linux servers. It comes with a large choice of modules for various services such as Apache2, ProFTPD, Dovecot, Courier, Bind9..., and can be easily extended through plugins and/or event listeners.
 
-i-MSCP is an open source software (OSS) easing shared hosting management on Linux servers. It comes with a large choice of modules for various services such as Apache2, ProFTPD, Dovecot, Courier, Bind9..., and can be easily extended through plugins and/or event listeners.
+i-MSCP™ is developed for professional Hosting Service Providers (HSPs), Internet Services Providers (ISPs) and IT professionals.
 
-i-MSCP is developed for professional Hosting Service Providers (HSPs), Internet Services Providers (ISPs) and IT professionals.
+\\Zb\\Z4License agreement
+_________________\\Zn
 
-\\Zb\\Z4License
-_______\\Zn
-
-Unless otherwise stated all code is licensed under LGPL 2.1 and has the following copyright:
+Unless otherwise stated all i-MSCP™ source code and related materials are licensed under LGPL 2.1 and have the following copyright:
 
 \\ZbCopyright © 2010-2018, Laurent Declercq (i-MSCP™)
 All rights reserved.\\ZB
+    
+By installing i-MSCP™ on your system, you accept to conform to the terms of the LGPL 2.1 license.
 EOF
     exit if $rs != 0;
 }
@@ -214,8 +208,6 @@ EOF
 
 sub _confirmInstallOrReconfigure
 {
-    my ( $self ) = @_;
-
     return if iMSCP::Getopt->noninteractive;
 
     my ( $dialog, $retval ) = ( iMSCP::Dialog->getInstance(), 0 );
@@ -224,7 +216,7 @@ sub _confirmInstallOrReconfigure
     if ( grep ( $_ eq 'none', @{ iMSCP::Getopt->reconfigure } ) ) {
         local $dialog->{'_opts'}->{'title'} = 'Installation confirmation';
         $retval = $dialog->boolean( <<"EOF", TRUE );
-This program will install or update i-MSCP and all software dependencies on your $self->{'lsb'}->{'distdescription'} system.
+This program will install or update i-MSCP and all software dependencies on your system.
 
 If you're updating from an older i-MSCP version, be sure to have read the errata file located at \\Zbhttps://github.com/i-MSCP/imscp/blob/1.5.x/docs/1.5.x_errata.md\\ZB before continue as some manual tasks could be required.
 
@@ -268,7 +260,7 @@ sub _buildBackendLibrary
             $retval == 0 or die( sprintf( "Couldn't build i-MSCP backend library: %s", $stderr || 'Unknown error' ));
 
         },
-        'Building backend library...', 3, 1
+        'Building backend library...', 1, 1
     );
 }
 
@@ -277,6 +269,7 @@ sub _buildBackendLibrary
  Command STDOUT routine
 
  Param string $output Command Output
+ Return void
 
 =cut
 

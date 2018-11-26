@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<install>
-    <folders export="SYSTEM_ENGINE_ROOT">${SYSTEM_ROOT}/engine</folders>
-    <copy>${SYSTEM_ENGINE_ROOT}/bin</copy>
-    <copy>${SYSTEM_ENGINE_ROOT}/PerlLib</copy>
-    <copy>${SYSTEM_ENGINE_ROOT}/PerlVendor</copy>
-</install>

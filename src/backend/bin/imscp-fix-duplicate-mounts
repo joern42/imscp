@@ -1,0 +1,59 @@
+#!/usr/bin/perl
+# Copyright (C) 2016-2018 Laurent Declercq <l.declercq@nuxwin.com>
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
+
+use strict;
+use warnings;
+use iMSCP::Boolean;
+use iMSCP::Bootstrapper;
+use iMSCP::Debug 'newDebug';
+use iMSCP::LockFile;
+use iMSCP::Mount 'umount';
+use POSIX 'locale_h';
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
+
+$ENV{'LANG'} = 'C.UTF-8';
+
+$> == 0 or die( "You do not have permission to call this script.\n" );
+
+exit unless iMSCP::LockFile->new( path => "$::imscpConfig{'LOCK_DIR'}/imscp-fix-duplicate-mounts.lock", non_blocking => TRUE )->acquire();
+
+iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
+
+Fix duplicate mounts.
+
+OPTIONS:
+ -d,   --debug   Enable debug mode.
+ -h,-? --help    Show this help.
+ -v,   --verbose Enable verbose mode.
+},
+    'debug|d'   => \&iMSCP::Getopt::debug,
+    'help|?|h'  => \&iMSCP::Getopt::showUsage,
+    'verbose|v' => \&iMSCP::Getopt::verbose
+);
+
+newDebug( 'imscp-fix-duplicate-mounts.log' );
+
+iMSCP::Bootstrapper->getInstance()->boot( {
+    config_readonly => TRUE,
+    nodatabase      => TRUE
+} );
+
+umount( $::imscpConfig{'SRV_DIR'} );
+
+1;
+__END__

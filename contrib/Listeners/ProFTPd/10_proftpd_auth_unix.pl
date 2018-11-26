@@ -29,10 +29,9 @@ use iMSCP::EventManager;
 iMSCP::EventManager->getInstance()->register( 'afterFtpdBuildConf', sub {
     my ( $tplContent, $tplName ) = @_;
 
-    return 0 unless $tplName eq 'proftpd.conf';
+    return unless $tplName eq 'proftpd.conf';
     ${ $tplContent } =~ s/(AuthOrder\s+.*)/$1 mod_auth_unix.c/im;
     ${ $tplContent } =~ s/(<\/Global>)/\n  PersistentPasswd         off\n$1/im;
-    0;
 } );
 
 1;

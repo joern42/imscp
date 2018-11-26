@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>/etc/logrotate.d</folder>
+    <copy_config>/etc/logrotate.d/imscp</copy_config>
+    <!--
+        The rsyslog LOGROTATE(8) configuration file is copied only when the
+        'if' expression evaluate to TRUE. Otherwise, it is removed.
+    -->
+    <copy_config copy_if="-x '/usr/sbin/rsyslogd'">/etc/logrotate.d/rsyslog</copy_config>
+    <!--
+        The syslog-ng LOGROTATE(8) configuration file is copied only when the
+        'if' expression evaluate to TRUE. Otherwise, it is removed.
+    -->
+    <copy_config copy_if="-x '/usr/sbin/syslog-ng'">/etc/logrotate.d/syslog-ng</copy_config>
+</install>

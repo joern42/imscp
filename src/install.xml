@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <install>backend</install>
+    <install>daemon</install>
+    <install>frontend</install>
+</install>

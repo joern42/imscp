@@ -22,8 +22,7 @@ package Listener::Postfix::Smarthost;
 use strict;
 use warnings;
 use iMSCP::EventManager;
-use iMSCP::File;
-use Servers::mta;
+use iMSCP::Server::mta;
 
 # Configuration variables
 
@@ -38,19 +37,16 @@ my $saslPasswdMapsPath = '/etc/postfix/relay_passwd';
 # Add the libsasl2-modules to list of package to install
 iMSCP::EventManager->getInstance()->registerOne( 'beforeInstallDistributionPackages', sub {
     push @{ $_[0] }, 'libsasl2-modules';
-    0;
 } );
 
 # We must ensure that the libsasl2-modules package won't be uninstalled
 iMSCP::EventManager->getInstance()->register( 'beforeUninstallDistributionPackages', sub {
     @{ $_[0] } = grep { $_ ne 'libsasl2-modules' } @{ $_[0] };
-    0;
 } );
 
-iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
-    my $mta = Servers::mta->factory();
-    my $rs = $mta->addMapEntry( $saslPasswdMapsPath, "$relayhost:$relayport\t$saslAuthUser:$saslAuthPasswd" );
-    $rs ||= $mta->postconf( (
+iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub
+{
+    iMSCP::Server::mta->factory()->addMapEntry( $saslPasswdMapsPath, "$relayhost:$relayport\t$saslAuthUser:$saslAuthPasswd" )->postconf(
         # Relay parameter
         relayhost                  => {
             action => 'replace',
@@ -73,7 +69,7 @@ iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
             action => 'replace',
             values => [ 'noanonymous' ]
         }
-    ));
+    );
 }, -99 );
 
 1;

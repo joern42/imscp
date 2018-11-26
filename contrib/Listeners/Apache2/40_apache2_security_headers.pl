@@ -25,10 +25,11 @@ use warnings;
 use iMSCP::EventManager;
 use iMSCP::TemplateParser qw/ getBlocByRef process replaceBlocByRef /;
 
-iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConf', sub {
+iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConf', sub
+{
     my ( $cfgTpl, $tplName, $data ) = @_;
 
-    return 0 unless $tplName eq 'domain.tpl' && grep ( $_ eq $data->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
+    return unless $tplName eq 'domain.tpl' && grep ( $_ eq $data->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
 
     replaceBlocByRef(
         "# SECTION addons BEGIN.\n",
@@ -47,8 +48,6 @@ EOF
             . "    # SECTION addons END.\n",
         $cfgTpl
     );
-
-    0;
 } );
 
 1;

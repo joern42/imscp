@@ -31,7 +31,7 @@ package Listener::Named::SDSPS;
 
 use strict;
 use warnings;
-use iMSCP::Debug 'error';
+use Carp 'croak';
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::File;
@@ -60,27 +60,22 @@ my $REALM = 'SDSPS';
 
 sub createHtpasswdFile
 {
-    if ( $HTUSER =~ /:/ ) {
-        error( "htpasswd: username contains illegal character ':'" );
-        return 1;
-    }
+    $HTUSER =~ /:/ or croak( "htpasswd: username contains illegal character ':'" );
 
     require iMSCP::Crypt;
-    my $file = iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/.htpasswd" );
-    $file->set( "$HTUSER:" . ( $IS_HTPASSWD_HASHED ? $HTPASSWD : iMSCP::Crypt::htpasswd( $HTPASSWD ) ));
-
-    my $rs = $file->save();
-    $rs ||= $file->owner(
-        "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-        "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}"
-    );
-    $rs ||= $file->mode( 0640 );
+    iMSCP::File
+        ->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/.htpasswd" )
+        ->set( "$HTUSER:" . ( $IS_HTPASSWD_HASHED ? $HTPASSWD : iMSCP::Crypt::htpasswd( $HTPASSWD ) ))
+        ->save()
+        ->owner( "$::imscpConfig{'USER_PREFIX'}$::imscpConfig{'USER_MIN_UID'}", "$::imscpConfig{'USER_PREFIX'}$::imscpConfig{'USER_MIN_UID'}" )
+        ->mode( 0640 );
 }
 
-iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub {
+iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub
+{
     my ( $tplContent, $tplName ) = @_;
 
-    return 0 unless grep ($_ eq $tplName, '00_master.nginx', '00_master_ssl.nginx');
+    return unless grep ($_ eq $tplName, '00_master.nginx', '00_master_ssl.nginx');
 
     my $locationSnippet = <<"EOF";
     location ^~ /sdsp/ {
@@ -98,38 +93,33 @@ EOF
         "# SECTION custom BEGIN.\n",
         "# SECTION custom END.\n",
         "    # SECTION custom BEGIN.\n"
-        . getBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", $tplContent )
-        . "$locationSnippet\n"
-        . "    # SECTION custom END.\n",
+            . getBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", $tplContent )
+            . "$locationSnippet\n"
+            . "    # SECTION custom END.\n",
         $tplContent
     );
-    0;
 } ) if $HTUSER ne '' && $HTPASSWD ne '';
 
-iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub {
+iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
+{
     # Make sure to start with a clean directory
-    my $dir = iMSCP::Dir->new( dirname => "$::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp" );
-    $dir->remove();
-    $dir->make( {
-        user  => "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-        group => "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-        mode  => 0550
-    } );
+    iMSCP::Dir
+        ->new( dirname => "$::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp" )
+        ->remove()
+        ->make( {
+            user  => "$::imscpConfig{'USER_PREFIX'}$::imscpConfig{'USER_MIN_UID'}",
+            group => "$::imscpConfig{'USER_PREFIX'}$::imscpConfig{'USER_MIN_UID'}",
+            mode  => 0550
+        } );
 
-    my $rs ||= createHtpasswdFile() if $HTUSER ne '' && $HTPASSWD ne '';
-    return $rs if $rs;
+    createHtpasswdFile() if length $HTUSER && length $HTPASSWD;
 
-    my $file = iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/sdsps.php" );
-    $file->set( do {
-        local $/;
-        <DATA>;
-    } );
-    $rs = $file->save();
-    $rs ||= $file->owner(
-        "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-        "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}"
-    );
-    $rs ||= $file->mode( 0640 );
+    iMSCP::File
+        ->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/sdsps.php" )
+        ->set( do { local $/, scalar readline( DATA ) } )
+        ->save()
+        ->owner( "$::imscpConfig{'USER_PREFIX'}$::imscpConfig{'USER_MIN_UID'}", "$::imscpConfig{'USER_PREFIX'}$::imscpConfig{'USER_MIN_UID'}" )
+        ->mode( 0640 );
 } );
 
 1;

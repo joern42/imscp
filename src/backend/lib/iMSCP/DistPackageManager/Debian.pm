@@ -34,7 +34,7 @@ use iMSCP::Execute qw/ execute executeNoWait /;
 use iMSCP::Getopt;
 use iMSCP::LsbRelease;
 use iMSCP::ProgramFinder;
-use iMSCP::Stepper qw/ startDetail endDetail step /;
+use iMSCP::Stepper;
 use POSIX ();
 use parent qw/ iMSCP::Common::Object iMSCP::DistPackageManager::Interface /;
 
@@ -102,15 +102,15 @@ deb $repository->{'repository'}
 deb-src $repository->{'repository'}
 EOF
 
+        my ( $stdout, $stderr );
         if ( $repository->{'repository_key_srv'} && $repository->{'repository_key_id'} ) {
             # Add the repository key from the given key server
-            my $rs = execute(
+            execute(
                 [ 'apt-key', 'adv', '--recv-keys', '--keyserver', $repository->{'repository_key_srv'}, $repository->{'repository_key_id'} ],
-                \my $stdout,
-                \my $stderr
-            );
+                \$stdout,
+                \$stderr
+            ) == 0 or die( $stderr || 'Unknown error' );
             debug( $stdout ) if length $stdout;
-            $rs == 0 or die( $stderr || 'Unknown error' );
 
             # Workaround https://bugs.launchpad.net/ubuntu/+source/gnupg2/+bug/1633754
             execute( [ 'pkill', '-TERM', 'dirmngr' ], \$stdout, \$stderr );
@@ -118,17 +118,12 @@ EOF
             # Add the repository key by fetching it first from the given URI
             my $keyFile = File::Temp->new();
             $keyFile->close();
-            my $rs = execute(
-                [ 'wget', '--prefer-family=IPv4', '--timeout=30', '-O', $keyFile, $repository->{'repository_key_uri'} ],
-                \my $stdout,
-                \my $stderr
-            );
+            execute(
+                [ 'wget', '--prefer-family=IPv4', '--timeout=30', '-O', $keyFile, $repository->{'repository_key_uri'} ], \$stdout, \$stderr
+            ) == 0 or die( $stderr || 'Unknown error' );;
             debug( $stdout ) if length $stdout;
-            $rs == 0 or die( $stderr || 'Unknown error' );
-
-            $rs = execute( [ 'apt-key', 'add', $keyFile ], \$stdout, \$stderr );
+            execute( [ 'apt-key', 'add', $keyFile ], \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
             debug( $stdout ) if length $stdout;
-            $rs == 0 or die( $stderr || 'Unknown error' );
         }
     }
 
@@ -266,12 +261,12 @@ sub installPerlModules
 
     return $self unless @{ $modules };
 
-    iMSCP::Stepper::startDetail();
+    startDetail();
 
     my ( $countPackages, $step, $stderr ) = ( scalar @{ $modules }+1, 1 );
     my $msgHeader = "Installing/Updating Perl modules from CPAN:\n\n - ";
     my $msgFooter = "\nPlease be patient. This may take few seconds...";
-    my $rs = step(
+    step(
         sub {
             executeNoWait(
                 [ 'cpanm', '--notest', '--quiet', '--no-lwp', @{ $modules } ],
@@ -281,19 +276,13 @@ sub installPerlModules
                 },
                 sub { $stderr .= $_[0]; }
             ) == 0 or die( sprintf( "Couldn't install Perl modules: %s", $stderr || 'Unknown error' ));
-            0;
         },
         $msgHeader . "Initialization...\n" . $msgFooter,
         $countPackages,
         $step++
     );
-    unless ( $rs == 0 ) {
-        iMSCP::Stepper::endDetail();
-        die( iMSCP::Debug::getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
-    }
 
-    iMSCP::Stepper::endDetail();
-
+    endDetail();
     $self;
 }
 
@@ -316,12 +305,12 @@ sub uninstallPerlModules
 
     return $self unless @{ $modules };
 
-    iMSCP::Stepper::startDetail();
+    startDetail();
 
     my ( $countPackages, $step, $stderr ) = ( scalar @{ $modules }+1, 1 );
     my $msgHeader = "Uninstalling Perl modules from CPAN:\n\n - ";
     my $msgFooter = "\nPlease be patient. This may take few seconds...";
-    my $rs = step(
+    step(
         sub {
             executeNoWait(
                 [ 'cpanm', '--uninstall', '--quiet', @{ $modules } ],
@@ -330,19 +319,13 @@ sub uninstallPerlModules
                 },
                 sub { $stderr .= $_[0]; }
             ) == 0 or die( sprintf( "Couldn't install Perl modules: %s", $stderr || 'Unknown error' ));
-            0;
         },
         $msgHeader . "Initialization...\n" . $msgFooter,
         $countPackages,
         $step++
     );
-    unless ( $rs == 0 ) {
-        iMSCP::Stepper::endDetail();
-        die( iMSCP::Debug::getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
-    }
 
-    iMSCP::Stepper::endDetail();
-
+    endDetail();
     $self;
 }
 
@@ -414,7 +397,6 @@ EOF
     seek( $fh, 0, 0 ) or die( $! );
     print { $fh } $fileC;
     close( $fh ) or die( $! );
-
     $self;
 }
 
@@ -461,7 +443,6 @@ EOF
     seek( $fh, 0, 0 ) or die( $! );
     print { $fh } $fileC;
     close( $fh ) or die( $! );
-
     $self;
 }
 
@@ -535,7 +516,6 @@ sub addRepositorySections
             push @seenRepositories, "$rc{'uri'} $rc{'dist'}";
 
             if ( $fileC !~ /^deb\s+$rc{'uri'}\s+$rc{'dist'}\s+.*\b$section\b/m ) {
-
                 my $rs = execute(
                     [
                         'wget', '--quiet', '--prefer-family=IPv4', '--timeout=30', '--spider',
@@ -653,12 +633,11 @@ sub rebuildAndInstallPackages
         }
 
         local $CWD = $srcDownloadDir;
-
-        iMSCP::Stepper::startDetail();
-
-        my $rs = iMSCP::Stepper::step(
+        
+        startDetail();
+        step(
             sub {
-                return 0 unless $needPbuilderUpdate;
+                return unless $needPbuilderUpdate;
                 $needPbuilderUpdate = FALSE;
                 my $msgHeader = "Creating/Updating pbuilder environment\n\n - ";
                 my $msgFooter = "\n\nPlease be patient. This may take few minutes...";
@@ -675,11 +654,10 @@ sub rebuildAndInstallPackages
                     },
                     sub { $stderr .= $_[0]; }
                 ) == 0 or die( "Couldn't create/update pbuilder environment: @{ [ $stderr || 'Unknown error' ] }" );
-                0;
             },
             'Creating/Updating pbuilder environment', 5, 1
         );
-        $rs ||= iMSCP::Stepper::step(
+        step(
             sub {
                 my $msgHeader = "Downloading $package->{'package_src'}, $distID source package\n\n - ";
                 my $msgFooter = "\nDepending on your system this may take few seconds...";
@@ -691,16 +669,14 @@ sub rebuildAndInstallPackages
                     },
                     sub { $stderr .= $_[0] }
                 ) == 0 or die( "Couldn't download packageSrc Debian source package: @{ [ $stderr || 'Unknown error' ] }" );
-                0;
             },
             "Downloading $package->{'package_src'} $distID source package", 5, 2
         );
 
         local $CWD = ( glob( "$package->{'package_src'}-*" ) )[0];
 
-        $rs ||= iMSCP::Stepper::step(
+        step(
             sub {
-
                 if ( defined $package->{'patches_dir'} ) {
                     open $fh, '+<', "debian/patches/@{ [ $package->{'patches_manager'} eq 'quilt' ? 'series' : '00list' ] }" or die( $! );
                     my $fileC = do { local $/, scalar readline $fh };
@@ -721,11 +697,10 @@ sub rebuildAndInstallPackages
                     \$stderr
                 ) == 0 or die( sprintf( "Couldn't add 'imscp' local suffix: %s", $stderr || 'Unknown error' ));
                 debug( $stdout ) if $stdout;
-                0;
             },
             "Patching $package->{'package_src'} $distID source package...", 5, 3
         );
-        $rs ||= iMSCP::Stepper::step(
+        step(
             sub {
                 my $msgHeader = "Building new $package->{'package'} $distID package\n\n - ";
                 my $msgFooter = "\n\nPlease be patient. This may take few seconds...";
@@ -738,20 +713,14 @@ sub rebuildAndInstallPackages
                     },
                     sub { $stderr .= $_[0] }
                 ) == 0 or die( "Couldn't build local $package->{'package'} $distID package: @{ [ $stderr || 'Unknown error' ] }" );
-                0;
             },
             "Building local $package->{'package'} $distID package", 5, 4
         );
-
-        unless ( $rs == 0 ) {
-            iMSCP::Stepper::endDetail();
-            die( iMSCP::Debug::getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
-        }
     }
 
     my @packages = map { $_->{'package'} } @{ $packages };
 
-    my $rs = iMSCP::Stepper::step(
+    step(
         sub {
             local $CWD = $pbuilderBuildResultDir;
             my ( $stdout, $stderr );
@@ -762,21 +731,16 @@ sub rebuildAndInstallPackages
                     iMSCP::Getopt->noninteractive && iMSCP::Getopt->verbose ? undef : sub {
                         step( undef, $msgHeader . $_[0], 5, 5 )
                     },
-                    sub { $stderr .= shift }
+                    sub { $stderr .= $_[0] }
                 ) == 0 or die( "Couldn't install local $package $distID package: @{ [ $stderr || 'Unknown error' ] }" );
             }
             # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
             execute( [ 'apt-mark', 'hold', @packages ], \$stdout, \$stderr );
-            0;
         },
         "Installing local @packages $distID package(s)", 5, 5
     );
-    unless ( $rs == 0 ) {
-        iMSCP::Stepper::endDetail();
-        die( iMSCP::Debug::getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
-    }
 
-    iMSCP::Stepper::endDetail();
+    endDetail();
     $self;
 }
 
@@ -831,8 +795,7 @@ sub _getAptGetCommand
 
     [
         !iMSCP::Getopt->noninteractive && ISATTY && iMSCP::ProgramFinder::find( 'whiptail' )
-            && iMSCP::ProgramFinder::find( 'debconf-apt-progress' ) ? ( 'debconf-apt-progress', '--logstderr', '--' ) : (),
-        $bin, @_
+            && iMSCP::ProgramFinder::find( 'debconf-apt-progress' ) ? ( 'debconf-apt-progress', '--logstderr', '--' ) : (), $bin, @_
     ];
 }
 

@@ -24,10 +24,11 @@ use strict;
 use warnings;
 use iMSCP::EventManager;
 
-iMSCP::EventManager->getInstance()->register( 'beforePoBuildConf', sub {
+iMSCP::EventManager->getInstance()->register( 'beforePoBuildConf', sub
+{
     my ( $cfgTpl, $tplName ) = @_;
 
-    return 0 unless $tplName eq 'dovecot.conf';
+    return unless $tplName eq 'dovecot.conf';
 
     my $cfgSnippet = <<"EOF";
 
@@ -46,7 +47,6 @@ EOF
     ${ $cfgTpl } =~ s/(separator\s+=\s+)\./$1\//;
     ${ $cfgTpl } =~ s/(prefix\s+=\s+)INBOX\./$1/;
     ${ $cfgTpl } =~ s/^(namespace\s+inbox\s+\{.*?^\}\n)/$1$cfgSnippet/sm;
-    0;
 } );
 
 1;

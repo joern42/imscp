@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folders>${SYSCONFDIR}/imscp/mysql</folders>
+    <copy_config>${SYSCONFDIR}/imscp/mysql/imscp.cnf</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/mysql/mysql.conf.dist</copy_config>
+</install>

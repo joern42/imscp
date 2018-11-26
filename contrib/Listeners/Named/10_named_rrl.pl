@@ -24,11 +24,11 @@ package Listener::Named::Rrl;
 
 use strict;
 use warnings;
-use File::Basename;
+use File::Basename 'basename';
 use iMSCP::Boolean;
 use iMSCP::EventManager;
-use iMSCP::TemplateParser;
-use Servers::named;
+use iMSCP::TemplateParser 'replaceBloc';
+use iMSCP::Server::named;
 
 # Configuration variables
 
@@ -37,17 +37,17 @@ my $responsesPerSecond = 10;
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'afterNamedBuildConf', sub {
+iMSCP::EventManager->getInstance()->register( 'afterNamedBuildConf', sub
+{
     my ( $tplContent, $tplName ) = @_;
 
-    return 0 unless $tplName eq basename( Servers::named->factory()->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
+    return unless $tplName eq basename( iMSCP::Server::named->factory()->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
 
     ${ $tplContent } = replaceBloc( "// imscp [{ENTRY_ID}] begin.\n", "// imscp [{ENTRY_ID}] ending.\n", <<"EOF", ${ $tplContent }, TRUE );
         rate-limit {
             responses-per-second $responsesPerSecond;
         };
 EOF
-    0;
 } );
 
 1;

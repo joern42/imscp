@@ -23,17 +23,30 @@ package Listener::FrontEnd::Templates::Override;
 use strict;
 use warnings;
 use iMSCP::Dir;
+use iMSCP::Boolean;
 use iMSCP::EventManager;
+
+# Install custom i-MSCP frontEnd theme
+#
+# Howto setup and activate
+# 1. Upload that listener file into the /etc/imscp/listeners.d directory
+# 2. Edit the uploaded file and set the $CUSTOM_THEMES_PATH configuration
+#    variable to the path of your custom i-MSCP theme
+# 3. Rerun the i-MSCP distribution installer : perl imscp-installer -danv
 
 # Configuration parameters
 
-# Path to your own template files
-my $CUSTOM_THEMES_PATH = '/usr/local/src/imscp-custom/themes/default';
+# Path to your own i-MSCP theme directory
+my $CUSTOM_THEMES_PATH = '';
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'afterInstallDistributionFiles', sub {
-    iMSCP::Dir->new( dirname => $CUSTOM_THEMES_PATH )->rcopy( "$::imscpConfig{'GUI_ROOT_DIR'}/themes/default", { preserve => 'no' } );
+# Don't register event listeners if not needed
+return 1 unless length $CUSTOM_THEMES_PATH;
+
+iMSCP::EventManager->getInstance()->register( 'afterInstallDistributionFiles', sub
+{
+    iMSCP::Dir->new( dirname => $CUSTOM_THEMES_PATH )->copy( "$::imscpConfig{'GUI_ROOT_DIR'}/themes/default" );
 } );
 
 1;

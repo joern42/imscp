@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/clamav</folder>
+    <copy_config>${SYSCONFDIR}/imscp/clamav/clamav.conf.dist</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/clamav/clamav-milter.conf</copy_config>
+</install>

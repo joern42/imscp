@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Whiptail - FrontEnd for user interface based on WHIPTAIL(1)
+ iMSCP::Dialog::Whiptail - FrontEnd for user interface based on WHIPTAIL(1)
 
 =cut
 
@@ -25,15 +25,17 @@ package iMSCP::Dialog::Whiptail;
 
 use strict;
 use warnings;
+use Carp 'croak';
 use iMSCP::Boolean;
 use iMSCP::Execute 'execute';
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
-use parent qw/  iMSCP::Dialog::FrontEndInterface /;
+use iMSCP::Dialog::TextFormatter qw/ wrap width /;
+use parent qw/ iMSCP::Dialog::FrontEndInterface iMSCP::Common::Singleton /;
 
 =head1 DESCRIPTION
 
- FrontEnd for user interface based on WHIPTAIL(1)
+ FrontEnd for user interface based on WHIPTAIL(1).
 
 =head1 PUBLIC METHODS/FUNCTIONS
 
@@ -50,9 +52,9 @@ sub select
     my ( $self, $text, $choices, $defaultTag, $showTags ) = @_;
     $showTags //= FALSE;
 
-    ref \$text eq 'SCALAR' && length $text or die( '$text parameter is undefined or invalid.' );
-    defined $choices && ref $choices eq 'HASH' or die( '\%choices parameter is undefined or invalid.' );
-    !defined $defaultTag || ref \$defaultTag eq 'SCALAR' or die( '$defaultTag parameter is invalid.' );
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
+    defined $choices && ref $choices eq 'HASH' or croak( '\%choices parameter is undefined or invalid.' );
+    !defined $defaultTag || ref \$defaultTag eq 'SCALAR' or croak( '$defaultTag parameter is invalid.' );
 
     my @init;
     if ( $showTags || $self->_getWhiptailVersion() > '05218' ) {
@@ -90,9 +92,9 @@ sub multiselect
     my ( $self, $text, $choices, $defaultTags, $showTags ) = @_;
     $defaultTags //= [];
 
-    ref \$text eq 'SCALAR' && length $text or die( '$text parameter is undefined or invalid.' );
-    defined $choices && ref $choices eq 'HASH' or die( '\%choices parameter is undefined or invalid.' );
-    ref $defaultTags eq 'ARRAY' or die( '\@defaultTags parameter is invalid.' );
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
+    defined $choices && ref $choices eq 'HASH' or croak( '\%choices parameter is undefined or invalid.' );
+    ref $defaultTags eq 'ARRAY' or croak( '\@defaultTags parameter is invalid.' );
 
     my @init;
     if ( $showTags || $self->_getWhiptailVersion() > '05218' ) {
@@ -110,7 +112,7 @@ sub multiselect
         }
     }
 
-    local @{ $self->{'_opts'} }{qw/ separate-output notags /} = ( '', !$showTags ? '' : undef );
+    local @{ $self->{'_opts'} }{qw/ separate-output notags /} = ( '', $showTags ? undef : '' );
     my ( $ret, $tags ) = $self->_showDialog( 'checklist', $text, $self->{'lines'}, $self->{'columns'}, scalar keys %{ $choices }, @init );
     my @tags = split /\n/, $tags;
 
@@ -118,7 +120,7 @@ sub multiselect
         # See the above comment for the explanation
         # We need retrieve tags associated with selected items
         my %choices = reverse( %{ $choices } );
-        @tags = map { $choices{$_} } split /\n/, $tags;
+        @tags = map { $choices{$_} } @tags;
     }
 
     wantarray ? ( $ret, \@tags ) : \@tags;
@@ -133,40 +135,58 @@ sub multiselect
 sub boolean
 {
     my ( $self, $text, $defaultno ) = @_;
-    $defaultno //= FALSE;
 
-    ref \$text eq 'SCALAR' && length $text or die( '$text parameter is undefined or invalid.' );
-    local $self->{'_opts'}->{'defaultno'} = $defaultno ? '' : undef;
-    ( $self->_showDialog( 'yesno', $text, $self->{'lines'}, $self->{'columns'} ) )[0];
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
+
+    ( $text, my $boxHeight, my $boxWidth ) = $self->_formatText( $text );
+
+    local @{ $self->{'_opts'} }{qw/ defaultno scrolltext / } = ( $defaultno ? '' : undef );
+
+    if ( $boxHeight > ( my $maxBoxHeight = $self->{'screenHeight'}-$self->{'screenPaddingHeight'} ) ) {
+        $boxHeight = $maxBoxHeight;
+        $self->{'_opts'}->{'scrolltext'} = '';
+    }
+
+    ( $self->_showDialog( 'yesno', $text, $boxHeight, $boxWidth ) )[0];
 }
 
-=item msgbox( $text )
+=item error( $text )
 
- See iMSCP::Dialog::FrontEndInterface::msgbox()
+ See iMSCP::Dialog::FrontEndInterface::error()
 
 =cut
 
-sub msgbox
+sub error
 {
     my ( $self, $text ) = @_;
 
-    ref \$text eq 'SCALAR' && length $text or die( '$text parameter is undefined or invalid.' );
-    ( $self->_showDialog( 'msgbox', $text, $self->{'lines'}, $self->{'columns'} ) )[0];
+    $self->_showText( $text );
 }
 
-=item infobox( $text )
+=item note( $text )
 
- See iMSCP::Dialog::FrontEndInterface::infobox()
+ See iMSCP::Dialog::FrontEndInterface::note()
 
 =cut
 
-sub infobox
+sub note
 {
     my ( $self, $text ) = @_;
 
-    ref \$text eq 'SCALAR' && length $text or die( '$text parameter is undefined or invalid.' );
-    local $self->{'_opts'}->{'clear'} = undef;
-    ( $self->_showDialog( 'infobox', $text, $self->{'lines'}, $self->{'columns'} ) )[0];
+    $self->_showText( $text );
+}
+
+=item text( $text )
+
+ See iMSCP::Dialog::FrontEndInterface::text()
+
+=cut
+
+sub text
+{
+    my ( $self, $text ) = @_;
+
+    $self->_showText( $text );
 }
 
 =item string( $text [, $default = '' ] )
@@ -178,12 +198,23 @@ sub infobox
 sub string
 {
     my ( $self, $text, $default ) = @_;
+    $default //= '';
 
-    ref \$text eq 'SCALAR' && length $text or die( '$text parameter is undefined or invalid.' );
-    $self->_showDialog( 'inputbox', $text, $self->{'lines'}, $self->{'columns'}, $default // ());
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
+    ref \$default eq 'SCALAR' or croak( '$default parameter is invalid.' );
+
+    ( $text, my $boxHeight, my $boxWidth ) = $self->_formatText( $text );
+
+    local $self->{'_opts'}->{'scrolltext'};
+    if ( $boxHeight > ( my $maxBoxHeight = $self->{'screenHeight'}-$self->{'screenPaddingHeight'} ) ) {
+        $boxHeight = $maxBoxHeight;
+        $self->{'_opts'}->{'scrolltext'} = '';
+    }
+
+    $self->_showDialog( 'inputbox', $text, $boxHeight+$self->{'spacer'}, $boxWidth, $default );
 }
 
-=item password( $text [, $default = '' ])
+=item password( $text [, $default = '' ] )
 
  See iMSCP::Dialog::FrontEndInterface::password()
 
@@ -192,9 +223,25 @@ sub string
 sub password
 {
     my ( $self, $text, $default ) = @_;
+    $default //= '';
 
-    ref \$text eq 'SCALAR' && length $text or die( '$text parameter is undefined or invalid.' );
-    $self->_showDialog( 'passwordbox', $text, $self->{'lines'}, $self->{'columns'}, $default // ());
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
+    ref \$default eq 'SCALAR' or croak( '$default parameter is invalid.' );
+
+    ( $text, my $boxHeight, my $boxWidth ) = $self->_formatText( $text );
+
+    local $self->{'_opts'}->{'scrolltext'};
+    if ( $boxHeight > ( my $maxBoxHeight = $self->{'screenHeight'}-$self->{'screenPaddingHeight'} ) ) {
+        $boxHeight = $maxBoxHeight;
+        $self->{'_opts'}->{'scrolltext'} = '';
+    }
+
+    my ( $retval, $output ) = $self->_showDialog( 'passwordbox', $text, $boxHeight+$self->{'spacer'}, $boxWidth );
+
+    # The password isn't passed in, so if nothing is entered, use the default.
+    $output = $default if $retval == 0 && $output eq '';
+
+    wantarray ? ( $retval, $output ) : $output;
 }
 
 =item startGauge( $text [, $percent = 0 ] )
@@ -207,12 +254,13 @@ sub startGauge
 {
     my ( $self, $text, $percent ) = @_;
 
-    defined $text or die( '$text parameter is undefined' );
-
     return 0 if $self->hasGauge();
 
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
+    ref \$percent eq 'SCALAR' && $percent =~ /^[\d]+$/ or croak( '$text parameter is invalid.' );
+
     open $self->{'_gauge'}, '|-', $self->{'_bin'}, $self->_getCommonOptions( 'gauge' ), '--gauge', _stripEmbeddedSequences( $text ),
-        $self->{'lines'}, $self->{'columns'}, $percent // 0 or die( "Couldn't start gauge" );
+        $self->{'lines'}, $self->{'columns'}, $percent // 0 or croak( "Couldn't start gauge" );
     $self->{'_gauge'}->autoflush( TRUE );
 }
 
@@ -225,6 +273,9 @@ sub startGauge
 sub setGauge
 {
     my ( $self, $percent, $text ) = @_;
+
+    ref \$percent eq 'SCALAR' && $percent =~ /^[\d]+$/ or croak( '$text parameter is invalid.' );
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
 
     unless ( defined $self->{'_gauge'} ) {
         $self->startGauge( $text, $percent );
@@ -271,7 +322,7 @@ sub hasGauge
 
 =item _init( )
 
- See iMSCP::Common::SingletonClass::_init()
+ See iMSCP::Common::Singleton::_init()
 
 =cut
 
@@ -297,16 +348,22 @@ sub _init
         die( 'Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.' );
     }
 
-    # Terminal lines and columns (determined at runtime)
     # Display attributes
-    @{ $self }{qw/ lines columns /} = ( 0, 0 );
+    @{ $self }{qw/ screenHeight screenPaddingHeight screenWidth screenPaddingWidth boxPaddingHeight boxPaddingWidth boxTitlePaddingWidth spacer /} = (
+        0, 4, 0, 5, 8, 4, 6, 1
+    );
 
+    # Determine current screenheight/screenwidth
     $self->_resize();
-    $SIG{'WINCH'} = sub { $self->_resize(); };
+    $SIG{'WINCH'} = sub {
+        # There is a short period during global destruction where $self may
+        # have been destroyed but the handler still operative.
+        $self->_resize() if defined $self
+    };
 
-    # Only relevant options are listed there.
+    # Whiptail options (only relevant options are listed there)
     @{ $self->{'_opts'} }{qw/ clear scrolltext defaultno nocancel yes-button no-button ok-button cancel-button title backtitle /} = (
-        undef, undef, undef, undef, 'Yes', 'No', 'Ok', 'Back', undef, 'i-MSCP™ - internet Multi Server Control Panel'
+        undef, undef, undef, undef, 'Yes', 'No', 'Ok', 'Back', undef, 'i-MSCP - internet Multi Server Control Panel'
     );
 
     $self;
@@ -364,7 +421,7 @@ sub _getCommonOptions
 
  Param string $boxType Box type
  Param list @boxOptions Box options 
- Return string|list Dialog STDERR output in scalar context, an array containing both dialog return code and STDERR output in list context
+ Return string|list Dialog output in scalar context, an array containing both dialog return code and dialog output in list context, croak on failure
 
 =cut
 
@@ -373,15 +430,15 @@ sub _showDialog
     my ( $self, $boxType, @boxOptions ) = @_;
 
     $self->endGauge();
-    $boxOptions[0] = _stripEmbeddedSequences( $boxOptions[0] );
+
     my $retval = execute( [ $self->{'_bin'}, $self->_getCommonOptions( $boxType ), "--$boxType", '--', @boxOptions ], undef, \my $output );
     # Map exit code to expected iMSCP::Dialog::FrontEndInterface::* retval
     # We need return 30 when user hit escape or cancel (back up capability)
     $retval = 30 if $retval == 255 || ( $retval == 1 && $boxType ne 'yesno' );
-    # For the input and password boxes, we do not want lose previous value when
-    # backing up
-    # TODO radiolist, checklist and yesno dialog boxes
-    #$output = pop @boxOptions if $ret == 30 && grep ( $boxType eq $_, 'inputbox', 'passwordbox' );
+
+    # Both dialog output and dialog errors goes to STDERR. We need catch errors
+    !length $output or croak $output if $retval == 30;
+
     wantarray ? ( $retval, $output ) : $output;
 }
 
@@ -397,25 +454,26 @@ sub _resize
 {
     my ( $self ) = @_;
 
-    my $lines;
     if ( exists $ENV{'LINES'} ) {
-        $self->{'lines'} = $ENV{'LINES'};
+        $self->{'screenHeight'} = $ENV{'LINES'};
     } else {
-        ( $lines ) = `stty -a 2>/dev/null` =~ /rows (\d+)/s;
-        $lines ||= 24;
+        my ( $rows ) = `stty -a 2>/dev/null` =~ /rows (\d+)/s;
+        $self->{'screenHeight'} = $rows // 25;
     }
 
-    my $cols;
     if ( exists $ENV{'COLUMNS'} ) {
-        $cols = $ENV{'COLUMNS'};
+        $self->{'screenWidth'} = $ENV{'COLUMNS'};
     } else {
-        ( $cols ) = `stty -a 2>/dev/null` =~ /columns (\d+)/s;
-        $cols ||= 80;
+        my ( $cols ) = `stty -a 2>/dev/null` =~ /columns (\d+)/s;
+        $self->{'screenWidth'} = ( $cols || 80 );
     }
 
-    $lines > 23 && $cols > 79 or die( 'A screen at least 24 lines tall and 80 columns wide is required. Please enlarge your screen.' );
-    $self->{'lines'} = $lines-10;
-    $self->{'columns'} = $cols-4;
+    # Whiptail can't deal with very small screens. Detect this and fail,
+    # forcing use of some other frontend.
+    if ( $self->{'screenHeight'} < 13 || $self->{'screenWidth'} < 31 ) {
+        die( "A screen at least 13 lines tall and 31 columns wide is required. Please enlarge your screen.\n" );
+    }
+
     $self->endGauge();
 }
 
@@ -430,7 +488,7 @@ sub _resize
 
 sub _stripEmbeddedSequences
 {
-    $_[0] =~ s/\\Z[0-7brun]//gimr;
+    $_[0] =~ s/\\Z[0-7bBrRuUn]//gmr;
 }
 
 =item _getWhiptailVersion
@@ -451,6 +509,64 @@ sub _getWhiptailVersion
         $stdout =~ /([\d.]+)/i or die( "Couldn't retrieve whiptail version in version string" );
         $1 =~ s/\.//gr;
     };
+}
+
+=item _formatText( $text )
+
+ Format the given text to be displayed in a dialog box according current display properties
+
+ Param string $text Text to format
+ Return list conting formatted text and required box height and width to print the formatted text according the current display properties
+
+=cut
+
+sub _formatText
+{
+    my ( $self, $text ) = @_;
+
+    $text = _stripEmbeddedSequences( $text );
+
+    $iMSCP::Dialog::TextFormatter::columns = $self->{'screenWidth'}-$self->{'screenPaddingWidth'}-$self->{'boxPaddingWidth'};
+    $text = wrap( '', '', $text );
+
+    my $boxWidth = defined $self->{'_opts'}->{'title'} ? width( $self->{'_opts'}->{'title'} )+$self->{'boxTitlePaddingWidth'} : 0;
+    my $nbLines = my @lines = split /\n/, $text;
+
+    map {
+        my $width = width( $_ );
+        $boxWidth = $width if $width > $boxWidth
+    } @lines;
+    undef @lines;
+
+    $text, $nbLines+$self->{'boxPaddingHeight'}, $boxWidth+$self->{'boxPaddingWidth'};
+}
+
+=item _showtext
+
+ Display the given text in a dialog box
+ 
+ If the text is too long, it will be displayed in a scrollable dialog box.
+
+ Param string $text Text to display
+ Return int 0 (Ok), 30 (Backup), croak on failure
+
+=cut
+
+sub _showText
+{
+    my ( $self, $text ) = @_;
+
+    ref \$text eq 'SCALAR' && length $text or croak( '$text parameter is invalid.' );
+
+    ( $text, my $boxHeight, my $boxWidth ) = $self->_formatText( $text );
+
+    local $self->{'_opts'}->{'scrolltext'};
+    if ( $boxHeight > ( my $maxBoxHeight = $self->{'screenHeight'}-$self->{'screenPaddingHeight'} ) ) {
+        $boxHeight = $maxBoxHeight;
+        $self->{'_opts'}->{'scrolltext'} = '';
+    }
+
+    ( $self->_showDialog( 'msgbox', $text, $boxHeight, $boxWidth ) )[0];
 }
 
 =item DESTROY()

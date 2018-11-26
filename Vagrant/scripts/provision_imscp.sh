@@ -18,7 +18,7 @@ export DEBIAN_FRONTEND=noninteractive
 export LANG=C.UTF-8
 
 # Install pre-required packages
-apt-get --assume-yes --no-install-recommends install ca-certificates libnet-ip-perl libdata-validate-ip-perl
+apt-get --assume-yes --no-install-recommends install dialog
 
 # Create i-MSCP preseed file
 if [ -f /vagrant/preseed.pl ]; then
@@ -44,4 +44,4 @@ else
 fi
 
 # Run i-MSCP installer using preconfiguration file
-perl /usr/local/src/imscp/engine/bin/imscp-installer -dvp /tmp/preseed.pl
+perl /usr/local/src/imscp/src/bin/imscp-installer -dvp /tmp/preseed.pl

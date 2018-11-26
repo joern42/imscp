@@ -27,17 +27,19 @@ use iMSCP::File;
 # Configuration variables
 
 # Path to PhpMyAdmin configuration template file
-my $tplFilePath = '/root/imscp.config.inc.php';
+my $PMA_TPL_FILE_PATH = '';
 
 # Please, don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'onLoadTemplate', sub {
+return 1 unless length $PMA_TPL_FILE_PATH;
+
+iMSCP::EventManager->getInstance()->register( 'onLoadTemplate', sub
+{
     my ( $pkgName, $tplName, $tplContent ) = @_;
 
-    return 0 unless $pkgName eq 'phpmyadmin' && $tplName eq 'imscp.config.inc.php' && -f $tplFilePath;
+    return unless $pkgName eq 'phpmyadmin' && $tplName eq 'imscp.config.inc.php' && -f $PMA_TPL_FILE_PATH;
 
-    ${ $tplContent } = iMSCP::File->new( filename => $tplFilePath )->get();
-    0;
+    ${ $tplContent } = iMSCP::File->new( filename => $PMA_TPL_FILE_PATH )->get();
 } );
 
 1;

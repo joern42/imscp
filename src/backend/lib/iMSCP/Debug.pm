@@ -108,9 +108,10 @@ sub endDebug( )
         my $logDir = exists $::imscpConfig{'LOG_DIR'} ? $::imscpConfig{'LOG_DIR'} : '/var/log/imscp';
         require iMSCP::Dir;
         iMSCP::Dir->new( dirname => $logDir )->make( {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => 0750
+            user           => $::imscpConfig{'ROOT_USER'},
+            group          => $::imscpConfig{'ROOT_GROUP'},
+            mode           => 0750,
+            fixpermissions => iMSCP::Getopt->fixpermissions
         } );
         _writeLogfile( $log, File::Spec->catfile( $logDir, $log->getId()));
     };
@@ -225,26 +226,21 @@ sub getMessageByType( $;$ )
 
 =cut
 
+my %ANSI_LEVELS = (
+    debug => "[\x1b[0;34mDEBUG\x1b[0m] %s",
+    info  => "[\x1b[0;34mINFO\x1b[0m]  %s",
+    warn  => "[\x1b[0;33mWARN\x1b[0m]  %s",
+    error => "[\x1b[0;31mERROR\x1b[0m] %s",
+    ok    => "[\x1b[0;32mDONE\x1b[0m]  %s"
+);
+
 sub output( $;$ )
 {
     my ( $text, $level ) = @_;
 
     if ( defined $level ) {
-        unless ( iMSCP::Getopt->noansi ) {
-            return "[\x1b[0;34mDEBUG\x1b[0m] $text\n" if $level eq 'debug';
-            return "[\x1b[0;34mINFO\x1b[0m]  $text\n" if $level eq 'info';
-            return "[\x1b[0;33mWARN\x1b[0m]  $text\n" if $level eq 'warn';
-            return "[\x1b[0;31mERROR\x1b[0m] $text\n" if $level eq 'error';
-            return "[\x1b[0;31mFATAL\x1b[0m] $text\n" if $level eq 'fatal';
-            return "[\x1b[0;32mDONE\x1b[0m]  $text\n" if $level eq 'ok';
-        }
-
-        return "[DEBUG] $text\n" if $level eq 'debug';
-        return "[INFO]  $text\n" if $level eq 'info';
-        return "[WARN]  $text\n" if $level eq 'warn';
-        return "[ERROR] $text\n" if $level eq 'error';
-        return "[FATAL] $text\n" if $level eq 'fatal';
-        return "[DONE]  $text\n" if $level eq 'ok';
+        return sprintf( $ANSI_LEVELS{$level}, $text . "\n") unless iMSCP::Getopt->noansi;
+        return "[@{ [ uc $level ] }] $text\n";
     }
 
     "$text\n";

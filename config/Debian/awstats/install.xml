@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${SYSCONFDIR}/imscp/awstats</folder>
+    <copy_config>${SYSCONFDIR}/imscp/awstats/01_awstats.conf</copy_config>
+    <copy_config>${SYSCONFDIR}/imscp/awstats/awstats.conf</copy_config>
+</install>

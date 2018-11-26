@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folders mode="0755">/etc/init.d</folders>
+    <copy_config copy_if="'${PO_PACKAGE}' eq 'iMSCP::Server::po::courier'" mode="0750">/etc/init.d/courier-authdaemon</copy_config>
+    <copy_config mode="0755">/etc/init.d/imscp_daemon</copy_config>
+    <copy_config mode="0755">/etc/init.d/imscp_mountall</copy_config>
+    <copy_config mode="0755">/etc/init.d/imscp_traffic</copy_config>
+    <copy_config copy_if="'${FTPD_PACKAGE}' eq 'iMSCP::Server::ftpd::proftpd' &amp;&amp; '${DIST_CODENAME}' eq 'trusty'" keep_if="1" mode="0755">
+        /etc/init.d/proftpd
+    </copy_config>
+</install>

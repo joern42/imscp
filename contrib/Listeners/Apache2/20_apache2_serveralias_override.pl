@@ -34,12 +34,12 @@ my %serverAliases = (
 
 # Please, don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'afterHttpdBuildConf', sub {
+iMSCP::EventManager->getInstance()->register( 'afterHttpdBuildConf', sub
+{
     my ( $tplContent, $tplName, $data ) = @_;
 
-    return 0 unless $tplName eq 'domain.tpl' && $serverAliases{$data->{'DOMAIN_NAME'}};
+    return unless $tplName eq 'domain.tpl' && $serverAliases{$data->{'DOMAIN_NAME'}};
     ${ $tplContent } =~ s/^(\s+ServerAlias.*)/$1 $serverAliases{$data->{'DOMAIN_NAME'}}/m;
-    0;
 } );
 
 1;

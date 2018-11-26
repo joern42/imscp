@@ -28,7 +28,7 @@ use warnings;
 use Carp 'croak';
 use iMSCP::Boolean;
 use iMSCP::LsbRelease;
-use parent qw/ iMSCP::Common::SingletonClass iMSCP::DistPackageManager::Interface /;
+use parent qw/ iMSCP::Common::Singleton iMSCP::DistPackageManager::Interface /;
 
 =head1 DESCRIPTION
 

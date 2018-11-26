@@ -1,0 +1,107 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+ imscp-installer Install (or reconfigure) i-MSCP
+
+=head1 SYNOPSIS
+
+ imscp-installer [OPTION]...
+
+=cut
+
+# i-MSCP - internet Multi Server Control Panel
+# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+use strict;
+use warnings;
+use FindBin;
+use File::Basename 'basename';
+use iMSCP::Boolean;
+use iMSCP::Debug 'newDebug';
+use iMSCP::Getopt;
+use iMSCP::Installer;
+use iMSCP::LockFile;
+use POSIX 'locale_h';
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
+
+@{ENV}{qw/ LANG IMSCP_INSTALLER / } = ( 'C.UTF-8', TRUE );
+
+$> == 0 or die( "You do not have permission to call this script.\n" );
+
+exit unless iMSCP::LockFile->new( path => '/tmp/imscp-installer.lock', non_blocking => TRUE )->acquire();
+
+if($ENV{'IMSCP_DIST_INSTALLER'}) {
+    iMSCP::Getopt->parse( undef,
+        'clean-composer-cache|c' => \&iMSCP::Getopt::clearComposerCache,
+        'debug|d'                => \&iMSCP::Getopt::debug,
+        'dist-package-file|k=s'  => \&iMSCP::Getopt::distPackageFile,
+        'fix-permissions|f'      => \&iMSCP::Getopt::fixPermissions,
+        'help|?|h'               => \&iMSCP::Getopt::showUsage,
+        'layout|l=s'             => \&iMSCP::Getopt::layout,
+        'no-ansi|z'              => \&iMSCP::Getopt::noansi,
+        'non-interactive|n'      => \&iMSCP::Getopt::noninteractive,
+        'preseed|p=s'            => \&iMSCP::Getopt::preseed,
+        'reconfigure|r:s'        => \&iMSCP::Getopt::reconfigure,
+        'skip-composer-update|a' => \&iMSCP::Getopt::skipComposerUpdate,
+        'skip-dist-packages|s'   => \&iMSCP::Getopt::skipDistPackages,
+        'verbose|v'              => \&iMSCP::Getopt::verbose
+    );  
+} else {
+    iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
+
+Install (or reconfigure) i-MSCP.
+
+OPTIONS:
+ -c,   --clean-composer-cache         Cleanup composer cache.
+ -d,   --debug                        Enable debug mode.
+ -f,   --fix-permissions              Fix permissions recursively.
+ -h,-? --help                         Show this help.
+ -n,   --non-interactive              Switch to non-interactive mode.
+ -r,   --reconfigure        [ITEM]... Type 'help' for list of available items.
+ -s,   --skip-dist-packages           Skip distribution packages.
+ -v,   --verbose                      Enable verbose mode.
+ -z,   --no-ansi                      Disable ANSI output.
+},
+        'clean-composer-cache|c' => \&iMSCP::Getopt::clearComposerCache,
+        'debug|d'                => \&iMSCP::Getopt::debug,
+        'fix-permissions|f'      => \&iMSCP::Getopt::fixPermissions,
+        'help|?|h'               => \&iMSCP::Getopt::showUsage,
+        'non-interactive|n'      => \&iMSCP::Getopt::noninteractive,
+        'reconfigure|r:s'        => \&iMSCP::Getopt::reconfigure,
+        'skip-composer-update|a' => \&iMSCP::Getopt::skipComposerUpdate,
+        'skip-dist-packages|s'   => \&iMSCP::Getopt::skipDistPackages,
+        'verbose|v'              => \&iMSCP::Getopt::verbose,
+        'no-ansi|z'              => \&iMSCP::Getopt::noansi,
+    );
+}
+
+newDebug( 'imscp-installer.log' );
+
+system( 'clear' ) unless $ENV{'IMSCP_DIST_INSTALLER'} || iMSCP::Getopt->noninteractive;
+
+iMSCP::Installer->getInstance()->install();
+
+=head1 AUTHOR
+
+ Laurent Declercq <l.declercq@nuxwin.com>
+
+=cut
+
+1;
+__END__

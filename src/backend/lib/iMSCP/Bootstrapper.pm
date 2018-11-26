@@ -26,7 +26,6 @@ package iMSCP::Bootstrapper;
 use strict;
 use warnings;
 use autouse 'iMSCP::Crypt' => qw/ decryptRijndaelCBC randomStr /;
-use autouse POSIX => 'tzset';
 use Carp 'croak';
 use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::Requirements /;
 use iMSCP::Boolean;
@@ -37,6 +36,7 @@ use iMSCP::Provider::Config::JavaProperties;
 use iMSCP::Compat::HashrefViaHash;
 use iMSCP::Umask '$UMASK';
 use Params::Check qw/ check last_error /;
+use POSIX 'tzset';
 # Make sure that object destructors are called on HUP, PIPE, INT and TERM signals
 use sigtrap qw/ die normal-signals /;
 use parent 'iMSCP::Common::Singleton';

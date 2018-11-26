@@ -30,11 +30,13 @@ package Listener::Postfix::PFS;
 use strict;
 use warnings;
 use iMSCP::EventManager;
+use iMSCP::Server::mta;
 
-iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
-    return 0 unless -f '/etc/postfix/dh2048.pem' && -f '/etc/postfix/dh512.pem';
+iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub
+{
+    return unless -f '/etc/postfix/dh2048.pem' && -f '/etc/postfix/dh512.pem';
 
-    Servers::mta->factory()->postconf( (
+    iMSCP::Server::mta->factory()->postconf(
         smtpd_tls_dh1024_param_file => {
             action => 'replace',
             values => [ '/etc/postfix/dh2048.pem' ]
@@ -43,7 +45,7 @@ iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
             action => 'replace',
             values => [ '/etc/postfix/dh512.pem' ]
         }
-    ));
+    );
 }, -99 );
 
 1;

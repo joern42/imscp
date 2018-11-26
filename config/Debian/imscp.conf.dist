@@ -1,0 +1,85 @@
+## i-MSCP master configuration file
+
+# Release info
+# Please do not edit by hand.
+BuildDate                    =
+CodeName                     = Ennio Morricone 
+PluginApi                    = 1.5.1
+Version                      = Git 1.5.x
+
+# Distribution info
+# Please do not edit by hand.
+DISTRO_ARCH                  =
+DISTRO_FAMILY                =
+DIST_ID                      =
+DIST_CODENAME                =
+DIST_RELEASE                 =
+
+# System info
+SYSTEM_INIT =
+SYSTEM_VIRTUALIZER =
+
+# System users/groups
+ADM_GROUP                    = adm
+IMSCP_USER                   = imscp
+IMSCP_GROUP                  = imscp
+ROOT_USER                    = root
+ROOT_GROUP                   = root
+USER_PREFIX                  = vu
+USER_MIN_UID                 = 2000
+
+# Master administrator email
+# Please do not edit by hand.
+MASTER_ADMIN_EMAIL           =
+
+# OpenSSL configuration file
+OPENSSL_CNF                  = /etc/ssl/openssl.cnf
+
+# Common CA certificates
+CA_BUNDLE                    = /etc/ssl/certs/ca-certificates.crt
+CA_PATH                      = /etc/ssl/certs
+
+# Date format
+DATE_FORMAT                  = d.m.Y
+
+# Timezone
+TIMEZONE                     =
+
+# Paths
+# Please do not edit by hand. The paths below are set according the
+# distribution layout. You can provide your own distribution layout
+# using the installer --layout command line option.
+BIN_DIR                      = {BINDIR}
+CONF_DIR                     = {CONFDIR}
+DOC_DIR                      = {DOCDIR}/imscp
+LOG_DIR                      = {LOCALSTATEDIR}/log/imscp
+LOCK_DIR                     = {LOCALSTATEDIR}/lock/imscp
+MAIL_DIR                     = {LOCALSTATEDIR}/mail/virtual
+RUN_DIR                      = {RUNSTATEDIR}/imscp
+SBIN_DIR                     = {SBINDIR}
+SRV_DIR                      = {LOCALSTATEDIR}/wwww
+PLUGIN_DIR                   = {LOCALSTATEDIR}/lib/imscp/plugins
+
+# Servers
+# Please do not edit by hand.
+FTPD_SERVER                  =
+HTTPD_SERVER                 =
+MTA_SERVER                   =
+NAMED_SERVER                 =
+PO_SERVER                    =
+SQLD_SERVER                  =
+
+# Packages
+# Please do not edit by hand.
+ANTIROOTKIT_PACKAGES         =
+FILEMANAGER_PACKAGES         =
+POSTFIXADDON_PACKAGES        =
+SQLMANAGER_PACKAGES          =
+WEBMAIL_PACKAGES             =
+WEBSTATS_PACKAGES            =
+
+# Providers
+iMSCP::Providers::Networking =
+
+# Debugger
+DEBUG                        = 0

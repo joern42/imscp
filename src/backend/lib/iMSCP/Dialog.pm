@@ -91,7 +91,7 @@ sub executeDialogs
 
 =item _init( )
 
- See iMSCP::Common::SingletonClass::_init()
+ See iMSCP::Common::Singleton::_init()
 
 =cut
 
@@ -104,15 +104,17 @@ sub _init
             require iMSCP::Dialog::NonInteractive;
             iMSCP::Dialog::NonInteractive->getInstance();
         } else {
+            # Dialog frontEnd are loaded in order of preference, unless the
+            # user forced specific frontEnd type through environment variables
+            local $@;
             eval {
-                local $@;
-                die if $ENV{'FORCE_DIALOG'};
+                die if $ENV{'IMSCP_DIALOG_FORCE_DIALOG'};
                 require iMSCP::Dialog::Whiptail;
                 iMSCP::Dialog::Whiptail->getInstance();
             } or do {
                 require iMSCP::Dialog::Dialog;
                 iMSCP::Dialog::Dialog->getInstance();
-            };
+            }
         }
     };
 

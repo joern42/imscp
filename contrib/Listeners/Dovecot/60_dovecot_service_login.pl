@@ -53,10 +53,11 @@ my $popServiceCount = 0;
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register( 'beforePoBuildConf', sub {
+iMSCP::EventManager->getInstance()->register( 'beforePoBuildConf', sub
+{
     my ( $cfgTpl, $tplName ) = @_;
 
-    return 0 unless $tplName eq 'dovecot.conf';
+    return unless $tplName eq 'dovecot.conf';
 
     ${ $cfgTpl } .= <<"EOF";
 
@@ -92,7 +93,6 @@ service pop3-login {
 }
 # Ending Listener::Dovecot::Service::Login
 EOF
-    0;
 } );
 
 1;

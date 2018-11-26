@@ -23,7 +23,7 @@ use strict;
 use warnings;
 use iMSCP::Debug;
 use iMSCP::EventManager;
-use Servers::mta;
+use iMSCP::Server::mta;
 
 # Configuration variables
 
@@ -47,7 +47,8 @@ my @masterCfParameters = (
 
 # Please don't edit anything below this line unless you known what you're doing
 
-iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
+iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub
+{
     my %params = ();
     while ( my ( $param, $value ) = each( %mainCfParameters ) ) {
         $params{$param} = {
@@ -57,19 +58,14 @@ iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
     }
 
     if ( %params ) {
-        my $rs = Servers::mta->factory()->postconf( %params );
+        my $rs = iMSCP::Server::mta->factory()->postconf( %params );
         return $rs if $rs;
     }
-
-    0;
 }, -99 );
 
 iMSCP::EventManager->getInstance()->register( 'afterMtaBuildMasterCfFile', sub {
-    my $cfgTpl = shift;
-
-    return 0 unless @masterCfParameters;
-    ${ $cfgTpl } .= join( "\n", @masterCfParameters ) . "\n";
-    0;
+    return unless @masterCfParameters;
+    ${ $_[0] } .= join( "\n", @masterCfParameters ) . "\n";
 } );
 
 1;

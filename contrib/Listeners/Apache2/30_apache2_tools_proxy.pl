@@ -30,10 +30,11 @@ use warnings;
 use iMSCP::EventManager;
 use iMSCP::TemplateParser qw/ getBlocByRef process replaceBlocByRef /;
 
-iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConf', sub {
+iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConf', sub
+{
     my ( $cfgTpl, $tplName, $data ) = @_;
 
-    return 0 unless $tplName eq 'domain.tpl' && grep ( $_ eq $data->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
+    return unless $tplName eq 'domain.tpl' && grep ( $_ eq $data->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
 
     if ( $data->{'VHOST_TYPE'} eq 'domain' && $data->{'SSL_SUPPORT'} ) {
         replaceBlocByRef(
@@ -45,7 +46,7 @@ iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConf', sub {
                 . "    # SECTION addons END.\n",
             $cfgTpl
         );
-        return 0;
+        return;
     }
 
     my $cfgProxy = ( $::imscpConfig{'PANEL_SSL_ENABLED'} eq 'yes' ) ? "    SSLProxyEngine On\n" : '';
@@ -74,7 +75,6 @@ EOF
             . "    # SECTION addons END.\n",
         $cfgTpl
     );
-    0;
 } );
 
 1;
