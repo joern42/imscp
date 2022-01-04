@@ -119,7 +119,7 @@ class Services implements iterator, countable
      */
     private function getStatus(): bool
     {
-        $identifier = static::class
+        $identifier = preg_replace('/[^a-zA-Z0-9_]/', '_',static::class)
             . '_'
             . preg_replace('/[^a-zA-Z0-9_]/', '_', $this->key());
 
