@@ -437,7 +437,7 @@ class PluginArchive extends Zend_Validate_Abstract
         /** @var string $infoAsString */
         $infoAsString = @$arch->extractInString("$name/info.php");
 
-        if (false === $infoAsString) {
+        if (NULL === $infoAsString) {
             return $this->_throw($file['name'], self::NO_PLUGIN_INFO);
         }
 
