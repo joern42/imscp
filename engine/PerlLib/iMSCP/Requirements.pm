@@ -129,7 +129,7 @@ sub _init
             min_version     => '7.3.0',
             max_version     => '7.3.999',
             modules         => [
-                'apc', 'apcu', 'ctype', 'curl', 'date', 'dom', 'fileinfo',
+                'apcu', 'ctype', 'curl', 'date', 'dom', 'fileinfo',
                 'filter', 'ftp', 'gd', 'gettext', 'gmp', 'hash', 'iconv',
                 'imap', 'intl', 'json', 'libxml', 'mbstring', 'mysqlnd',
                 'mysqli', 'openssl', 'pcntl', 'pcre', 'PDO', 'pdo_mysql',

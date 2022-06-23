@@ -29,6 +29,7 @@ use Class::Autouse qw/ :nostat Servers::sqld::mariadb::installer Servers::sqld::
 use iMSCP::Boolean;
 use iMSCP::Service;
 use iMSCP::Database;
+use iMSCP::Debug qw/ debug error getMessageByType /;
 use parent 'Servers::sqld::mysql';
 
 =head1 DESCRIPTION
@@ -71,7 +72,7 @@ sub postinstall
     my $rs = $self->{'events'}->trigger( 'beforeSqldPostInstall', 'mariadb' );
 
     local $@;
-    eval { iMSCP::Service->getInstance()->enable( 'mysql' ); };
+    eval { iMSCP::Service->getInstance()->enable( 'mariadb' ); };
     if ( $@ ) {
         error( $@ );
         return 1;
