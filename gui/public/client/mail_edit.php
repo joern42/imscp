@@ -80,7 +80,7 @@ function client_editMailAccount()
     $mainDmnProps = get_domain_default_props($_SESSION['user_id']);
     $password = $forwardList = '_no_';
     $mailType = '';
-    $mailQuotaLimitBytes = NULL;
+    $mailQuotaLimitBytes = 0;
 
     if (!preg_match('/^(.*?)_(?:mail|forward)/', $mailData['mail_type'], $match)) {
         throw new Exception('Could not determine mail type');

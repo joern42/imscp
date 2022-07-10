@@ -104,7 +104,7 @@ function addMailAccount()
     $mailType = $subId = '';
     $mailTypeNormal = in_array($_POST['account_type'], ['1', '3']);
     $mailTypeForward = in_array($_POST['account_type'], ['2', '3']);
-    $mailQuotaLimitBytes = NULL;
+    $mailQuotaLimitBytes = 0;
 
     // Check for username
     $username = mb_strtolower(clean_input($_POST['username']));
