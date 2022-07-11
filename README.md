@@ -1,4 +1,4 @@
-## i-MSCP - internet Multi Server Control Panel
+## i-MSCP - internet Multi Server Control Panel -- Debian 11 Version
 
 i-MSCP (internet Multi Server Control Panel) is an open source software (OSS)
 for shared hosting environments management on Linux servers. It comes with
