@@ -135,9 +135,9 @@ sub validateCertificate
     my $cmd = [
         '/usr/bin/openssl',
         'verify',
-        ( length $self->{'ca_bundle_container_path'}
-            ? ( '-CAfile', $self->{'ca_bundle_container_path'} ) : ()
-        ),
+#        ( length $self->{'ca_bundle_container_path'}
+#            ? ( '-CAfile', $self->{'ca_bundle_container_path'} ) : ()
+#        ),
         '-purpose', 'sslserver',
         $self->{'certificate_container_path'}
     ];
