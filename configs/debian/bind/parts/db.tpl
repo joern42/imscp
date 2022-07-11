@@ -8,7 +8,10 @@ $ORIGIN {DOMAIN_NAME}.
 	1H; Minimum TTL
 )
 ; domain NS records BEGIN
-@		IN	NS	{NS_NAME}
+@               IN      NS      dns.vege.net.
+@               IN      NS      ns2.bremen-nord.de.
+@               IN      NS      dns.bremen-nord.de.
+@               IN      NS      ns2.y4i.de.
 ; domain NS records ENDING
 @		IN	{IP_TYPE}	{DOMAIN_IP}
 ; domain NS GLUE records BEGIN
