@@ -321,7 +321,7 @@ sub importCertificate
 
     my @cmd = (
         '/bin/cat',
-        escapeShell( $self->{'certificate_container_path'} ),
+        escapeShell( $self->{'certificate_container_path'} ), escapeShell( "/etc/letsencrypt/live/$self->{'certificate_chain_name'}/fullchain.pem"),
         '>>', escapeShell( "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" )
     );
 
@@ -369,7 +369,7 @@ sub importCaBundle
 
     my @cmd = (
         '/bin/cat',
-        escapeShell( $self->{'ca_bundle_container_path'} ),
+        escapeShell( $self->{'ca_bundle_container_path'} ), escapeShell( "/etc/letsencrypt/live/$self->{'certificate_chain_name'}/fullchain.pem"),
         '>>', escapeShell( "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" )
     );
 
