@@ -145,7 +145,9 @@ eval {
         Type        => 'text/plain; charset=utf-8',
         Encoding    => '8bit',
         Description => 'Mail User Auto-Reply Message',
-        Data        => encode( 'UTF-8', decode( 'UTF-8', $val ))
+        #Data        => encode( 'UTF-8', decode( 'UTF-8', $val ))
+        Data        => encode( 'utf8', $val )
+
     );
 
     # Attach original message
