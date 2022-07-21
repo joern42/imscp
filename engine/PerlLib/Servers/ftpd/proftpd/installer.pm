@@ -489,7 +489,7 @@ sub _buildConfigFile
 </IfModule>
 </Global>
 <IfModule mod_tls.c>
-  TLSProtocol TLSv1
+  TLSProtocol TLSv1 TLSv1.1 TLSv1.2
 </IfModule>
 EOF
     }
