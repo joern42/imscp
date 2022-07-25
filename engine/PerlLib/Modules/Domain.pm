@@ -428,6 +428,7 @@ sub _getData
             HSTS_SUPPORT            => $allowHSTS,
             HSTS_MAX_AGE            => $hstsMaxAge,
             HSTS_INCLUDE_SUBDOMAINS => $hstsIncludeSubDomains,
+            ALIAS                   => 'dmn' . $self->{'domain_id'},
             FORWARD                 => $self->{'url_forward'} || 'no',
             FORWARD_TYPE            => $self->{'type_forward'} || '',
             FORWARD_PRESERVE_HOST   => $self->{'host_forward'} || 'Off',
