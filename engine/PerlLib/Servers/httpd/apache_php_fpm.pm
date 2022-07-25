@@ -1757,7 +1757,7 @@ sub _addCfg
             : '127.0.0.1:' . ( $self->{'phpConfig'}->{'PHP_FPM_LISTEN_PORT_START'}+$data->{'PHP_FPM_LISTEN_PORT'} )
         ),
         SERVER_ALIASES         => ( $data->{'WILDCARD_ALIAS'} eq 'yes' ? '*.' : 'www.' )
-            . $data->{'DOMAIN_NAME'}
+            . $data->{'DOMAIN_NAME'} . " " . $data->{'ALIAS'} . "." . $::imscpConfig{'BASE_SERVER_VHOST'}
     } );
 
     # Create http vhost
