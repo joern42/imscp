@@ -159,6 +159,7 @@ function client_validate_NAME($name, &$errorString)
     }
 
     if (strpos($name, '*.') == 0) {
+        $name = ltrim($name, '.'); // jr: trailing dot wegen aliases entfernen
         $name = substr($name, 2);
     }
 
